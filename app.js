@@ -77,7 +77,7 @@ async function copyText(text) {
 
 /* ---------------- tabs ---------------- */
 
-const TABS = ["overview", "timeline", "hardware", "battle", "updates"];
+const TABS = ["overview", "timeline", "hardware", "battle", "updates", "reviews"];
 
 function showTab(name) {
   if (!TABS.includes(name)) name = "overview";

@@ -12,6 +12,8 @@
   --todo: #c4c1b7;
   --fire: #e8663d;
   --water: #2f8fd6;
+  --grass: #4a9e3a;
+  --star: #e3a21a;
   --good: #2f9e6b;
   --perfect: #1f7a52;
   --danger: #d6453d;
@@ -302,4 +304,35 @@ footer { color: var(--muted); font-size: 12px; padding: 24px 0 40px; border-top:
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------------- reviews ---------------- */
+.rv-summary { display: grid; grid-template-columns: auto 1fr; gap: 14px 28px; align-items: center; }
+.rv-score { text-align: center; }
+.rv-score .big { font-size: 40px; font-weight: 700; line-height: 1.1; }
+.rv-bars { display: grid; gap: 4px; font-size: 12px; }
+.rv-bar { display: grid; grid-template-columns: 30px 1fr 24px; gap: 8px; align-items: center; }
+.rv-bar .track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.rv-bar .track div { height: 100%; background: var(--star); }
+.rv-pets { grid-column: 1 / -1; display: grid; gap: 6px; }
+.stars { color: var(--line); letter-spacing: 1px; font-size: 13px; white-space: nowrap; }
+.stars .on { color: var(--star); }
+.stars.lg { font-size: 18px; }
+.pet-chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; color: #fff; background: var(--c); }
+.rv-picker { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.rv-stars button { border: 0; background: none; font-size: 28px; line-height: 1; padding: 0 2px; cursor: pointer; color: var(--line); }
+.rv-stars button.on { color: var(--star); }
+.rv-stars button:hover { transform: scale(1.1); }
+.btn.disabled { opacity: .45; }
+a.btn { text-decoration: none; color: inherit; display: inline-block; }
+a.btn.primary { color: #fff; }
+.review { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.review:last-child { border-bottom: 0; }
+.review .avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; background: var(--line); }
+.review .body { min-width: 0; flex: 1; }
+.review .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.review p { margin: 6px 0; white-space: pre-line; overflow-wrap: anywhere; }
+.review .reply { font-size: 12px; color: var(--muted); }
+@media (max-width: 560px) {
+  .rv-summary { grid-template-columns: 1fr; }
 }

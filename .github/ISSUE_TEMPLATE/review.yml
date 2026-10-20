@@ -1,0 +1,38 @@
+name: 游戏评价
+description: 给 Pocket Rivals 留一条评价，会显示在项目网站的「留言」页
+title: "[评价] "
+labels: ["review"]
+body:
+  - type: dropdown
+    id: rating
+    attributes:
+      label: 评分
+      options:
+        - "★★★★★ 5"
+        - "★★★★☆ 4"
+        - "★★★☆☆ 3"
+        - "★★☆☆☆ 2"
+        - "★☆☆☆☆ 1"
+    validations:
+      required: true
+  - type: dropdown
+    id: pet
+    attributes:
+      label: 最喜欢的宠物
+      options:
+        - "Ember 焰灵（火）"
+        - "Tide 潮影（水）"
+        - "Sprout 叶芽（草）"
+        - "还没选"
+  - type: textarea
+    id: comment
+    attributes:
+      label: 评价
+      description: 好玩的地方、不好玩的地方、想加什么
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: 署名（可选）
+      description: 留空就显示你的 GitHub 用户名
