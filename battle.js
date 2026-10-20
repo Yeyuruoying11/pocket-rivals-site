@@ -42,8 +42,9 @@
     {name: "叶芽 Sprout", short: "Sprout", el: "grass", type: "草", skill: "汲取"},
   ];
   const PLAYERS = [
-    {name: "玩家 1", keys: ["A", "S", "D"]},
-    {name: "玩家 2", keys: ["J", "K", "L"]},
+    // keys: 蓄力 / 第 1 只，防御 / 第 2 只，技能 / 第 3 只，换宠物 / 取消
+    {name: "玩家 1", keys: ["A", "S", "D", "F"]},
+    {name: "玩家 2", keys: ["J", "K", "L", ";"]},
   ];
   const BEATS = {fire: "grass", grass: "water", water: "fire"};
   const RESULT_TXT = {perfect: "完美格挡！", good: "格挡成功", miss: "没挡住"};
@@ -168,6 +169,7 @@
     S.phase = phase;
     S.waiting = waiting;
     S.step++;
+    S.switching = null;  // like player_core: any new step ends the switch choice
   }
 
   // Runs fn after ms unless the game has moved on in the meantime
@@ -227,9 +229,10 @@
     S = {
       pl: [0, 1].map(() => ({hp: Array(TEAM_SIZE).fill(hp), active: null, burn: 0, shield: false, cd: 0})),
       hpMax: hp, pending: [null, null], waiting: [], step: 0,
-      turn: first, round: 1, phase: "", next: "begin", justUsed: false,
+      turn: first, first, round: 1, phase: "", next: "begin", justUsed: false,
       charge: 0, over: false, t0: 0, atk: 0, atkPct: 100,
       zone: 40, cursor: 0, result: null, winner: null, event: "",
+      switching: null,  // attacker choosing a pet to switch to (local, like player_core)
     };
     log.length = 0;
     addLog(`新的一局：${pName(first)} 先手。双方暗中选择出场宠物。`);
@@ -264,7 +267,7 @@
     if (S.justUsed) S.justUsed = false;
     else if (p.cd > 0) p.cd--;
     S.turn = dfn();
-    if (S.turn === 0) S.round++;
+    if (S.turn === S.first) S.round++;  // a round = one turn each, like game.c
     beginTurn();
   }
 
@@ -371,7 +374,7 @@
     let r = "miss";
     if (pressed && c >= z && c <= z + w) {
       // Perfect = middle 30% of the zone
-      const lo = z + Math.floor(w * 35 / 100), hi = z + Math.floor(w * 65 / 100);
+      const lo = z + Math.ceil(w * 35 / 100), hi = z + Math.floor(w * 65 / 100);
       r = c >= lo && c <= hi ? "perfect" : "good";
     }
     S.result = r;
@@ -411,12 +414,48 @@
     showEvent("end", html);
   }
 
-  // slot = 0/1/2: the player's three keys / pad buttons
+  // Pets player i could switch to: alive and not the one on the field
+  const canSwitchTo = (i, k) => pl(i).active !== null && k !== pl(i).active && pl(i).hp[k] > 0;
+  const canSwitch = i => PETS.some((_, k) => canSwitchTo(i, k));
+
+  // Same as do_switch() in game.c: costs the turn, burn and shield leave with
+  // the old pet, the cooldown keeps counting down as after any turn
+  function switchPet(i, k) {
+    if (S.phase !== "ready" || i !== att() || !canSwitchTo(i, k)) return;
+    const p = pl(i), old = petName(i);
+    p.active = k;
+    p.burn = 0;
+    p.shield = false;
+    addLog(`🔄 ${pName(i)} 收回 ${old}，换上 ${petName(i)}`);
+    let html = `🔄 ${esc(PLAYERS[i].name)} 换上 <b>${petName(i)}</b>`;
+    const pct = typePct(activePet(0).el, activePet(1).el);
+    if (pct !== 100) {
+      const w = pct > 100 ? 0 : 1;
+      html += `<br><span class="muted">${esc(activePet(w).short)} 克制 ${esc(activePet(1 - w).short)}</span>`;
+    }
+    showEvent("end", html);
+  }
+
+  // slot = 0/1/2/3: the player's four keys / pad buttons
   function act(i, slot, down) {
     if (!S) return;
     const ph = S.phase;
-    if (ph === "sendout") {
-      if (down) pick(i, slot);
+    if (S.switching === i) {
+      // Choosing a pet to switch to: slots 0-2 pick it, slot 3 cancels
+      if (!down) return;
+      if (slot === 3) {
+        S.switching = null;
+        render();
+      } else {
+        switchPet(i, slot);
+      }
+    } else if (ph === "sendout") {
+      if (down && slot < 3) pick(i, slot);
+    } else if (slot === 3) {
+      if (down && ph === "ready" && i === att() && canSwitch(i)) {
+        S.switching = i;
+        render();
+      }
     } else if (ph === "over") {
       if (down && slot === 0) startMatch(1 - S.winner);  // loser goes first
     } else if (slot === 0 && i === att()) {
@@ -470,7 +509,7 @@
         <div class="roster">${PETS.map((pet, k) => `<div class="mini ${pet.el}" data-k="${k}">
             ${spriteSvg(pet.el, "msprite")}<span class="mname">${esc(pet.short)}</span>
             <span class="mhp"><i></i></span><span class="mnum"></span></div>`).join("")}</div>
-        <div class="pad">${[0, 1, 2].map(s => `<button data-i="${i}" data-s="${s}"><span></span><kbd></kbd></button>`).join("")}</div>`;
+        <div class="pad">${[0, 1, 2, 3].map(s => `<button data-i="${i}" data-s="${s}"${s === 3 ? ' class="wide"' : ""}><span></span><kbd></kbd></button>`).join("")}</div>`;
     });
   }
 
@@ -486,7 +525,7 @@
     $("#def-zone").style.display = showZone ? "" : "none";
     $("#def-zone").style.left = S.zone + "%";
     $("#def-zone").style.width = w + "%";
-    const lo = Math.floor(w * 35 / 100), hi = Math.floor(w * 65 / 100);
+    const lo = Math.ceil(w * 35 / 100), hi = Math.floor(w * 65 / 100);
     $("#def-perfect").style.left = (lo / w * 100) + "%";
     $("#def-perfect").style.width = ((hi - lo + 1) / w * 100) + "%";
     $("#def-cursor").style.left = `calc(${S.cursor}% - 1.5px)`;
@@ -497,21 +536,28 @@
 
   function padLabels(i) {
     const kb = PLAYERS[i].keys, p = pl(i), ph = S.phase;
+    const isAtt = i === att();
+    const switchBtn = {t: "换宠物", k: kb[3], on: isAtt && ph === "ready" && canSwitch(i)};
+    if (S.switching === i) {
+      return [...PETS.map((pet, k) => ({t: pet.short, k: kb[k], on: canSwitchTo(i, k)})),
+        {t: "取消换宠物", k: kb[3], on: true}];
+    }
     if (ph === "sendout") {
       const choosing = S.waiting.includes(i);
-      return PETS.map((pet, k) => ({
+      return [...PETS.map((pet, k) => ({
         t: pet.short, k: kb[k], on: choosing && p.hp[k] > 0,
-      }));
+      })), {...switchBtn, on: false}];
     }
     if (ph === "over") {
-      return [{t: "再来一局", k: kb[0], on: true}, {t: "防御", k: kb[1], on: false}, {t: "技能", k: kb[2], on: false}];
+      return [{t: "再来一局", k: kb[0], on: true}, {t: "防御", k: kb[1], on: false}, {t: "技能", k: kb[2], on: false},
+        {...switchBtn, on: false}];
     }
-    const isAtt = i === att();
     const skill = p.active !== null ? PETS[p.active].skill : "技能";
     return [
       {t: "蓄力", k: "按住 " + kb[0], on: isAtt && (ph === "ready" || ph === "charging")},
       {t: "防御", k: kb[1], on: !isAtt && ph === "defending"},
       {t: skill, k: kb[2], on: isAtt && ph === "ready" && p.cd === 0},
+      switchBtn,
     ];
   }
 
@@ -530,7 +576,7 @@
       el.querySelector(".role-lbl").textContent =
         ph === "over" ? (S.winner === i ? "🏆 胜利" : "全部倒下") :
         ph === "sendout" ? (S.waiting.includes(i) ? "选择出场宠物…" : S.pending[i] !== null ? "✓ 已选好" : "等待对方选择") :
-        isAtt ? "进攻方" : "防守方";
+        S.switching === i ? "选择换上的宠物…" : isAtt ? "进攻方" : "防守方";
 
       const stage = el.querySelector(".stage");
       const key = pet ? pet.el : ph === "over" ? "out" : "none";
@@ -552,6 +598,8 @@
         const k = +m.dataset.k, h = p.hp[k];
         m.classList.toggle("fainted", h === 0);
         m.classList.toggle("active", p.active === k);
+        m.classList.toggle("pickable", S.switching === i ? canSwitchTo(i, k) :
+          ph === "sendout" && S.waiting.includes(i) && h > 0);
         m.querySelector(".mhp i").style.width = (h / S.hpMax * 100) + "%";
         m.querySelector(".mnum").textContent = h === 0 ? "倒下" : h;
       });
@@ -576,9 +624,14 @@
       prompt = `<span>${first ? `暗中选择出场宠物（先手：${pName(S.turn)}）` : "宠物倒下了，选择下一只"}<br>${status}</span>`;
     } else if (ph === "resolve") {
       prompt = `<span>${S.event}</span>`;
+    } else if (ph === "ready" && S.switching === a) {
+      const keys = PETS.map((_, k) => k).filter(k => canSwitchTo(a, k)).map(k => kbd(PLAYERS[a].keys[k])).join("/");
+      prompt = `<span>${pName(a)} 换宠物：按 ${keys} 或点宠物选择换上谁（用掉这一回合，灼烧和护盾随旧宠物消失）<br>` +
+        `<span class="muted">按 ${kbd(PLAYERS[a].keys[3])} 取消</span></span>`;
     } else if (ph === "ready") {
       prompt = `<span>${pName(a)} 的 ${petName(a)} 进攻：按住 ${kbd(PLAYERS[a].keys[0])} 蓄力，松开出招` +
-        (pl(a).cd ? `（技能冷却中）` : `；或按 ${kbd(PLAYERS[a].keys[2])} 使用「${esc(activePet(a).skill)}」`) + `</span>`;
+        (pl(a).cd ? `（技能冷却中）` : `；或按 ${kbd(PLAYERS[a].keys[2])} 使用「${esc(activePet(a).skill)}」`) +
+        (canSwitch(a) ? `；按 ${kbd(PLAYERS[a].keys[3])} 换宠物` : "") + `</span>`;
     } else if (ph === "charging") {
       prompt = S.over ? `<span style="color:var(--danger)">过载了！现在松开伤害减半</span>` :
         `<span>蓄力中… 松开 ${kbd(PLAYERS[a].keys[0])} 出招</span>`;
@@ -617,6 +670,13 @@
 
   const arena = document.querySelector(".arena");
   arena.addEventListener("pointerdown", e => {
+    // The pet row picks a pet while sending out or switching
+    const m = e.target.closest(".mini.pickable");
+    if (m) {
+      e.preventDefault();
+      act(+m.closest(".fighter").id.slice(1), +m.dataset.k, true);
+      return;
+    }
     const b = e.target.closest(".pad button");
     if (!b || b.disabled) return;
     e.preventDefault();
