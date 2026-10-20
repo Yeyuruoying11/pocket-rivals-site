@@ -2,6 +2,13 @@
   {
     "date": "2026-10-20",
     "author": "yihao",
+    "area": "无线",
+    "title": "输入 driver、无线测试固件、网页原型改成 3 宠物规则",
+    "body": "玩家板加了 Qwiic 摇杆、外接按钮、压力传感器的 driver（全部可选，光板子也能玩）；新的 radio_test 固件每秒报告丢包、延迟和 RSSI，配一份上板测试清单 docs/hardware-test.md。网页玩法原型改成和固件一样的规则：每人 3 只宠物、暗选出场、火克草克水克火，导出的 #define 可以直接替换 game_config.h。都还没上板实测。"
+  },
+  {
+    "date": "2026-10-20",
+    "author": "yihao",
     "area": "网站",
     "title": "新增留言板",
     "body": "网站多了「留言」页：可以打分、选最喜欢的宠物、写评价，也可以回复别人的评价。留言存在本仓库的 GitHub Issues 里，有 GitHub 账号就能发。"

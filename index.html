@@ -116,14 +116,14 @@
 
   <!-- ================= 玩法原型 ================= -->
   <section class="panel" data-panel="battle" hidden>
-    <h2>战斗玩法原型 <small>两个人用同一台电脑或手机对打，边玩边调参数</small></h2>
+    <h2>战斗玩法原型 <small>两个人用同一台电脑或手机对打，边玩边调参数；规则和固件 game.c 一致</small></h2>
     <div class="card">
       <div class="arena">
-        <div class="fighter fire" id="f0"></div>
+        <div class="fighter" id="f0"></div>
         <div class="mid">
           <div class="prompt" id="prompt">加载中…</div>
           <div>
-            <div class="gauge-lbl"><span>蓄力（模拟压力传感器）</span><span id="charge-val">0%</span></div>
+            <div class="gauge-lbl"><span>蓄力（模拟压力传感器）</span><span id="charge-val">—</span></div>
             <div class="gauge"><div class="fill" id="charge-fill"></div></div>
           </div>
           <div>
@@ -133,21 +133,23 @@
           <div class="row"><button class="btn" id="restart">重新开始</button><span class="spacer"></span><span class="muted" style="font-size:12px">回合 <b id="round">1</b></span></div>
           <ul class="log" id="log"></ul>
         </div>
-        <div class="fighter water" id="f1"></div>
+        <div class="fighter" id="f1"></div>
       </div>
     </div>
 
     <h2>规则</h2>
     <div class="card" style="font-size:14px">
       <ol style="margin:0;padding-left:20px">
+        <li>每人 3 只宠物：焰灵 Ember（火）、潮影 Tide（水）、叶芽 Sprout（草），每只 60 HP。开局双方<b>暗中</b>选择出场宠物（玩家 1 用 A / S / D，玩家 2 用 J / K / L），都选好后一起亮出。先手随机。</li>
+        <li>属性相克：<b style="color:var(--fire)">火</b> 克 <b style="color:var(--grass)">草</b>，<b style="color:var(--grass)">草</b> 克 <b style="color:var(--water)">水</b>，<b style="color:var(--water)">水</b> 克 <b style="color:var(--fire)">火</b>。克制时伤害 ×150%（效果拔群），被克制时 ×70%（效果一般），对攻击和技能伤害都有效。</li>
         <li>双方轮流进攻。进攻方<b>按住蓄力键</b>，松开即出招；蓄力越满伤害越高，但蓄满后继续按太久会<b>过载</b>，伤害减半。</li>
-        <li>出招后，防守方看防御条：光标扫过时在<b>绿色区域</b>按防御键可减伤 50%，按在深绿色正中可减伤 80%。</li>
-        <li>进攻方也可以改用技能（有冷却）。焰灵「灼烧」：8 点伤害，并让对方之后 2 回合每回合掉 5 HP。潮影「潮汐护盾」：回复 12 HP，下次受到的伤害减半。</li>
-        <li>一方 HP 归零即获胜。</li>
+        <li>出招后，防守方看防御条：光标扫过时在<b>绿色区域</b>按防御键只受 50% 伤害，按在深绿色正中只受 20%。</li>
+        <li>进攻方也可以改用技能，冷却按玩家算（换宠物不重置）。Ember「灼烧」：8 点伤害，并让对方之后 2 个回合开始时各掉 5 HP。Tide「潮汐护盾」：回复 12 HP，下次受到的伤害减半。Sprout「汲取」：造成 6 点伤害，并回复同样多的 HP。</li>
+        <li>宠物倒下后，它的主人选下一只出场（灼烧和护盾随之消失）。3 只都倒下就输了。再来一局时输家先手。</li>
       </ol>
     </div>
 
-    <h2>参数调节 <small>调好后可以复制成 C 代码给战斗逻辑用</small></h2>
+    <h2>参数调节 <small>名字和默认值与 game_config.h 相同，复制后可以直接替换整个文件</small></h2>
     <div class="card">
       <div class="params" id="params"></div>
       <pre class="snippet mono" id="param-c"></pre>
