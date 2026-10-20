@@ -1,0 +1,31 @@
+{
+  "note": "草案：玩家板的 pin 分配还没和 Binqi 定稿，接线前请再确认。",
+  "pins": [
+    {"pin": "P0",  "nrf": "P0.02", "caps": ["GPIO", "ADC"], "builtin": null,       "player": {"use": "DFPlayer RX（MCU 的 UART TX）", "part": "audio"}},
+    {"pin": "P1",  "nrf": "P0.03", "caps": ["GPIO", "ADC"], "builtin": null,       "player": {"use": "压力传感器 (ADC AIN1)", "part": "fsr"}},
+    {"pin": "P2",  "nrf": "P0.04", "caps": ["GPIO", "ADC"], "builtin": null,       "player": {"use": "按钮 1：技能", "part": "btn"}},
+    {"pin": "P3",  "nrf": "P0.31", "caps": ["GPIO", "ADC"], "builtin": "LED 列 3", "player": null},
+    {"pin": "P4",  "nrf": "P0.28", "caps": ["GPIO", "ADC"], "builtin": "LED 列 1", "player": null},
+    {"pin": "P5",  "nrf": "P0.14", "caps": ["GPIO"],        "builtin": "按钮 A",   "player": {"use": "板载按钮 A：确认", "part": "btn"}},
+    {"pin": "P6",  "nrf": "P1.05", "caps": ["GPIO"],        "builtin": "LED 列 4", "player": null},
+    {"pin": "P7",  "nrf": "P0.11", "caps": ["GPIO"],        "builtin": "LED 列 2", "player": null},
+    {"pin": "P8",  "nrf": "P0.10", "caps": ["GPIO"],        "builtin": "NFC2",     "player": {"use": "TFT DC", "part": "tft"},
+     "warn": "P0.10 默认是 NFC pin，要定义 CONFIG_NFCT_PINS_AS_GPIOS 才能当 GPIO 用。"},
+    {"pin": "P9",  "nrf": "P0.09", "caps": ["GPIO"],        "builtin": "NFC1",     "player": {"use": "按钮 4：菜单", "part": "btn"},
+     "warn": "P0.09 默认是 NFC pin，要定义 CONFIG_NFCT_PINS_AS_GPIOS 才能当 GPIO 用。"},
+    {"pin": "P10", "nrf": "P0.30", "caps": ["GPIO", "ADC"], "builtin": "LED 列 5", "player": null},
+    {"pin": "P11", "nrf": "P0.23", "caps": ["GPIO"],        "builtin": "按钮 B",   "player": {"use": "板载按钮 B：返回", "part": "btn"}},
+    {"pin": "P12", "nrf": "P0.12", "caps": ["GPIO"],        "builtin": null,       "player": {"use": "按钮 2：攻击", "part": "btn"}},
+    {"pin": "P13", "nrf": "P0.17", "caps": ["GPIO", "SPI SCK"],  "builtin": null,  "player": {"use": "TFT SCK", "part": "tft"}},
+    {"pin": "P14", "nrf": "P0.01", "caps": ["GPIO", "SPI MISO"], "builtin": null,  "player": {"use": "按钮 3：防御（TFT 不需要 MISO）", "part": "btn"}},
+    {"pin": "P15", "nrf": "P0.13", "caps": ["GPIO", "SPI MOSI"], "builtin": null,  "player": {"use": "TFT MOSI (SDA)", "part": "tft"}},
+    {"pin": "P16", "nrf": "P1.02", "caps": ["GPIO"],        "builtin": null,       "player": {"use": "TFT CS", "part": "tft"}},
+    {"pin": "P19", "nrf": "P0.26", "caps": ["I2C SCL"],     "builtin": "Qwiic SCL", "player": {"use": "摇杆 I2C SCL", "part": "joy"}},
+    {"pin": "P20", "nrf": "P1.00", "caps": ["I2C SDA"],     "builtin": "Qwiic SDA", "player": {"use": "摇杆 I2C SDA", "part": "joy"}}
+  ],
+  "extra": [
+    "TFT RST 直接接 3V，用软件复位指令代替，省一个 pin。",
+    "TFT 背光 (BL/LED) 接 3V。",
+    "玩家板用 TFT 显示，不需要板载 LED 点阵：停用点阵后 P3、P4、P6、P7、P10 还能再空出 5 个 pin（其中 P3、P4、P10 支持 ADC）。"
+  ]
+}

@@ -1,135 +1,200 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pocket Rivals</title>
-<style>
-  :root {
-    --bg: #f6f5f1; --card: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e1da;
-    --accent: #5b5bd6; --done: #2f9e6b; --doing: #d98a1c; --todo: #b8b6ae; --now: rgba(91,91,214,.08);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #141416; --card: #1e1e22; --ink: #ececef; --muted: #9a9aa2; --line: #2e2e34;
-            --accent: #8c8cf0; --todo: #4a4a52; --now: rgba(140,140,240,.10); }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 960px; margin: 0 auto; padding: 40px 16px 80px; }
-  header h1 { font-size: 34px; margin: 0; letter-spacing: -0.02em; }
-  header p { margin: 4px 0 0; color: var(--muted); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
-  .chip b { color: var(--accent); }
-  h2 { font-size: 18px; margin: 40px 0 12px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-  .scroll { overflow-x: auto; }
-  table.gantt { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13px; }
-  .gantt th, .gantt td { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: center; }
-  .gantt th:first-child, .gantt td:first-child { text-align: left; width: 34%; }
-  .gantt td.owner { color: var(--muted); width: 8%; }
-  .gantt .now { background: var(--now); }
-  .bar { height: 12px; border-radius: 4px; }
-  .bar.done { background: var(--done); } .bar.doing { background: var(--doing); } .bar.todo { background: var(--todo); }
-  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 10px; }
-  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
-  .team { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-  .team h3 { margin: 0 0 4px; font-size: 15px; }
-  .team p { margin: 0; color: var(--muted); font-size: 13px; }
-  .update { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin-bottom: 20px; }
-  .update .meta { font-size: 12px; color: var(--muted); }
-  .update h3 { margin: 2px 0 4px; font-size: 16px; }
-  .update p { margin: 0; white-space: pre-line; }
-  .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--now); color: var(--accent); margin-left: 6px; }
-  ul.parts { list-style: none; margin: 0; padding: 0; }
-  ul.parts li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-  ul.parts li:last-child { border-bottom: 0; }
-  .st { font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .st.have { color: var(--done); }
-  footer { margin-top: 48px; color: var(--muted); font-size: 12px; }
-  a { color: var(--accent); }
-</style>
+<title>Pocket Rivals 项目进展</title>
+<meta name="description" content="CE346 Pocket Rivals：基于 micro:bit V2 的无线双人对战游戏，项目进展与分工。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect x='1' y='2' width='8' height='7' rx='1' fill='%23e8663d'/><rect x='3' y='4' width='1' height='1' fill='%23fff'/><rect x='6' y='4' width='1' height='1' fill='%23fff'/></svg>">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
-  <header>
-    <h1>Pocket Rivals</h1>
-    <p>Wireless two-player battle game on micro:bit V2 · CE346 Fall 2026, Northwestern</p>
-    <div class="chips">
-      <div class="chip">Current: <b id="week">Week –</b></div>
-      <div class="chip">Final demo: <b>Dec 7, 2026</b></div>
-      <div class="chip" id="countdown"></div>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="eyebrow">CE346 · Fall 2026 · Northwestern</div>
+      <h1>Pocket Rivals</h1>
+      <p>基于 micro:bit V2 的无线双人回合制对战游戏</p>
+    </div>
+    <div>
+      <div class="countdown" id="countdown" aria-live="off">
+        <div class="unit"><div class="num" id="cd-d">–</div><div class="lbl">天</div></div>
+        <div class="unit"><div class="num" id="cd-h">–</div><div class="lbl">时</div></div>
+        <div class="unit"><div class="num" id="cd-m">–</div><div class="lbl">分</div></div>
+        <div class="unit"><div class="num" id="cd-s">–</div><div class="lbl">秒</div></div>
+      </div>
+      <div class="countdown-cap">距离 Final demo（12 月 7 日）</div>
     </div>
   </header>
+</div>
 
-  <h2>Timeline</h2>
-  <div class="card scroll">
-    <table class="gantt" id="gantt"></table>
-    <div class="legend">
-      <span style="--c: var(--done)">Done</span>
-      <span style="--c: var(--doing)">In progress</span>
-      <span style="--c: var(--todo)">Planned</span>
+<nav class="nav">
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="overview">总览</button>
+      <button class="tab" role="tab" data-tab="timeline">时间线</button>
+      <button class="tab" role="tab" data-tab="hardware">硬件与 Pin</button>
+      <button class="tab" role="tab" data-tab="battle">玩法原型</button>
+      <button class="tab" role="tab" data-tab="updates">进展</button>
     </div>
+    <div class="who" id="who"><span>按成员看：</span></div>
   </div>
+</nav>
 
-  <h2>Latest updates</h2>
-  <div id="updates"></div>
+<main class="wrap">
 
-  <h2>Team</h2>
-  <div class="team">
-    <div class="card"><h3>Harvey Lu</h3><p>TFT display driver, drawing, sprites, animations, UI, simple sound effects</p></div>
-    <div class="card"><h3>Yihao Tao</h3><p>Gameplay design, joystick and button input, wireless protocol, control mapping</p></div>
-    <div class="card"><h3>Binqi Liu</h3><p>Battle logic and skills, wiring and power, layout, enclosure and assembly</p></div>
-  </div>
+  <!-- ================= 总览 ================= -->
+  <section class="panel" data-panel="overview">
+    <div class="stats" id="stats"></div>
 
-  <h2>Hardware</h2>
-  <div class="card"><ul class="parts" id="parts"></ul></div>
+    <h2>系统架构 <small>点击任意模块查看详情</small></h2>
+    <div class="card">
+      <div class="arch" id="arch"></div>
+      <div class="detail" id="arch-detail"><span class="muted">两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。</span></div>
+    </div>
 
-  <footer>To post an update, add an entry at the top of <code>updates.json</code> in this repo and push to <code>main</code>.</footer>
+    <h2>团队分工 <small>点击成员只看 TA 的任务</small></h2>
+    <div class="team" id="team"></div>
+
+    <h2>最新进展</h2>
+    <div id="latest"></div>
+    <a href="#updates" data-goto="updates">查看全部进展 →</a>
+  </section>
+
+  <!-- ================= 时间线 ================= -->
+  <section class="panel" data-panel="timeline" hidden>
+    <h2>时间线 <small>点击任务看详情</small></h2>
+    <div class="card">
+      <div class="toolbar">
+        <div class="seg" id="grp-seg">
+          <button data-g="" aria-pressed="true">全部</button>
+          <button data-g="里程碑">里程碑</button>
+          <button data-g="模块任务">模块任务</button>
+        </div>
+        <label><input type="checkbox" id="only-now"> 只看本周进行中的</label>
+      </div>
+      <div class="scroll"><table class="gantt" id="gantt"></table></div>
+      <div class="legend">
+        <span style="--c: var(--done)">已完成</span>
+        <span style="--c: var(--doing)">进行中</span>
+        <span style="--c: var(--todo)">计划中</span>
+        <span style="--c: var(--accent-soft)">当前周</span>
+      </div>
+      <div class="detail" id="task-detail"><span class="muted">点击上面的任意任务。</span></div>
+    </div>
+  </section>
+
+  <!-- ================= 硬件 ================= -->
+  <section class="panel" data-panel="hardware" hidden>
+    <h2>采购清单</h2>
+    <div class="card">
+      <div class="toolbar" id="part-filter"></div>
+      <div class="meter" id="part-meter" style="height:8px;margin:0 0 6px"></div>
+      <div class="legend" id="part-legend" style="margin:0 0 8px"></div>
+      <ul class="parts" id="parts"></ul>
+    </div>
+
+    <h2>Pin 分配图 <small>点击 pin 查看详情</small></h2>
+    <div class="card">
+      <div class="toolbar">
+        <div class="seg" id="board-seg">
+          <button data-b="player" aria-pressed="true">玩家板</button>
+          <button data-b="central">中央板</button>
+        </div>
+        <label class="switch"><input type="checkbox" id="no-matrix"> 停用板载 LED 点阵</label>
+      </div>
+      <p class="muted" id="pin-note" style="margin:0 0 6px;font-size:13px"></p>
+      <div class="pin-summary" id="pin-summary"></div>
+      <div class="pins" id="pins"></div>
+      <div class="legend" id="pin-legend"></div>
+      <div class="detail" id="pin-detail"><span class="muted">点击任意 pin。</span></div>
+      <ul class="notes" id="pin-extra"></ul>
+    </div>
+  </section>
+
+  <!-- ================= 玩法原型 ================= -->
+  <section class="panel" data-panel="battle" hidden>
+    <h2>战斗玩法原型 <small>两个人用同一台电脑或手机对打，边玩边调参数</small></h2>
+    <div class="card">
+      <div class="arena">
+        <div class="fighter fire" id="f0"></div>
+        <div class="mid">
+          <div class="prompt" id="prompt">加载中…</div>
+          <div>
+            <div class="gauge-lbl"><span>蓄力（模拟压力传感器）</span><span id="charge-val">0%</span></div>
+            <div class="gauge"><div class="fill" id="charge-fill"></div></div>
+          </div>
+          <div>
+            <div class="gauge-lbl"><span>防御时机</span><span id="def-val">—</span></div>
+            <div class="gauge" id="def-gauge"><div class="zone" id="def-zone"><i id="def-perfect"></i></div><div class="cursor" id="def-cursor" style="left:0"></div></div>
+          </div>
+          <div class="row"><button class="btn" id="restart">重新开始</button><span class="spacer"></span><span class="muted" style="font-size:12px">回合 <b id="round">1</b></span></div>
+          <ul class="log" id="log"></ul>
+        </div>
+        <div class="fighter water" id="f1"></div>
+      </div>
+    </div>
+
+    <h2>规则</h2>
+    <div class="card" style="font-size:14px">
+      <ol style="margin:0;padding-left:20px">
+        <li>双方轮流进攻。进攻方<b>按住蓄力键</b>，松开即出招；蓄力越满伤害越高，但蓄满后继续按太久会<b>过载</b>，伤害减半。</li>
+        <li>出招后，防守方看防御条：光标扫过时在<b>绿色区域</b>按防御键可减伤 50%，按在深绿色正中可减伤 80%。</li>
+        <li>进攻方也可以改用技能（有冷却）。焰灵「灼烧」：8 点伤害，并让对方之后 2 回合每回合掉 5 HP。潮影「潮汐护盾」：回复 12 HP，下次受到的伤害减半。</li>
+        <li>一方 HP 归零即获胜。</li>
+      </ol>
+    </div>
+
+    <h2>参数调节 <small>调好后可以复制成 C 代码给战斗逻辑用</small></h2>
+    <div class="card">
+      <div class="params" id="params"></div>
+      <pre class="snippet mono" id="param-c"></pre>
+      <div class="row"><button class="btn" id="copy-c">复制 C 代码</button><button class="btn" id="reset-params">恢复默认</button></div>
+    </div>
+  </section>
+
+  <!-- ================= 进展 ================= -->
+  <section class="panel" data-panel="updates" hidden>
+    <h2>全部进展</h2>
+    <div class="toolbar">
+      <input class="search" id="search" type="search" placeholder="搜索标题或内容…">
+    </div>
+    <div class="toolbar" id="area-filter"></div>
+    <div id="update-list"></div>
+
+    <h2>写一条进展 <small>填好后复制，粘贴到 GitHub 上的 updates.json</small></h2>
+    <div class="card">
+      <form class="composer" id="composer" onsubmit="return false">
+        <label>日期<input type="date" name="date" required></label>
+        <label>作者<select name="author"></select></label>
+        <label>分类<input name="area" list="areas" placeholder="例如：无线、显示、硬件"><datalist id="areas"></datalist></label>
+        <label class="full">标题<input name="title" placeholder="一句话说明做了什么"></label>
+        <label class="full">内容<textarea name="body" rows="3" placeholder="细节、遇到的问题、下一步计划"></textarea></label>
+      </form>
+      <div class="muted" style="font-size:12px;margin-top:12px">预览</div>
+      <div id="compose-preview" style="margin-top:8px"></div>
+      <pre class="snippet mono" id="compose-json"></pre>
+      <div class="row">
+        <button class="btn primary" id="copy-json">复制</button>
+        <a class="btn" href="https://github.com/Yeyuruoying11/pocket-rivals-site/edit/main/updates.json" target="_blank" rel="noopener">去 GitHub 编辑 updates.json ↗</a>
+      </div>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">粘贴到文件第一行的 <code>[</code> 后面，然后点 Commit changes。大约一分钟后网站会更新。需要先被加为仓库的协作者。</p>
+    </div>
+  </section>
+
 </main>
 
-<script>
-  // Week 12 starts Monday Dec 7, 2026
-  const WEEK1 = new Date(2026, 8, 21);
-  const DAY = 86400000;
-  const currentWeek = Math.floor((Date.now() - WEEK1) / (7 * DAY)) + 1;
-  const daysLeft = Math.ceil((new Date(2026, 11, 7) - Date.now()) / DAY);
+<div class="wrap">
+  <footer>
+    Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。
+    数据来自本仓库的 <code>status.json</code>、<code>updates.json</code>、<code>pins.json</code>。
+  </footer>
+</div>
 
-  document.getElementById("week").textContent = "Week " + currentWeek;
-  document.getElementById("countdown").textContent =
-    daysLeft > 0 ? daysLeft + " days to demo" : "Demo complete";
+<div class="toast" id="toast"></div>
 
-  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-
-  fetch("status.json", {cache: "no-store"}).then(r => r.json()).then(s => {
-    const weeks = [4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const nowCls = w => w === currentWeek ? ' class="now"' : "";
-    let html = "<tr><th>Task</th><th>Owner</th>" +
-      weeks.map(w => `<th${nowCls(w)}>W${w}</th>`).join("") + "</tr>";
-    for (const t of s.tasks) {
-      html += `<tr><td>${esc(t.name)}</td><td class="owner">${esc(t.owner)}</td>`;
-      for (const w of weeks) {
-        const on = w >= t.week && w < t.week + t.span;
-        html += `<td${nowCls(w)}>${on ? `<div class="bar ${esc(t.status)}"></div>` : ""}</td>`;
-      }
-      html += "</tr>";
-    }
-    document.getElementById("gantt").innerHTML = html;
-
-    document.getElementById("parts").innerHTML = s.parts.map(p =>
-      `<li><span>${esc(p.name)} × ${p.qty}</span><span class="st ${p.status === "have" ? "have" : ""}">${esc(p.status)}</span></li>`
-    ).join("");
-  });
-
-  fetch("updates.json", {cache: "no-store"}).then(r => r.json()).then(list => {
-    document.getElementById("updates").innerHTML = list.map(u => `
-      <div class="update">
-        <div class="meta">${esc(u.date)} · ${esc(u.author)}<span class="tag">${esc(u.area)}</span></div>
-        <h3>${esc(u.title)}</h3>
-        <p>${esc(u.body)}</p>
-      </div>`).join("");
-  });
-</script>
+<script src="app.js"></script>
+<script src="battle.js"></script>
 </body>
 </html>

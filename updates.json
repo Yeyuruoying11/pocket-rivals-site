@@ -1,16 +1,23 @@
 [
   {
     "date": "2026-10-20",
-    "author": "Yihao",
-    "area": "Wireless",
-    "title": "Repository and progress site set up",
-    "body": "Created the shared repo on top of nu-microbit-base. Added central and player firmware skeletons plus a shared radio protocol (software/lib/protocol.h) with sequence numbers, ACKs and a 1 s player timeout. Both apps build; next step is testing the radio link on two boards."
+    "author": "yihao",
+    "area": "网站",
+    "title": "进展网站改成中文版，并增加互动内容",
+    "body": "新增：可点击的系统架构图、按成员筛选、甘特图任务详情、micro:bit pin 分配图（草案）、战斗玩法原型（可以直接在网页上两个人对打并调参数），以及“写一条进展”生成器。"
+  },
+  {
+    "date": "2026-10-20",
+    "author": "yihao",
+    "area": "无线",
+    "title": "代码仓库和固件骨架搭好",
+    "body": "基于 nu-microbit-base 建了共享仓库（私有）。写好了 central 和 player 两个固件，以及共享的无线协议 software/lib/protocol.h：消息带序号，关键动作要 ACK，超过 1 s 没收到消息就判定玩家掉线。两个固件都能编译，下一步在两块板上实测。"
   },
   {
     "date": "2026-10-13",
-    "author": "Team",
-    "area": "Planning",
-    "title": "Project proposal submitted",
-    "body": "Pocket Rivals proposal finished: two player boards plus one central board, TFT displays, joysticks, pressure sensors and DFPlayer audio."
+    "author": "all",
+    "area": "规划",
+    "title": "Project proposal 提交",
+    "body": "确定 Pocket Rivals：两块玩家板 + 一块中央板，TFT 屏、摇杆、压力传感器、DFPlayer 音效。"
   }
 ]
