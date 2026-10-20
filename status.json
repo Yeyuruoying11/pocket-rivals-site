@@ -1,0 +1,27 @@
+{
+  "tasks": [
+    {"week": 4,  "span": 1, "name": "Complete project proposal",             "owner": "All",    "status": "done"},
+    {"week": 5,  "span": 2, "name": "Verify feasibility and select components", "owner": "All",  "status": "doing"},
+    {"week": 5,  "span": 2, "name": "Purchase hardware and study interfaces", "owner": "All",    "status": "doing"},
+    {"week": 7,  "span": 2, "name": "Assemble hardware prototype",            "owner": "Binqi",  "status": "todo"},
+    {"week": 7,  "span": 2, "name": "Develop a simple playable game demo",    "owner": "All",    "status": "todo"},
+    {"week": 7,  "span": 2, "name": "Validate single-player operation",       "owner": "All",    "status": "todo"},
+    {"week": 9,  "span": 3, "name": "Complete hardware assembly",             "owner": "Binqi",  "status": "todo"},
+    {"week": 9,  "span": 3, "name": "Integrate reliable wireless communication", "owner": "Yihao", "status": "doing"},
+    {"week": 9,  "span": 3, "name": "Design and fabricate enclosure",         "owner": "Binqi",  "status": "todo"},
+    {"week": 9,  "span": 3, "name": "Integrate and test two-player gameplay", "owner": "All",    "status": "todo"},
+    {"week": 12, "span": 1, "name": "Final project presentation",             "owner": "All",    "status": "todo"}
+  ],
+  "parts": [
+    {"name": "micro:bit V2",                       "qty": 3, "status": "have"},
+    {"name": "1.8\" ST7735S TFT 128x160 (SPI)",     "qty": 2, "status": "to buy"},
+    {"name": "Kitronik edge connector breakout 5601B", "qty": 3, "status": "to buy"},
+    {"name": "SparkFun Qwiic Joystick COM-15168",  "qty": 2, "status": "to buy"},
+    {"name": "Qwiic-to-header cables",             "qty": 2, "status": "to buy"},
+    {"name": "16 mm momentary push buttons",       "qty": 8, "status": "to buy"},
+    {"name": "Pressure sensor (FSR, model TBD)",   "qty": 2, "status": "choosing"},
+    {"name": "DFPlayer Mini DFR0299",              "qty": 2, "status": "to buy"},
+    {"name": "40 mm 4 ohm 3 W speaker",            "qty": 2, "status": "to buy"},
+    {"name": "microSD card",                       "qty": 2, "status": "to buy"}
+  ]
+}

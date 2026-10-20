@@ -1,0 +1,16 @@
+[
+  {
+    "date": "2026-10-20",
+    "author": "Yihao",
+    "area": "Wireless",
+    "title": "Repository and progress site set up",
+    "body": "Created the shared repo on top of nu-microbit-base. Added central and player firmware skeletons plus a shared radio protocol (software/lib/protocol.h) with sequence numbers, ACKs and a 1 s player timeout. Both apps build; next step is testing the radio link on two boards."
+  },
+  {
+    "date": "2026-10-13",
+    "author": "Team",
+    "area": "Planning",
+    "title": "Project proposal submitted",
+    "body": "Pocket Rivals proposal finished: two player boards plus one central board, TFT displays, joysticks, pressure sensors and DFPlayer audio."
+  }
+]
