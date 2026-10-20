@@ -1,7 +1,8 @@
-// Pocket Rivals battle prototype: teams of 3, secret send-out, hold to charge,
-// timed defense, skills, type matchups. Follows the firmware rules in
-// pocket-rivals/software/lib/game.c (integer math and rounding included) so
-// numbers tuned here behave the same after they go into game_config.h.
+// Pocket Rivals battle prototype: teams of 3, secret send-out, attack trial
+// (track the moving band), chained blocks, skills, type matchups. Follows
+// pocket-rivals/docs/attack-trial.md and the firmware rules in software/lib
+// (integer math and rounding included) so numbers tuned here behave the same
+// after they go into game_config.h.
 
 (() => {
   const $ = s => document.querySelector(s);
@@ -11,28 +12,38 @@
   // the exported block can replace that file. Entries without min/max are
   // exported but not tuned here.
   const PARAMS = [
-    {key: "base",       c: "BASE_DAMAGE",        g: "出招", label: "基础伤害（0% 蓄力）",           min: 4,   max: 20,   step: 1,   def: 10,   unit: "",    note: "attack damage at 0% charge"},
-    {key: "bonus",      c: "CHARGE_BONUS",       g: "出招", label: "满蓄力额外伤害",                min: 0,   max: 40,   step: 1,   def: 20,   unit: "",    note: "extra damage at 100% charge"},
-    {key: "chargeMs",   c: "CHARGE_TIME_MS",     g: "出招", label: "蓄满所需时间",                  min: 400, max: 2500, step: 100, def: 1200, unit: " ms", note: "hold time for 100% charge"},
-    {key: "overMs",     c: "OVERLOAD_MS",        g: "出招", label: "蓄满后再按多久会过载",          min: 200, max: 2000, step: 100, def: 700,  unit: " ms", note: "holding this long past full charge halves damage"},
-    {key: "windowPct",  c: "DEFEND_WINDOW_PCT",  g: "防御", label: "防御窗口宽度",                  min: 8,   max: 50,   step: 1,   def: 24,   unit: "%",   note: "width of the block zone, % of the sweep"},
-    {key: "sweepMs",    c: "DEFEND_SWEEP_MS",    g: "防御", label: "防御条扫过时间",                min: 500, max: 2500, step: 100, def: 1100, unit: " ms", note: "time for the cursor to cross the bar"},
+    {key: "base",       c: "BASE_DAMAGE",        g: "攻击测试", label: "基础伤害（测试 0 分）",        min: 4,   max: 20,   step: 1,   def: 10,   unit: "",    note: "attack damage at trial score 0"},
+    {key: "windowPct",  c: "DEFEND_WINDOW_PCT",  g: "连续格挡", label: "判定区宽度（普通一击）",       min: 8,   max: 50,   step: 1,   def: 24,   unit: "%",   note: "width of the block zone at tier 0, % of the sweep"},
+    {key: "sweepMs",    c: "DEFEND_SWEEP_MS",    g: "连续格挡", label: "扫过时间（普通一击）",         min: 500, max: 2500, step: 100, def: 1100, unit: " ms", note: "time for the cursor to cross the bar at tier 0"},
     {key: "hp",         c: "START_HP",           g: "节奏", label: "每只宠物 HP（下一局生效）",     min: 20,  max: 200,  step: 5,   def: 60,   unit: "",    note: "HP of each pet (TEAM_SIZE pets per player)"},
     {key: "skillCd",    c: "SKILL_COOLDOWN",     g: "技能", label: "技能冷却（自己的回合数）",      min: 1,   max: 5,    step: 1,   def: 3,    unit: "",    note: "own turns before the skill is ready again"},
-    {key: "burnDmg",    c: "BURN_DAMAGE",        g: "技能", label: "Ember 灼烧每回合伤害",          min: 0,   max: 15,   step: 1,   def: 5,    unit: "",    note: "Ember skill: damage per turn while burning", gap: true},
+    {key: "burnDmg",    c: "BURN_DAMAGE",        g: "技能", label: "Ember 灼烧每回合伤害",          min: 0,   max: 15,   step: 1,   def: 5,    unit: "",    note: "Ember skill: damage per turn while burning", before: [""]},
     {key: "burnTurns",  c: "BURN_TURNS",         g: "技能", label: "灼烧持续回合",                  min: 0,   max: 5,    step: 1,   def: 2,    unit: ""},
     {key: "emberDmg",   c: "EMBER_SKILL_DAMAGE", g: "技能", label: "Ember 技能直接伤害",            min: 0,   max: 25,   step: 1,   def: 8,    unit: ""},
     {key: "tideHeal",   c: "TIDE_HEAL",          g: "技能", label: "Tide 回复量",                   min: 0,   max: 40,   step: 1,   def: 12,   unit: "",    note: "Tide skill: heal and shield the next hit"},
     {key: "drain",      c: "SPROUT_DRAIN",       g: "技能", label: "Sprout 汲取（伤害 = 回复）",    min: 0,   max: 25,   step: 1,   def: 6,    unit: "",    note: "Sprout skill: deal this much, heal as much"},
-    {key: "perfectPct", c: "BLOCK_PERFECT_PCT",  g: "防御", label: "完美格挡后承受伤害",            min: 0,   max: 100,  step: 5,   def: 20,   unit: "%",   note: "damage taken on a perfect block", gap: true},
-    {key: "goodPct",    c: "BLOCK_GOOD_PCT",     g: "防御", label: "普通格挡后承受伤害",            min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
+    {key: "perfectPct", c: "BLOCK_PERFECT_PCT",  g: "连续格挡", label: "完美格挡后承受伤害",           min: 0,   max: 100,  step: 5,   def: 20,   unit: "%",   note: "damage taken on a perfect block", before: [""]},
+    {key: "goodPct",    c: "BLOCK_GOOD_PCT",     g: "连续格挡", label: "普通格挡后承受伤害",           min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
     {key: "shieldPct",  c: "SHIELD_PCT",         g: "技能", label: "护盾后承受伤害",                min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
     {key: "strongPct",  c: "TYPE_STRONG_PCT",    g: "属性", label: "属性克制伤害（效果拔群）",      min: 100, max: 250,  step: 10,  def: 150,  unit: "%",   note: "fire > grass > water > fire"},
     {key: "weakPct",    c: "TYPE_WEAK_PCT",      g: "属性", label: "被克制伤害（效果一般）",        min: 30,  max: 100,  step: 5,   def: 70,   unit: "%"},
-    {key: "resolveMs",  c: "RESOLVE_MS",         g: "节奏", label: "每个事件停留时间",              min: 300, max: 2000, step: 100, def: 900,  unit: " ms", note: "how long each event stays on screen", gap: true},
-    {key: "graceMs",    c: "DEFEND_GRACE_MS",                                                                                         def: 1500, note: "central treats a silent defender as a miss", note2: "after DEFEND_SWEEP_MS + this"},
+    // The new block uses a wider name column, like the file
+    {key: "trialBonus", c: "TRIAL_BONUS",         w: 20, g: "攻击测试", label: "测试满分额外伤害",       min: 0,   max: 40,   step: 1,   def: 20,   unit: "",    note: "extra damage at trial score 100", before: ["", "// Attack trial + chained blocks (docs/attack-trial.md)"]},
+    {key: "trialMs",    c: "TRIAL_MS",            w: 20, g: "攻击测试", label: "计分时长",               min: 1000, max: 4000, step: 100, def: 2000, unit: " ms", note: "scored part of the trial"},
+    {key: "readyMs",    c: "TRIAL_READY_MS",      w: 20, g: "攻击测试", label: "准备时间（光带先动，不计分）", min: 0, max: 1500, step: 100, def: 600, unit: " ms", note: "band moves this long before scoring starts"},
+    {key: "bandPct",    c: "TRIAL_BAND_PCT",      w: 20, g: "攻击测试", label: "光带宽度",               min: 8,   max: 50,   step: 1,   def: 24,   unit: "",    note: "band width on the 0..100 level scale"},
+    {key: "risePerS",   c: "TRIAL_RISE_PER_S",    w: 20, g: "攻击测试", label: "按住时指针每秒上升",     min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "no pressure pad: level rise per second holding A"},
+    {key: "fallPerS",   c: "TRIAL_FALL_PER_S",    w: 20, g: "攻击测试", label: "松开时指针每秒下降",     min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "                 level fall per second released"},
+    {key: "tierStrong", c: "TIER_STRONG_SCORE",   w: 20, g: "等级", label: "强力一击所需分数（2 次格挡）", min: 10, max: 95,  step: 5,   def: 50,   unit: " 分", note: "score for a strong attack (2 blocks)"},
+    {key: "tierUlt",    c: "TIER_ULTIMATE_SCORE", w: 20, g: "等级", label: "必杀一击所需分数（3 次格挡）", min: 15, max: 100, step: 5,   def: 80,   unit: " 分", note: "score for an ultimate attack (3 blocks)"},
+    {key: "narrowPct",  c: "DEFEND_NARROW_PCT",   w: 20, g: "连续格挡", label: "每升一级判定区变窄",     min: 0,   max: 30,   step: 5,   def: 20,   unit: "%",   note: "block zone narrower per tier, %"},
+    {key: "speedupPct", c: "DEFEND_SPEEDUP_PCT",  w: 20, g: "连续格挡", label: "每升一级 / 每多一击扫描变快", min: 0, max: 20,  step: 1,   def: 12,   unit: "%",   note: "sweep faster per tier and per extra block, %"},
+    {key: "gapMs",      c: "DEFEND_GAP_MS",       w: 20, g: "连续格挡", label: "两次格挡之间的间隔",     min: 100, max: 1000, step: 50,  def: 350,  unit: " ms", note: "pause between chained blocks"},
+    {key: "resolveMs",  c: "RESOLVE_MS",         g: "节奏", label: "每个事件停留时间",              min: 300, max: 2000, step: 100, def: 900,  unit: " ms", note: "how long each event stays on screen", before: [""]},
+    {key: "graceMs",    c: "DEFEND_GRACE_MS",                                                                                         def: 1500, note: "central treats a silent defender as missing",
+      note2: ["every block after the whole chain (all", "sweeps + gaps) + this"]},
   ];
-  const GROUPS = ["出招", "防御", "技能", "属性", "节奏"];
+  const GROUPS = ["攻击测试", "等级", "连续格挡", "技能", "属性", "节奏"];
   const TUNABLE = PARAMS.filter(p => p.min !== undefined);
 
   const TEAM_SIZE = 3;
@@ -47,8 +58,12 @@
     {name: "玩家 2", keys: ["J", "K", "L", ";"]},
   ];
   const BEATS = {fire: "grass", grass: "water", water: "fire"};
-  const RESULT_TXT = {perfect: "完美格挡！", good: "格挡成功", miss: "没挡住"};
-
+  // block_result_t order in protocol.h
+  const MISS = 0, GOOD = 1, PERFECT = 2;
+  const RESULT_TXT = ["没挡住", "挡住", "完美"];
+  const RESULT_CLS = ["miss", "good", "perfect"];
+  const TIER_NAMES = ["普通一击", "强力一击", "必杀一击"];
+  const DEFEND_MAX_HITS = 3;
   // Sprites: 10x10 pixel art, each row is a 5-pixel left half mirrored to the right
   const SPRITES = {
     fire:  ["...o.", "..olo", ".olff", "olfff", "ofhef", "offff", "offfm", "olfff", ".olff", "..ooo"],
@@ -72,8 +87,8 @@
 
   /* ---------------- params ---------------- */
 
-  // v2: START_HP changed from 100 per player to 60 per pet, so old saves would mislead
-  const PARAM_KEY = "pr.params.v2";
+  // v3: charge constants replaced by the attack trial / chained block ones
+  const PARAM_KEY = "pr.params.v3";
   let P = {};
   try { P = JSON.parse(store.get(PARAM_KEY) || "{}") || {}; } catch { P = {}; }
   PARAMS.forEach(p => {
@@ -93,22 +108,24 @@
 
   // Reproduces game_config.h line for line (with defaults it matches the file exactly)
   function cConfig() {
-    const pad = " ".repeat(8 + 19 + 6);
+    const pad = " ".repeat(8 + 19 + 6);  // continuation comment column
     const lines = [
       "// Pocket Rivals tuning knobs",
       "//",
       "// Names match the battle prototype on the progress site, which can export",
-      "// its sliders as these #defines. CHARGE_* and DEFEND_SWEEP_MS are measured on",
-      "// the player boards; everything else is applied by the central board.",
+      "// its sliders as these #defines. TRIAL_* (except TRIAL_BONUS) and",
+      "// DEFEND_GAP_MS are timed on the player boards; the central board applies",
+      "// everything else and sends each attack's zones and sweep times in the state.",
+      "// See docs/attack-trial.md.",
       "",
       "#pragma once",
       "",
     ];
     PARAMS.forEach(p => {
-      if (p.gap) lines.push("");
-      const head = `#define ${p.c.padEnd(18)} `;
+      if (p.before) lines.push(...p.before);
+      const head = `#define ${p.c.padEnd(p.w || 18)} `;
       lines.push(p.note ? `${head}${String(P[p.key]).padEnd(5)} // ${p.note}` : `${head}${P[p.key]}`);
-      if (p.note2) lines.push(`${pad}// ${p.note2}`);
+      (p.note2 || []).forEach(n => lines.push(`${pad}// ${n}`));
     });
     return lines.join("\n") + "\n";
   }
@@ -135,6 +152,54 @@
     if (S) render();
     window.PR.toast("已恢复默认参数");
   });
+
+  /* ---------------- formulas (docs/attack-trial.md, rules.c) ---------------- */
+
+  const rulesScale = (amount, pct) => Math.floor((amount * pct + 50) / 100);
+
+  // §2: band center from seed and ms since the trial started (ready part
+  // included); same double math as trial_band_center() in trial.c
+  function bandCenter(seed, t, w = P.bandPct) {
+    const half = w / 2;
+    const twoPi = 2 * Math.PI;
+    const p1 = seed * twoPi / 256;
+    const p2 = (seed * 7 % 256) * twoPi / 256;
+    const c = 50 + 22 * Math.sin(twoPi * t / 1300 + p1) + 12 * Math.sin(twoPi * t / 700 + p2);
+    return Math.floor(Math.min(Math.max(c, half), 100 - half) + 0.5);
+  }
+  // trial_in_band(): |level - center| <= w/2, in integers
+  const inBand = (center, level, w = P.bandPct) => 2 * Math.abs(level - center) <= w;
+
+  // §3
+  const tierOf = score => score < P.tierStrong ? 0 : score < P.tierUlt ? 1 : 2;
+  function attackDamage(score, typePct) {
+    const raw = P.base * 100 + P.trialBonus * score;  // 1/100 HP
+    return Math.floor((Math.floor(raw * typePct / 100) + 50) / 100);
+  }
+
+  // §4
+  const defendHits = tier => Math.min(tier + 1, DEFEND_MAX_HITS);
+  const defendWidth = tier => rulesScale(P.windowPct, 100 - P.narrowPct * tier);
+  const defendSweep = (tier, i) => Math.floor(P.sweepMs * (100 - P.speedupPct * (tier + i)) / 100);
+  const defendZone = (width, random) => 10 + random % (85 - width + 1);
+  const perfectRange = (zone, width) => [zone + Math.ceil(width * 35 / 100), zone + Math.floor(width * 65 / 100)];
+
+  function blockResult(cursor, zone, width) {
+    if (cursor === null || cursor < zone || cursor > zone + width) return MISS;
+    const [lo, hi] = perfectRange(zone, width);
+    return cursor >= lo && cursor <= hi ? PERFECT : GOOD;
+  }
+
+  // §5: equal shares, each scaled by its block result; the shield applies to the sum
+  function chainDamage(D, results) {
+    const hits = results.length;
+    let sum = 0;
+    results.forEach((r, i) => {
+      const share = Math.floor(D * (i + 1) / hits) - Math.floor(D * i / hits);
+      sum += rulesScale(share, r === PERFECT ? P.perfectPct : r === GOOD ? P.goodPct : 100);
+    });
+    return sum;
+  }
 
   /* ---------------- rules (port of game.c) ---------------- */
 
@@ -164,6 +229,8 @@
   const effectTxt = pct => pct > 100 ? "效果拔群！" : pct < 100 ? "效果一般…" : "";
   const effectHtml = pct => pct === 100 ? "" :
     ` <span class="eff ${pct > 100 ? "strong" : "weak"}">${effectTxt(pct)}</span>`;
+  const tierHtml = t => `<span class="tier-tag t${t}">${TIER_NAMES[t]}</span>`;
+  const blocked = rs => rs.filter(r => r !== MISS).length;
 
   function enter(phase, waiting = []) {
     S.phase = phase;
@@ -193,7 +260,7 @@
     el.innerHTML = esc(text) + (sub ? `<small>${esc(sub)}</small>` : "");
     f.appendChild(el);
     setTimeout(() => el.remove(), 1100);
-    if (kind !== "heal") {
+    if (kind !== "heal" && !kind?.startsWith("blk")) {
       f.classList.remove("hit");
       void f.offsetWidth;
       f.classList.add("hit");
@@ -201,11 +268,11 @@
   }
 
   // Clamps to the target pet's HP; returns the damage actually dealt
-  function damage(i, amount, pct = 100) {
+  function damage(i, amount, pct = 100, sub) {
     const p = pl(i);
     amount = Math.min(amount, p.hp[p.active]);
     p.hp[p.active] -= amount;
-    popup(i, "-" + amount, "", effectTxt(pct));
+    popup(i, "-" + amount, "", [sub, effectTxt(pct)].filter(Boolean).join(" · "));
     return amount;
   }
 
@@ -220,7 +287,7 @@
   function shielded(i, amount) {
     if (!pl(i).shield) return amount;
     pl(i).shield = false;
-    return Math.floor((amount * P.shieldPct + 50) / 100);
+    return rulesScale(amount, P.shieldPct);
   }
 
   function startMatch(first) {
@@ -230,8 +297,9 @@
       pl: [0, 1].map(() => ({hp: Array(TEAM_SIZE).fill(hp), active: null, burn: 0, shield: false, cd: 0})),
       hpMax: hp, pending: [null, null], waiting: [], step: 0,
       turn: first, first, round: 1, phase: "", next: "begin", justUsed: false,
-      charge: 0, over: false, t0: 0, atk: 0, atkPct: 100,
-      zone: 40, cursor: 0, result: null, winner: null, event: "",
+      trial: null,   // attack trial of the current turn (player board, local)
+      atk: null,     // attack the defender faces: score, tier, damage, zones...
+      winner: null, event: "",
       switching: null,  // attacker choosing a pet to switch to (local, like player_core)
     };
     log.length = 0;
@@ -242,7 +310,6 @@
 
   function beginTurn() {
     const a = att(), p = pl(a);
-    S.result = null;
     if (p.burn > 0) {
       p.burn--;
       const n = damage(a, P.burnDmg);
@@ -254,9 +321,9 @@
   }
 
   function toReady() {
-    S.charge = 0;
-    S.over = false;
-    S.result = null;
+    S.atk = null;
+    // The central board hands out a fresh band seed every TURN
+    S.trial = {seed: Math.floor(Math.random() * 256), started: false};
     enter("ready", [att()]);
     render();
   }
@@ -337,53 +404,153 @@
     showEvent(S.next, html);
   }
 
-  function startCharge() {
-    S.phase = "charging";
-    S.t0 = performance.now();
-    S.charge = 0;
-    S.over = false;
+  /* ---------------- attack trial (trial.c, no pressure pad) ---------------- */
+
+  function startTrial() {
+    Object.assign(S.trial, {
+      started: true, t0: performance.now(), held: true,
+      levelMilli: 0, levelMs: 0, level: 0,  // controls.c: no pad, level in 1/1000
+      elapsed: 0, scoredMs: 0, insideMs: 0, center: bandCenter(S.trial.seed, 0), inBand: false, score: null,
+    });
+    S.phase = "trial";  // same step: the trial is local to the attacker's board
+    S.switching = null;
     loop();
     render();
   }
 
-  // Same integer math as player_core_charge() + do_attack()
-  function releaseCharge() {
-    const held = performance.now() - S.t0;
-    const charge = held >= P.chargeMs ? 100 : Math.floor(held * 100 / P.chargeMs);
-    const over = held > P.chargeMs + P.overMs;
+  // One update, in whole ms like the player board: controls.c moves the level
+  // for the time since its last update, then trial_update() scores the part of
+  // (elapsed, now] that lies in the scoring window if this level is in this band
+  function trialUpdate(now) {
+    const T = S.trial;
+    const ms = Math.floor(now - T.t0);
+    const dl = ms - T.levelMs;
+    if (dl > 0) {
+      T.levelMilli = T.held ? Math.min(100000, T.levelMilli + P.risePerS * dl) : Math.max(0, T.levelMilli - P.fallPerS * dl);
+      T.levelMs = ms;
+    }
+    T.level = Math.floor((T.levelMilli + 500) / 1000);
+    const end = P.readyMs + P.trialMs;
+    const e = Math.max(T.elapsed, Math.min(ms, end));
+    const dt = Math.max(0, e - Math.max(T.elapsed, P.readyMs));
+    T.elapsed = e;
+    T.center = bandCenter(T.seed, e);
+    T.inBand = inBand(T.center, T.level);
+    if (dt > 0) {
+      T.scoredMs += dt;
+      if (T.inBand) T.insideMs += dt;
+    }
+    if (e >= end) finishTrial();
+  }
+
+  // trial_score(): inside share of the scored time, rounded half up
+  const trialScore = T => T.scoredMs ? Math.floor((T.insideMs * 200 + T.scoredMs) / (T.scoredMs * 2)) : 0;
+
+  function trialHold(held) {
+    if (S.phase !== "trial" || S.trial.held === held) return;
+    trialUpdate(performance.now());
+    if (S.phase === "trial") S.trial.held = held;
+    render();
+  }
+
+  // ACT_ATTACK(arg = score) arrives at the central board: tier, damage and the
+  // defense difficulty go into the state, then PHASE_DEFEND
+  function finishTrial() {
+    const T = S.trial;
+    T.score = trialScore(T);
+    T.held = false;
     const a = att(), d = dfn();
-    let raw = P.base * 100 + P.bonus * charge;
-    if (over) raw = Math.floor(raw / 2);
-    S.atkPct = typePct(activePet(a).el, activePet(d).el);
-    raw = Math.floor(raw * S.atkPct / 100);
-    S.atk = Math.floor((raw + 50) / 100);
-    S.charge = charge;
-    S.over = over;
-    addLog(`${petName(a)} 出招：蓄力 ${charge}%${over ? "（过载，伤害减半）" : ""}，来袭 <b>${S.atk}</b> 点${effectHtml(S.atkPct)}`);
-    S.zone = 10 + Math.floor(Math.random() * (85 - P.windowPct + 1));
-    S.cursor = 0;
-    S.t0 = performance.now();
+    const tier = tierOf(T.score);
+    const hits = defendHits(tier), width = defendWidth(tier);
+    const typeP = typePct(activePet(a).el, activePet(d).el);
+    const zones = [], sweeps = [];
+    let start = 0;
+    const starts = [];
+    for (let i = 0; i < hits; i++) {
+      zones.push(defendZone(width, Math.floor(Math.random() * 0x100000000)));
+      sweeps.push(defendSweep(tier, i));
+      starts.push(start);
+      start += sweeps[i] + P.gapMs;
+    }
+    S.atk = {
+      score: T.score, tier, hits, width, zones, sweeps, starts, typePct: typeP,
+      damage: attackDamage(T.score, typeP),
+      cursors: Array(hits).fill(null), results: Array(hits).fill(null),
+      t0: 0, idx: 0, cursor: 0, inGap: false,
+    };
+    addLog(`${petName(a)} 攻击测试 <b>${T.score}</b> 分 → ${tierHtml(tier)}，来袭 <b>${S.atk.damage}</b> 点${effectHtml(typeP)}，` +
+      `要连续格挡 ${hits} 次`);
+    if (tier > 0) flare(a, tier);
+    S.atk.t0 = performance.now();
     enter("defending", [d]);
     loop();
     render();
   }
 
-  function defend(pressed) {
-    const d = dfn(), z = S.zone, w = P.windowPct;
-    const c = Math.floor(S.cursor);
-    let r = "miss";
-    if (pressed && c >= z && c <= z + w) {
-      // Perfect = middle 30% of the zone
-      const lo = z + Math.ceil(w * 35 / 100), hi = z + Math.floor(w * 65 / 100);
-      r = c >= lo && c <= hi ? "perfect" : "good";
+  function flare(i, tier) {
+    const f = $("#f" + i);
+    f.classList.remove("flare1", "flare2");
+    void f.offsetWidth;
+    f.classList.add("flare" + tier);
+  }
+
+  /* ---------------- chained blocks ---------------- */
+
+  // Advances the defender's local schedule: hit i runs from starts[i] for
+  // sweeps[i] ms, then DEFEND_GAP_MS of nothing before the next one
+  function defendUpdate(now) {
+    const A = S.atk, t = now - A.t0;
+    while (A.idx < A.hits) {
+      const i = A.idx, local = t - A.starts[i];
+      if (local < A.sweeps[i]) {
+        A.inGap = false;
+        A.cursor = Math.max(0, Math.floor(local * 100 / A.sweeps[i]));
+        return;
+      }
+      if (A.results[i] === null) settleHit(i);  // swept through without a press
+      if (i === A.hits - 1) break;
+      if (t < A.starts[i + 1]) { A.inGap = true; A.cursor = 100; return; }
+      A.idx++;
+      renderHits();
     }
-    S.result = r;
-    const pct = r === "perfect" ? P.perfectPct : r === "good" ? P.goodPct : 100;
+    finishDefense();
+  }
+
+  function settleHit(i) {
+    const A = S.atk;
+    A.results[i] = blockResult(A.cursors[i], A.zones[i], A.width);
+    const r = A.results[i];
+    popup(dfn(), RESULT_TXT[r], "blk " + RESULT_CLS[r]);
+    renderHits();
+  }
+
+  function defendPress() {
+    const now = performance.now();
+    defendUpdate(now);
+    const A = S.atk;
+    if (S.phase !== "defending" || A.inGap || A.cursors[A.idx] !== null) return;
+    const i = A.idx;
+    A.cursors[i] = A.cursor;  // only the first press of each sweep counts
+    settleHit(i);
+    // After the last bar there is nothing to wait for
+    if (i === A.hits - 1) finishDefense();
+    else render();
+  }
+
+  // ACT_DEFEND(cursors) at the central board: §5
+  function finishDefense() {
+    if (S.phase !== "defending") return;
+    const A = S.atk, d = dfn();
+    A.results = A.cursors.map((c, i) => blockResult(c, A.zones[i], A.width));
+    const raw = chainDamage(A.damage, A.results);
     const hadShield = pl(d).shield;
-    const n = damage(d, shielded(d, Math.floor((S.atk * pct + 50) / 100)), S.atkPct);
-    const why = RESULT_TXT[r] + (hadShield ? "，护盾抵消一部分" : "");
-    addLog(`${petName(d)} ${why}，受到 <b>${n}</b> 点伤害${effectHtml(S.atkPct)}`);
-    showEvent("end", `${RESULT_TXT[r]} ${petName(d)} -${n}${effectHtml(S.atkPct)}`);
+    const n = damage(d, shielded(d, raw), A.typePct, `挡住 ${blocked(A.results)}/${A.hits}`);
+    A.dealt = n;
+    const list = A.results.map(r => RESULT_TXT[r]).join("、");
+    addLog(`${petName(d)} 挡住 ${blocked(A.results)}/${A.hits}（${list}）${hadShield ? "，护盾抵消一部分" : ""}，` +
+      `受到 <b>${n}</b> 点伤害${effectHtml(A.typePct)}`);
+    showEvent("end", `${tierHtml(A.tier)} 挡住 ${blocked(A.results)}/${A.hits}<br>${petName(d)} -${n}` +
+      (hadShield ? ` <span class="muted">（护盾）</span>` : "") + effectHtml(A.typePct));
   }
 
   function useSkill() {
@@ -395,7 +562,7 @@
     let html;
     if (pet.el === "fire") {
       pl(d).burn = P.burnTurns;
-      const n = damage(d, shielded(d, Math.floor((P.emberDmg * pct + 50) / 100)), pct);
+      const n = damage(d, shielded(d, rulesScale(P.emberDmg, pct)), pct);
       addLog(`${petName(a)} 使用「灼烧」！${petName(d)} 受到 <b>${n}</b> 点伤害并开始灼烧${effectHtml(pct)}`);
       html = `「灼烧」${petName(d)} -${n}${effectHtml(pct)}`;
     } else if (pet.el === "water") {
@@ -405,7 +572,7 @@
       addLog(`${petName(a)} 使用「潮汐护盾」，回复 ${n} HP，获得护盾`);
       html = `「潮汐护盾」+${n} HP，获得护盾`;
     } else {
-      const n = damage(d, shielded(d, Math.floor((P.drain * pct + 50) / 100)), pct);
+      const n = damage(d, shielded(d, rulesScale(P.drain, pct)), pct);
       const h = heal(a, n);
       if (h) popup(a, "+" + h, "heal");
       addLog(`${petName(a)} 使用「汲取」，${petName(d)} 受到 <b>${n}</b> 点伤害，自己回复 ${h} HP${effectHtml(pct)}`);
@@ -459,10 +626,10 @@
     } else if (ph === "over") {
       if (down && slot === 0) startMatch(1 - S.winner);  // loser goes first
     } else if (slot === 0 && i === att()) {
-      if (down && ph === "ready") startCharge();
-      else if (!down && ph === "charging") releaseCharge();
+      if (down && ph === "ready") startTrial();
+      else if (ph === "trial") trialHold(down);
     } else if (slot === 1 && down && i === dfn() && ph === "defending") {
-      defend(true);
+      defendPress();
     } else if (slot === 2 && down && i === att() && ph === "ready" && pl(i).cd === 0) {
       useSkill();
     }
@@ -475,16 +642,10 @@
     if (looping) return;
     looping = true;
     const step = now => {
-      if (S.phase === "charging") {
-        const held = now - S.t0;
-        S.charge = held >= P.chargeMs ? 100 : Math.floor(held * 100 / P.chargeMs);
-        const wasOver = S.over;
-        S.over = held > P.chargeMs + P.overMs;
-        if (S.over !== wasOver) render();
-      } else if (S.phase === "defending") {
-        S.cursor = Math.min(100, (now - S.t0) / P.sweepMs * 100);
-        if (S.cursor >= 100) { looping = false; renderGauges(); defend(false); return; }
-      } else {
+      const ph = S.phase;
+      if (ph === "trial") trialUpdate(performance.now());
+      else if (ph === "defending") defendUpdate(performance.now());
+      if (S.phase !== "trial" && S.phase !== "defending") {
         looping = false;
         renderGauges();
         return;
@@ -513,25 +674,70 @@
     });
   }
 
+  // Trial gauge, tier badge, block gauge and per-hit chips
   function renderGauges() {
-    const fill = $("#charge-fill");
-    const showCharge = S.phase === "charging" || S.phase === "defending" || (S.phase === "resolve" && S.result);
-    fill.style.width = (showCharge ? S.charge : 0) + "%";
-    fill.classList.toggle("over", S.over && showCharge);
-    $("#charge-val").textContent = !showCharge ? "—" : S.over ? "过载！" : S.charge + "%";
+    const ph = S.phase, T = S.trial, A = S.atk;
+    const trialOn = T && T.started;
+    const band = $("#trial-band"), ptr = $("#trial-ptr"), tg = $("#trial-gauge");
+    band.style.display = trialOn ? "" : "none";
+    ptr.style.display = trialOn ? "" : "none";
+    let val = "—", prog = 0, scoring = false;
+    if (trialOn) {
+      band.style.left = (T.center - P.bandPct / 2) + "%";
+      band.style.width = P.bandPct + "%";
+      band.classList.toggle("in", T.inBand && ph === "trial");
+      ptr.style.left = T.level + "%";
+      const t = T.elapsed;
+      scoring = t >= P.readyMs;
+      prog = Math.min(1, t / (P.readyMs + P.trialMs));
+      if (T.score !== null) val = `${T.score} 分`;
+      else if (!scoring) val = `准备 ${((P.readyMs - t) / 1000).toFixed(1)} s`;
+      else val = `光带内 ${trialScore(T)}%`;
+    } else if (ph === "ready") {
+      val = "按攻击键开始";
+    }
+    tg.classList.toggle("scoring", scoring && ph === "trial");
+    tg.classList.toggle("readying", trialOn && !scoring && ph === "trial");
+    $("#trial-val").textContent = val;
+    $("#trial-time").style.width = (prog * 100) + "%";
+    $("#trial-track").style.setProperty("--ready", P.readyMs / (P.readyMs + P.trialMs) * 100 + "%");
 
-    const w = P.windowPct;
-    const showZone = S.phase === "defending" || (S.phase === "resolve" && S.result);
-    $("#def-zone").style.display = showZone ? "" : "none";
-    $("#def-zone").style.left = S.zone + "%";
-    $("#def-zone").style.width = w + "%";
-    const lo = Math.ceil(w * 35 / 100), hi = Math.floor(w * 65 / 100);
-    $("#def-perfect").style.left = (lo / w * 100) + "%";
-    $("#def-perfect").style.width = ((hi - lo + 1) / w * 100) + "%";
-    $("#def-cursor").style.left = `calc(${S.cursor}% - 1.5px)`;
-    $("#def-cursor").style.display = showZone ? "" : "none";
-    $("#def-val").textContent = showZone && S.result ? RESULT_TXT[S.result] :
-      S.phase === "defending" ? "看准时机！" : "—";
+    const tierEl = $("#tier");
+    const tierKey = A ? String(A.t0) : "";
+    if (tierEl.dataset.k !== tierKey) {
+      tierEl.dataset.k = tierKey;
+      tierEl.className = "tier" + (A ? " t" + A.tier : "");
+      tierEl.innerHTML = A ? `<b>${TIER_NAMES[A.tier]}</b><span>${A.score} 分 · 来袭 ${A.damage} 点 · 格挡 ${A.hits} 次</span>` : "";
+    }
+
+    const showDef = A && (ph === "defending" || ph === "resolve");
+    const z = $("#def-zone"), cur = $("#def-cursor");
+    z.style.display = showDef && !A.inGap ? "" : "none";
+    cur.style.display = showDef && !A.inGap ? "" : "none";
+    let dv = "—";
+    if (showDef) {
+      const i = Math.min(A.idx, A.hits - 1), w = A.width, zone = A.zones[i];
+      z.style.left = zone + "%";
+      z.style.width = w + "%";
+      const [lo, hi] = perfectRange(0, w);
+      $("#def-perfect").style.left = (lo / w * 100) + "%";
+      $("#def-perfect").style.width = ((hi - lo + 1) / w * 100) + "%";
+      const c = A.cursors[i] !== null ? A.cursors[i] : A.cursor;
+      cur.style.left = `calc(${c}% - 1.5px)`;
+      cur.classList.toggle("locked", A.cursors[i] !== null);
+      dv = ph === "resolve" ? `挡住 ${blocked(A.results)}/${A.hits}` :
+        A.inGap ? `下一击 ${A.idx + 2}/${A.hits}…` : `第 ${i + 1}/${A.hits} 击`;
+    }
+    $("#def-val").textContent = dv;
+  }
+
+  function renderHits() {
+    const A = S.atk, ph = S.phase;
+    const show = A && (ph === "defending" || ph === "resolve");
+    $("#hits").innerHTML = !show ? "" : A.results.map((r, i) =>
+      `<span class="hit-chip ${r === null ? (i === A.idx && ph === "defending" ? "now" : "") : RESULT_CLS[r]}">` +
+      `${i + 1} · ${r === null ? "…" : RESULT_TXT[r]}</span>`).join("") +
+      (ph === "resolve" ? `<span class="hit-sum">挡住 ${blocked(A.results)}/${A.hits}</span>` : "");
   }
 
   function padLabels(i) {
@@ -549,13 +755,14 @@
       })), {...switchBtn, on: false}];
     }
     if (ph === "over") {
-      return [{t: "再来一局", k: kb[0], on: true}, {t: "防御", k: kb[1], on: false}, {t: "技能", k: kb[2], on: false},
+      return [{t: "再来一局", k: kb[0], on: true}, {t: "格挡", k: kb[1], on: false}, {t: "技能", k: kb[2], on: false},
         {...switchBtn, on: false}];
     }
     const skill = p.active !== null ? PETS[p.active].skill : "技能";
     return [
-      {t: "蓄力", k: "按住 " + kb[0], on: isAtt && (ph === "ready" || ph === "charging")},
-      {t: "防御", k: kb[1], on: !isAtt && ph === "defending"},
+      {t: isAtt && ph === "trial" ? "按住上升" : "攻击", k: isAtt && ph === "trial" ? "按住 " + kb[0] : kb[0],
+        on: isAtt && (ph === "ready" || ph === "trial")},
+      {t: "格挡", k: kb[1], on: !isAtt && ph === "defending"},
       {t: skill, k: kb[2], on: isAtt && ph === "ready" && p.cd === 0},
       switchBtn,
     ];
@@ -609,7 +816,7 @@
         b.querySelector("span").textContent = labels[s].t;
         b.querySelector("kbd").textContent = labels[s].k;
         b.disabled = !labels[s].on;
-        b.classList.toggle("held", s === 0 && isAtt && ph === "charging");
+        b.classList.toggle("held", s === 0 && isAtt && ph === "trial" && S.trial.held);
       });
     });
 
@@ -629,21 +836,23 @@
       prompt = `<span>${pName(a)} 换宠物：按 ${keys} 或点宠物选择换上谁（用掉这一回合，灼烧和护盾随旧宠物消失）<br>` +
         `<span class="muted">按 ${kbd(PLAYERS[a].keys[3])} 取消</span></span>`;
     } else if (ph === "ready") {
-      prompt = `<span>${pName(a)} 的 ${petName(a)} 进攻：按住 ${kbd(PLAYERS[a].keys[0])} 蓄力，松开出招` +
+      prompt = `<span>${pName(a)} 的 ${petName(a)} 进攻：按 ${kbd(PLAYERS[a].keys[0])} 开始攻击测试` +
         (pl(a).cd ? `（技能冷却中）` : `；或按 ${kbd(PLAYERS[a].keys[2])} 使用「${esc(activePet(a).skill)}」`) +
         (canSwitch(a) ? `；按 ${kbd(PLAYERS[a].keys[3])} 换宠物` : "") + `</span>`;
-    } else if (ph === "charging") {
-      prompt = S.over ? `<span style="color:var(--danger)">过载了！现在松开伤害减半</span>` :
-        `<span>蓄力中… 松开 ${kbd(PLAYERS[a].keys[0])} 出招</span>`;
+    } else if (ph === "trial") {
+      prompt = `<span>按住 ${kbd(PLAYERS[a].keys[0])} 指针右移，松开左移，让它一直待在光带里<br>` +
+        `<span class="muted">≥${P.tierStrong} 分强力一击，≥${P.tierUlt} 分必杀一击</span></span>`;
     } else if (ph === "defending") {
-      prompt = `<span>${pName(d)} 防御！光标在绿色区域时按 ${kbd(PLAYERS[d].keys[1])}<br>` +
-        `<span class="muted">来袭 ${S.atk} 点</span>${effectHtml(S.atkPct)}</span>`;
+      const A = S.atk;
+      prompt = `<span>${pName(d)} 连续格挡 ${A.hits} 次！光标到绿色区域按 ${kbd(PLAYERS[d].keys[1])}<br>` +
+        `<span class="muted">${TIER_NAMES[A.tier]} · 来袭 ${A.damage} 点</span>${effectHtml(A.typePct)}</span>`;
     } else if (ph === "over") {
       prompt = `<span>🏆 ${pName(S.winner)} 获胜！按 ${kbd(PLAYERS[0].keys[0])} 或 ${kbd(PLAYERS[1].keys[0])} 再来一局（${esc(PLAYERS[1 - S.winner].name)} 先手）</span>`;
     }
     $("#prompt").innerHTML = prompt;
     $("#round").textContent = S.round;
     renderGauges();
+    renderHits();
   }
 
   /* ---------------- input ---------------- */
@@ -690,10 +899,13 @@
   arena.addEventListener("pointerup", release);
   arena.addEventListener("pointercancel", release);
   arena.addEventListener("contextmenu", e => { if (e.target.closest(".pad")) e.preventDefault(); });
-  // Releasing a held key while switching tabs or windows should still fire the attack
-  window.addEventListener("blur", () => { if (S && S.phase === "charging") releaseCharge(); });
+  // A key held while switching tabs or windows never sends its keyup: let go
+  window.addEventListener("blur", () => { if (S && S.phase === "trial") trialHold(false); });
 
   $("#restart").addEventListener("click", () => startMatch(Math.random() < 0.5 ? 0 : 1));
+
+  // Read-only hooks for the automated playtest script
+  window.PR.battle = {get state() { return S; }, params: P, bandCenter, inBand, tierOf, attackDamage, chainDamage, cConfig};
 
   buildFighters();
   renderParams();
