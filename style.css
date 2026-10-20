@@ -324,8 +324,26 @@ pre.snippet { background: var(--surface-2); border-radius: 10px; padding: 12px; 
 .trial-gauge .band.in { background: color-mix(in srgb, var(--good) 40%, transparent); border-color: var(--good); }
 .trial-gauge .ptr { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--ink); }
 .trial-gauge .ptr::before { content: ""; position: absolute; top: -5px; left: -4px; border: 6px solid transparent; border-top-color: var(--ink); border-bottom: 0; }
-.trial-track { --ready: 23%; position: relative; height: 4px; margin-top: 7px; border-radius: 999px; overflow: hidden; background: linear-gradient(to right, var(--line) 0 var(--ready), var(--surface-2) var(--ready)); }
-.trial-track i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); }
+/* trial timeline: ready phase + 3 stages, the running one highlighted */
+.trial-track { display: flex; gap: 3px; margin-top: 7px; }
+.trial-track .seg { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 0; min-width: 0; height: 15px; border-radius: 5px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); box-sizing: border-box; }
+.trial-track .seg.ready { flex-grow: .4; }
+.trial-track .seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.trial-track .seg.ready i { background: var(--line); }
+.trial-track .seg b { position: relative; font-size: 10px; line-height: 13px; font-weight: 600; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.trial-track .seg.now { border-color: var(--accent); }
+.trial-track .seg.now b { color: var(--ink); }
+.stage-tag { display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 16px; background: var(--surface-2); color: var(--muted); }
+.stage-tag:empty { display: none; }
+.stage-tag.s0 { background: var(--accent-soft); color: var(--accent); }
+.stage-tag.s1 { background: var(--doing); color: #fff; }
+.stage-tag.s2 { background: var(--fire); color: #fff; }
+.trial-cue { display: inline-block; margin-left: 6px; opacity: 0; font-size: 13px; line-height: 16px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; color: var(--accent); }
+.trial-cue.s1 { color: var(--doing); }
+.trial-cue.s2 { color: var(--fire); }
+.trial-cue.on { animation: cue .9s ease-out; }
+@keyframes cue { 0% { opacity: 0; transform: scale(.6); } 20% { opacity: 1; transform: scale(1.25); } 75% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-4px); } }
+.tier .stages { flex-basis: 100%; font-variant-numeric: tabular-nums; }
 .tier { min-height: 30px; margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 8px; font-size: 12px; color: var(--muted); text-align: center; }
 .tier b { font-size: 15px; padding: 2px 12px; border-radius: 999px; letter-spacing: 1px; }
 .tier.t0 b { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }

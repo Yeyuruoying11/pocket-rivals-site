@@ -29,13 +29,17 @@
     {key: "weakPct",    c: "TYPE_WEAK_PCT",      g: "属性", label: "被克制伤害（效果一般）",        min: 30,  max: 100,  step: 5,   def: 70,   unit: "%"},
     // The new block uses a wider name column, like the file
     {key: "trialBonus", c: "TRIAL_BONUS",         w: 20, g: "攻击测试", label: "测试满分额外伤害",       min: 0,   max: 40,   step: 1,   def: 20,   unit: "",    note: "extra damage at trial score 100", before: ["", "// Attack trial + chained blocks (docs/attack-trial.md)"]},
-    {key: "trialMs",    c: "TRIAL_MS",            w: 20, g: "攻击测试", label: "计分时长",               min: 1000, max: 4000, step: 100, def: 2000, unit: " ms", note: "scored part of the trial"},
+    {key: "maxDmg",     c: "ATTACK_MAX_DAMAGE",   w: 20, g: "攻击测试", label: "一次攻击伤害上限（属性克制之后）", min: 10, max: 60, step: 1, def: 30, unit: "",    note: "cap on one attack after the type bonus (half a pet's HP)"},
+    {key: "stageMs",    c: "TRIAL_STAGE_MS",      w: 20, g: "攻击测试", label: "每层计分时长（共 3 层）", min: 500, max: 3000, step: 100, def: 1500, unit: " ms", note: "scored time of each of the 3 stages"},
+    {key: "speed1",     c: "TRIAL_STAGE1_SPEED_PCT", w: 20, g: "攻击测试", label: "第 1 层光带速度（含准备）", min: 10, max: 200, step: 5, def: 35, unit: "%",   note: "band speed in the ready phase and stage 1, % of full"},
+    {key: "speed2",     c: "TRIAL_STAGE2_SPEED_PCT", w: 20, g: "攻击测试", label: "第 2 层光带速度",      min: 10, max: 200, step: 5,   def: 65,   unit: "%",   note: "band speed in stage 2"},
+    {key: "speed3",     c: "TRIAL_STAGE3_SPEED_PCT", w: 20, g: "攻击测试", label: "第 3 层光带速度",      min: 10, max: 200, step: 5,   def: 100,  unit: "%",   note: "band speed in stage 3"},
     {key: "readyMs",    c: "TRIAL_READY_MS",      w: 20, g: "攻击测试", label: "准备时间（光带先动，不计分）", min: 0, max: 1500, step: 100, def: 600, unit: " ms", note: "band moves this long before scoring starts"},
     {key: "bandPct",    c: "TRIAL_BAND_PCT",      w: 20, g: "攻击测试", label: "光带宽度",               min: 8,   max: 50,   step: 1,   def: 24,   unit: "",    note: "band width on the 0..100 level scale"},
     {key: "risePerS",   c: "TRIAL_RISE_PER_S",    w: 20, g: "攻击测试", label: "按住时指针每秒上升",     min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "no pressure pad: level rise per second holding A"},
     {key: "fallPerS",   c: "TRIAL_FALL_PER_S",    w: 20, g: "攻击测试", label: "松开时指针每秒下降",     min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "                 level fall per second released"},
     {key: "tierStrong", c: "TIER_STRONG_SCORE",   w: 20, g: "等级", label: "强力一击所需分数（2 次格挡）", min: 10, max: 95,  step: 5,   def: 50,   unit: " 分", note: "score for a strong attack (2 blocks)"},
-    {key: "tierUlt",    c: "TIER_ULTIMATE_SCORE", w: 20, g: "等级", label: "必杀一击所需分数（3 次格挡）", min: 15, max: 100, step: 5,   def: 80,   unit: " 分", note: "score for an ultimate attack (3 blocks)"},
+    {key: "tierUlt",    c: "TIER_ULTIMATE_SCORE", w: 20, g: "等级", label: "全力一击所需分数（3 次格挡）", min: 15, max: 100, step: 5,   def: 80,   unit: " 分", note: "score for a full-power attack (3 blocks)"},
     {key: "narrowPct",  c: "DEFEND_NARROW_PCT",   w: 20, g: "连续格挡", label: "每升一级判定区变窄",     min: 0,   max: 30,   step: 5,   def: 20,   unit: "%",   note: "block zone narrower per tier, %"},
     {key: "speedupPct", c: "DEFEND_SPEEDUP_PCT",  w: 20, g: "连续格挡", label: "每升一级 / 每多一击扫描变快", min: 0, max: 20,  step: 1,   def: 12,   unit: "%",   note: "sweep faster per tier and per extra block, %"},
     {key: "gapMs",      c: "DEFEND_GAP_MS",       w: 20, g: "连续格挡", label: "两次格挡之间的间隔",     min: 100, max: 1000, step: 50,  def: 350,  unit: " ms", note: "pause between chained blocks"},
@@ -62,7 +66,7 @@
   const MISS = 0, GOOD = 1, PERFECT = 2;
   const RESULT_TXT = ["没挡住", "挡住", "完美"];
   const RESULT_CLS = ["miss", "good", "perfect"];
-  const TIER_NAMES = ["普通一击", "强力一击", "必杀一击"];
+  const TIER_NAMES = ["普通一击", "强力一击", "全力一击"];
   const DEFEND_MAX_HITS = 3;
   // Sprites: 10x10 pixel art, each row is a 5-pixel left half mirrored to the right
   const SPRITES = {
@@ -87,8 +91,8 @@
 
   /* ---------------- params ---------------- */
 
-  // v3: charge constants replaced by the attack trial / chained block ones
-  const PARAM_KEY = "pr.params.v3";
+  // v4: TRIAL_MS replaced by the three trial stages, ATTACK_MAX_DAMAGE added
+  const PARAM_KEY = "pr.params.v4";
   let P = {};
   try { P = JSON.parse(store.get(PARAM_KEY) || "{}") || {}; } catch { P = {}; }
   PARAMS.forEach(p => {
@@ -123,8 +127,10 @@
     ];
     PARAMS.forEach(p => {
       if (p.before) lines.push(...p.before);
-      const head = `#define ${p.c.padEnd(p.w || 18)} `;
-      lines.push(p.note ? `${head}${String(P[p.key]).padEnd(5)} // ${p.note}` : `${head}${P[p.key]}`);
+      // The comment starts in its usual column; a long name eats into the
+      // value's padding but keeps at least one space before "//"
+      const w = p.w || 18, head = `#define ${p.c.padEnd(w)} ${P[p.key]}`;
+      lines.push(p.note ? `${head.padEnd(Math.max(8 + w + 7, head.length + 1))}// ${p.note}` : head);
       (p.note2 || []).forEach(n => lines.push(`${pad}// ${n}`));
     });
     return lines.join("\n") + "\n";
@@ -157,14 +163,35 @@
 
   const rulesScale = (amount, pct) => Math.floor((amount * pct + 50) / 100);
 
+  // §2: the trial timeline. Ready phase [0, R), stage k scored in
+  // [R + k*S, R + (k+1)*S), done at R + 3*S
+  const stageSpeeds = () => [P.speed1, P.speed2, P.speed3];
+  const trialEnd = () => P.readyMs + 3 * P.stageMs;
+  // Stage running at ms t: -1 while getting ready, then 0..2
+  const stageAt = t => t < P.readyMs ? -1 : Math.min(Math.floor((t - P.readyMs) / P.stageMs), 2);
+
+  // Band time τ * 100 for integer ms t (the distance travelled at the stage
+  // speeds), all in integers like the firmware
+  function tau100(t) {
+    const R = P.readyMs, St = P.stageMs, s = stageSpeeds();
+    if (t < R) return t * s[0];
+    const u = Math.min(t - R, 3 * St);
+    const k = Math.min(Math.floor(u / St), 2);
+    let v = R * s[0];
+    for (let j = 0; j < k; j++) v += St * s[j];
+    return v + (u - k * St) * s[k];
+  }
+
   // §2: band center from seed and ms since the trial started (ready part
-  // included); same double math as trial_band_center() in trial.c
+  // included); same double math as trial_band_center() in trial.c, with
+  // τ = τ100 / 100.0 in place of t
   function bandCenter(seed, t, w = P.bandPct) {
     const half = w / 2;
     const twoPi = 2 * Math.PI;
+    const tau = tau100(t) / 100;
     const p1 = seed * twoPi / 256;
     const p2 = (seed * 7 % 256) * twoPi / 256;
-    const c = 50 + 22 * Math.sin(twoPi * t / 1300 + p1) + 12 * Math.sin(twoPi * t / 700 + p2);
+    const c = 50 + 22 * Math.sin(twoPi * tau / 1300 + p1) + 12 * Math.sin(twoPi * tau / 700 + p2);
     return Math.floor(Math.min(Math.max(c, half), 100 - half) + 0.5);
   }
   // trial_in_band(): |level - center| <= w/2, in integers
@@ -174,7 +201,8 @@
   const tierOf = score => score < P.tierStrong ? 0 : score < P.tierUlt ? 1 : 2;
   function attackDamage(score, typePct) {
     const raw = P.base * 100 + P.trialBonus * score;  // 1/100 HP
-    return Math.floor((Math.floor(raw * typePct / 100) + 50) / 100);
+    // Capped after the type bonus, before blocks and shield
+    return Math.min(Math.floor((Math.floor(raw * typePct / 100) + 50) / 100), P.maxDmg);
   }
 
   // §4
@@ -410,7 +438,8 @@
     Object.assign(S.trial, {
       started: true, t0: performance.now(), held: true,
       levelMilli: 0, levelMs: 0, level: 0,  // controls.c: no pad, level in 1/1000
-      elapsed: 0, scoredMs: 0, insideMs: 0, center: bandCenter(S.trial.seed, 0), inBand: false, score: null,
+      elapsed: 0, scoredMs: [0, 0, 0], insideMs: [0, 0, 0], center: bandCenter(S.trial.seed, 0), inBand: false,
+      score: null, stageScores: null, cueStage: -1,
     });
     S.phase = "trial";  // same step: the trial is local to the attacker's board
     S.switching = null;
@@ -419,8 +448,9 @@
   }
 
   // One update, in whole ms like the player board: controls.c moves the level
-  // for the time since its last update, then trial_update() scores the part of
-  // (elapsed, now] that lies in the scoring window if this level is in this band
+  // for the time since its last update, then trial_update() splits (elapsed,
+  // now] over the three stages and scores each part in its own stage (inside
+  // too if this level is in this band)
   function trialUpdate(now) {
     const T = S.trial;
     const ms = Math.floor(now - T.t0);
@@ -430,21 +460,30 @@
       T.levelMs = ms;
     }
     T.level = Math.floor((T.levelMilli + 500) / 1000);
-    const end = P.readyMs + P.trialMs;
+    const end = trialEnd();
     const e = Math.max(T.elapsed, Math.min(ms, end));
-    const dt = Math.max(0, e - Math.max(T.elapsed, P.readyMs));
+    const from = T.elapsed;
     T.elapsed = e;
     T.center = bandCenter(T.seed, e);
     T.inBand = inBand(T.center, T.level);
-    if (dt > 0) {
-      T.scoredMs += dt;
-      if (T.inBand) T.insideMs += dt;
+    for (let k = 0; k < 3; k++) {
+      const lo = P.readyMs + k * P.stageMs, hi = lo + P.stageMs;
+      const dt = Math.min(e, hi) - Math.max(from, lo);
+      if (dt > 0) {
+        T.scoredMs[k] += dt;
+        if (T.inBand) T.insideMs[k] += dt;
+      }
     }
     if (e >= end) finishTrial();
   }
 
-  // trial_score(): inside share of the scored time, rounded half up
-  const trialScore = T => T.scoredMs ? Math.floor((T.insideMs * 200 + T.scoredMs) / (T.scoredMs * 2)) : 0;
+  // round(inside * 100 / scored), half up, in integers; 0 with nothing scored
+  const pctRound = (inside, scored) => scored ? Math.floor((inside * 200 + scored) / (scored * 2)) : 0;
+  const sum = a => a.reduce((x, y) => x + y, 0);
+  // trial_score(): inside share over all three stages
+  const trialScore = T => pctRound(sum(T.insideMs), sum(T.scoredMs));
+  // Per-stage share, for the screen only
+  const stageScore = (T, k) => pctRound(T.insideMs[k], T.scoredMs[k]);
 
   function trialHold(held) {
     if (S.phase !== "trial" || S.trial.held === held) return;
@@ -458,6 +497,7 @@
   function finishTrial() {
     const T = S.trial;
     T.score = trialScore(T);
+    T.stageScores = [0, 1, 2].map(k => stageScore(T, k));
     T.held = false;
     const a = att(), d = dfn();
     const tier = tierOf(T.score);
@@ -473,12 +513,13 @@
       start += sweeps[i] + P.gapMs;
     }
     S.atk = {
-      score: T.score, tier, hits, width, zones, sweeps, starts, typePct: typeP,
+      score: T.score, stageScores: T.stageScores, tier, hits, width, zones, sweeps, starts, typePct: typeP,
       damage: attackDamage(T.score, typeP),
+      capped: attackDamage(T.score, typeP) === P.maxDmg,
       cursors: Array(hits).fill(null), results: Array(hits).fill(null),
       t0: 0, idx: 0, cursor: 0, inGap: false,
     };
-    addLog(`${petName(a)} 攻击测试 <b>${T.score}</b> 分 → ${tierHtml(tier)}，来袭 <b>${S.atk.damage}</b> 点${effectHtml(typeP)}，` +
+    addLog(`${petName(a)} 攻击测试 ${stagesTxt(T.stageScores)} → 总分 <b>${T.score}</b> → ${tierHtml(tier)}，来袭 <b>${S.atk.damage}</b> 点${S.atk.capped ? "（上限）" : ""}${effectHtml(typeP)}，` +
       `要连续格挡 ${hits} 次`);
     if (tier > 0) flare(a, tier);
     S.atk.t0 = performance.now();
@@ -486,6 +527,8 @@
     loop();
     render();
   }
+
+  const stagesTxt = sc => sc.map((v, k) => `第${k + 1}层 ${v}%`).join(" · ");
 
   function flare(i, tier) {
     const f = $("#f" + i);
@@ -681,33 +724,55 @@
     const band = $("#trial-band"), ptr = $("#trial-ptr"), tg = $("#trial-gauge");
     band.style.display = trialOn ? "" : "none";
     ptr.style.display = trialOn ? "" : "none";
-    let val = "—", prog = 0, scoring = false;
+    let val = "—", scoring = false, stage = -2, fills = [0, 0, 0, 0];
     if (trialOn) {
       band.style.left = (T.center - P.bandPct / 2) + "%";
       band.style.width = P.bandPct + "%";
       band.classList.toggle("in", T.inBand && ph === "trial");
       ptr.style.left = T.level + "%";
       const t = T.elapsed;
-      scoring = t >= P.readyMs;
-      prog = Math.min(1, t / (P.readyMs + P.trialMs));
-      if (T.score !== null) val = `${T.score} 分`;
+      const done = T.score !== null;
+      stage = done ? 3 : stageAt(t);
+      scoring = stage >= 0;
+      // Segment 0 is the ready phase, 1..3 the stages
+      fills = [P.readyMs ? Math.min(1, t / P.readyMs) : 1,
+        ...[0, 1, 2].map(k => Math.min(1, Math.max(0, (t - P.readyMs - k * P.stageMs) / P.stageMs)))];
+      if (done) val = `总分 ${T.score}`;
       else if (!scoring) val = `准备 ${((P.readyMs - t) / 1000).toFixed(1)} s`;
-      else val = `光带内 ${trialScore(T)}%`;
+      else val = `本层光带内 ${stageScore(T, stage)}%`;
+      // Cue once per stage start
+      if (ph === "trial" && scoring && !done && T.cueStage !== stage) {
+        T.cueStage = stage;
+        cue(stage === 0 ? "开始计分！" : "加速！", stage);
+      }
     } else if (ph === "ready") {
       val = "按攻击键开始";
     }
     tg.classList.toggle("scoring", scoring && ph === "trial");
     tg.classList.toggle("readying", trialOn && !scoring && ph === "trial");
     $("#trial-val").textContent = val;
-    $("#trial-time").style.width = (prog * 100) + "%";
-    $("#trial-track").style.setProperty("--ready", P.readyMs / (P.readyMs + P.trialMs) * 100 + "%");
+    const stEl = $("#trial-stage");
+    stEl.textContent = stage === -1 ? "准备" : stage >= 0 && stage < 3 ? `第 ${stage + 1} 层` : "";
+    stEl.className = "stage-tag" + (stage >= 0 && stage < 3 ? " s" + stage : "");
+    const segs = document.querySelectorAll("#trial-track .seg");
+    segs.forEach((seg, j) => {
+      seg.querySelector("i").style.width = fills[j] * 100 + "%";
+      seg.classList.toggle("now", ph === "trial" && stage + 1 === j);
+      if (j === 0) seg.style.flexGrow = P.readyMs / P.stageMs;
+      else {
+        const b = seg.querySelector("b");
+        const txt = T && T.stageScores ? `${T.stageScores[j - 1]}%` : `第${j}层`;
+        if (b.textContent !== txt) b.textContent = txt;
+      }
+    });
 
     const tierEl = $("#tier");
     const tierKey = A ? String(A.t0) : "";
     if (tierEl.dataset.k !== tierKey) {
       tierEl.dataset.k = tierKey;
       tierEl.className = "tier" + (A ? " t" + A.tier : "");
-      tierEl.innerHTML = A ? `<b>${TIER_NAMES[A.tier]}</b><span>${A.score} 分 · 来袭 ${A.damage} 点 · 格挡 ${A.hits} 次</span>` : "";
+      tierEl.innerHTML = A ? `<b>${TIER_NAMES[A.tier]}</b><span class="stages">${stagesTxt(A.stageScores)} → 总分 ${A.score}</span>` +
+        `<span>来袭 ${A.damage} 点${A.capped ? "（上限）" : ""} · 格挡 ${A.hits} 次</span>` : "";
     }
 
     const showDef = A && (ph === "defending" || ph === "resolve");
@@ -729,6 +794,15 @@
         A.inGap ? `下一击 ${A.idx + 2}/${A.hits}…` : `第 ${i + 1}/${A.hits} 击`;
     }
     $("#def-val").textContent = dv;
+  }
+
+  // Short text over the trial gauge when a stage starts
+  function cue(text, stage) {
+    const el = $("#trial-cue");
+    el.textContent = text;
+    el.className = "trial-cue";
+    void el.offsetWidth;
+    el.className = "trial-cue on s" + stage;
   }
 
   function renderHits() {
@@ -840,8 +914,8 @@
         (pl(a).cd ? `（技能冷却中）` : `；或按 ${kbd(PLAYERS[a].keys[2])} 使用「${esc(activePet(a).skill)}」`) +
         (canSwitch(a) ? `；按 ${kbd(PLAYERS[a].keys[3])} 换宠物` : "") + `</span>`;
     } else if (ph === "trial") {
-      prompt = `<span>按住 ${kbd(PLAYERS[a].keys[0])} 指针右移，松开左移，让它一直待在光带里<br>` +
-        `<span class="muted">≥${P.tierStrong} 分强力一击，≥${P.tierUlt} 分必杀一击</span></span>`;
+      prompt = `<span>按住 ${kbd(PLAYERS[a].keys[0])} 指针右移，松开左移，让它一直待在光带里（共 3 层，一层比一层快）<br>` +
+        `<span class="muted">≥${P.tierStrong} 分强力一击，≥${P.tierUlt} 分全力一击</span></span>`;
     } else if (ph === "defending") {
       const A = S.atk;
       prompt = `<span>${pName(d)} 连续格挡 ${A.hits} 次！光标到绿色区域按 ${kbd(PLAYERS[d].keys[1])}<br>` +
@@ -905,7 +979,7 @@
   $("#restart").addEventListener("click", () => startMatch(Math.random() < 0.5 ? 0 : 1));
 
   // Read-only hooks for the automated playtest script
-  window.PR.battle = {get state() { return S; }, params: P, bandCenter, inBand, tierOf, attackDamage, chainDamage, cConfig};
+  window.PR.battle = {get state() { return S; }, params: P, bandCenter, tau100, stageAt, inBand, tierOf, attackDamage, chainDamage, cConfig};
 
   buildFighters();
   renderParams();
