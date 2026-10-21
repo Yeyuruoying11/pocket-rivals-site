@@ -119,6 +119,9 @@ code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, m
 .tab { border: 0; background: transparent; padding: 7px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); white-space: nowrap; }
 .tab:hover { background: var(--surface-2); color: var(--ink); }
 .tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+a.tab-out { text-decoration: none; color: var(--accent); }
+a.tab-out:hover { color: var(--accent); }
+h2 .sim-link { font-size: 13px; font-weight: 500; margin-left: 10px; white-space: nowrap; }
 .who { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
 
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 11px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }

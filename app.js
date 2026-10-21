@@ -12,6 +12,7 @@ I18N.add({
     "app.cd.cap": "距离 Final demo（12 月 7 日）",
     "app.tab.overview": "总览", "app.tab.timeline": "时间线", "app.tab.hardware": "硬件与 Pin",
     "app.tab.battle": "玩法原型", "app.tab.updates": "进展", "app.tab.reviews": "留言",
+    "app.tab.device": "掌机模拟器 ↗", "app.simLink": "在掌机模拟器里看 →",
     "app.who.label": "按成员看：",
     "app.all": "全部",
     "app.everyone": "全员",
@@ -126,6 +127,7 @@ I18N.add({
     "app.cd.cap": "until the final demo (Dec 7)",
     "app.tab.overview": "Overview", "app.tab.timeline": "Timeline", "app.tab.hardware": "Hardware & pins",
     "app.tab.battle": "Battle prototype", "app.tab.updates": "Updates", "app.tab.reviews": "Guestbook",
+    "app.tab.device": "Handheld simulator ↗", "app.simLink": "See it on the handheld simulator →",
     "app.who.label": "By member:",
     "app.all": "All",
     "app.everyone": "Everyone",
@@ -336,12 +338,18 @@ const TABS = ["overview", "timeline", "hardware", "battle", "updates", "reviews"
 function showTab(name) {
   if (!TABS.includes(name)) name = "overview";
   $$(".panel").forEach(p => p.hidden = p.dataset.panel !== name);
-  $$(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  $$(".tab[data-tab]").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
   window.currentTab = name;
   if (location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
 }
 
-$$(".tab").forEach(t => t.addEventListener("click", () => { showTab(t.dataset.tab); window.scrollTo({top: 0}); }));
+$$(".tab[data-tab]").forEach(t => t.addEventListener("click", () => { showTab(t.dataset.tab); window.scrollTo({top: 0}); }));
+
+// Links to the handheld simulator keep a ?lang= from the URL (used when storage is blocked)
+{
+  const lang = new URLSearchParams(location.search).get("lang");
+  if (lang) $$("[data-sim-link]").forEach(a => { a.href = "device.html?lang=" + encodeURIComponent(lang); });
+}
 document.addEventListener("click", e => {
   const g = e.target.closest("[data-goto]");
   if (g) { e.preventDefault(); showTab(g.dataset.goto); window.scrollTo({top: 0}); }
