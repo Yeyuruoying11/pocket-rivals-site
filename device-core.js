@@ -507,6 +507,9 @@
     function fill(x, y, w, h, i) {
       x = Math.floor(x); y = Math.floor(y); w = Math.floor(w); h = Math.floor(h);
       const x0 = Math.max(x, cx0), y0 = Math.max(y, cy0), x1 = Math.min(x + w, cx1), y1 = Math.min(y + h, cy1);
+      // a rect wholly left of the clip would give a negative end on row 0, and
+      // TypedArray.fill counts that from the end of the buffer (found by gfx.c's fuzz)
+      if (x1 <= x0) return;
       for (let yy = y0; yy < y1; yy++) back.fill(i, yy * W + x0, yy * W + x1);
     }
 
