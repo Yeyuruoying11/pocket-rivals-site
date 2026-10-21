@@ -2,6 +2,18 @@
   {
     "date": "2026-10-21",
     "author": "yihao",
+    "area": "固件",
+    "title": "固件主线合入协议 v6、按键计时、声音和赛车核心",
+    "body": "协议 v6（开机打招呼、大厅、投票选模式、准备、暂停、再来一局、掉线和版本错误）已经和按键中断计时（精确到 1 ms）、声音调度、赛车核心整合到一起，格挡按按下的精确时刻判定，按住菜单键 1 秒暂停。全部主机测试和丢包模拟（0% / 30% / 60%）通过，两块板都能编译；编译时加 UI_V5_ONLY 仍是 v5，T0 先上真屏不受影响。都还没上板实测。",
+    "en": {
+      "area": "Firmware",
+      "title": "Firmware main line now has protocol v6, button timing, sound and the racing core",
+      "body": "Protocol v6 (hello at boot, lobby, voting on a mode, ready, pause, rematch, link loss and version errors) is integrated with interrupt-timed buttons (to 1 ms), the sound scheduler and the racing core; blocks are judged at the exact press time and holding MENU for 1 s pauses. All host tests and the lossy-radio runs (0% / 30% / 60%) pass and both boards build; building with UI_V5_ONLY keeps v5 so T0 on the real screen is unaffected. Nothing has run on a board yet."
+    }
+  },
+  {
+    "date": "2026-10-21",
+    "author": "yihao",
     "area": "硬件",
     "title": "距离传感器定了两个用途：挥手擦浪花、手托升降门",
     "body": "赛车里被潮影的浪花挡住视线时，在掌机上方挥手，每挥一次少挡 0.5 秒；冒险里一个人把手悬在掌机上方托住升降门，队友趁机过去（手的高度换算成和压力垫一样的托力，两者取大的，中央板规则和无线消息都不用改）。规格写在 docs/ui-design.md §5.11、§6.11；传感器建议 VL53L4CD，每台 1 个加 1 个备用。",

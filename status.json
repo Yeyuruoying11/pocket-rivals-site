@@ -684,10 +684,10 @@
         "file": "lib/player_core.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "把意图变成带 step_id 的动作，重发直到收到 ACK；防守时在本机计时连续格挡，不受无线延迟影响。",
+        "detail": "协议 v6：开机发 HELLO，收大厅消息，投票 / 准备 / 暂停 / 再来一局这些会话动作排队重发直到 ACK；把意图变成带 step_id 的动作；防守时按按键的精确时刻在本机判定连续格挡，不受无线延迟影响。编译时加 UI_V5_ONLY 仍是 v5。",
         "en": {
           "name": "Player protocol",
-          "detail": "Turns intents into actions tagged with a step_id and resends until an ACK arrives; while defending it counts chained blocks locally, so wireless latency has no effect."
+          "detail": "Protocol v6: sends HELLO at boot, follows the lobby message, and queues session actions (vote / ready / pause / rematch) until ACKed; turns intents into step-tagged actions; judges the defend chain locally at the exact press time, unaffected by radio delay. Building with UI_V5_ONLY keeps v5."
         }
       },
       {
@@ -722,10 +722,22 @@
         "file": "lib/central_core.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "管理两块玩家板的连接，回 ACK，每 100 ms 广播一次完整状态；1 s 收不到玩家消息就暂停。",
+        "detail": "协议 v6 的主机：管理两块玩家板的连接和 HELLO，动作计数去重并在 ACK 里带回，大厅一变就发（模式中每秒一次），每 100 ms 广播完整状态；1 s 收不到玩家消息就暂停。",
         "en": {
           "name": "Central protocol",
-          "detail": "Manages the connection to both player boards, sends ACKs, and broadcasts the full state every 100 ms; pauses if no player message arrives for 1 s."
+          "detail": "The protocol v6 host: manages both player boards and their HELLOs, de-duplicates actions by counter and echoes it in the ACK, sends the lobby on every change (once a second in a mode) and broadcasts the full state every 100 ms; pauses if a player is silent for 1 s."
+        }
+      },
+      {
+        "id": "lobby",
+        "name": "会话规则",
+        "file": "lib/lobby_core.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "和模拟器一致的会话规则：等人、投票选模式、准备、暂停（马上或推迟）、再来一局（两人都同意）、退出、对方掉线 30 s 可退出、比分、退出登录和掉线处理。",
+        "en": {
+          "name": "Session rules",
+          "detail": "Session rules matching the simulator: waiting, voting on a mode, ready, pause (immediate or deferred), rematch (both must agree), quit, quitting after the rival has been gone 30 s, score, logout and link loss."
         }
       },
       {
@@ -760,10 +772,10 @@
         "file": "lib/radio_link.c · protocol.h",
         "owner": "yihao",
         "status": "done",
-        "detail": "802.15.4 广播帧 + 发送队列；协议 v5：中央板发完整快照，玩家发带 step_id 的动作，重复和过期的包自动忽略。",
+        "detail": "802.15.4 广播帧 + 发送队列；协议 v6（HELLO、大厅消息、会话动作、动作计数），版本号不对的帧照样丢但会计数（错误 E1 用）。中央板发完整快照，玩家发带 step_id 的动作。",
         "en": {
           "name": "Radio link",
-          "detail": "802.15.4 broadcast frames plus a send queue; protocol v5: the central board sends full snapshots, players send actions tagged with a step_id, and duplicate or stale packets are ignored automatically."
+          "detail": "802.15.4 broadcast frames plus a send queue; protocol v6 (HELLO, lobby message, session actions, action counters); frames of another version are dropped but counted (for error E1). The central sends full snapshots, players send step-tagged actions."
         }
       },
       {
