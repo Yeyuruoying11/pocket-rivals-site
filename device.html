@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>掌机模拟器 Device simulator</title>
+<meta name="description" content="Pocket Rivals 掌机模拟器：两台 128×160 掌机和一块虚拟中央板，对抗、双人赛车、双人冒险。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect x='2' y='0.5' width='6' height='9' rx='1' fill='%23212439'/><rect x='3' y='1.5' width='4' height='4' fill='%238482ff'/><circle cx='6' cy='7.5' r='.8' fill='%23e76539'/></svg>">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="device.css">
+<!-- i18n.js goes in <head>, before every other script (it hides the page in English until translated) -->
+<script src="i18n.js"></script>
+</head>
+<body>
+<header class="device-head wrap">
+  <a href="index.html" data-i18n="dev.page.back">← 返回进展页</a>
+  <h1 data-i18n="dev.page.title">掌机模拟器</h1>
+  <button class="lang-toggle" id="lang-toggle" type="button">EN</button>
+</header>
+<!-- device-core.js builds the two handhelds here; device-debug.js adds the debug panel -->
+<main id="device-root" class="wrap"></main>
+<script src="device-core.js"></script>
+<!-- step 0 ships a stub (null); the generated m font table replaces it -->
+<script src="device-font.js"></script>
+<script src="screens-boot-login.js"></script>
+<script src="screens-menu.js"></script>
+<script src="mode-battle.js"></script>
+<script src="mode-racing.js"></script>
+<script src="mode-adventure.js"></script>
+<script src="device-debug.js"></script>
+</body>
+</html>
