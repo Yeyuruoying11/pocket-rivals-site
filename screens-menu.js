@@ -81,7 +81,7 @@
       "dev.set.hintSave": "保存", "dev.set.hintBack": "返回", "dev.set.hintRedo": "重来", "dev.set.hintOpen": "打开"},
     en: {"dev.set.title": "SETTINGS", "dev.set.lang": "Language", "dev.set.volume": "Volume", "dev.set.clicks": "Clicks", "dev.set.pad": "Pad",
       "dev.set.calibrate": "Calibrate", "dev.set.channel": "Channel", "dev.set.profile": "Edit profile", "dev.set.about": "About", "dev.set.bright": "Brightness",
-      "dev.set.on": "On", "dev.set.off": "Off", "dev.set.auto": "Auto", "dev.set.langZh": "中文", "dev.set.langEn": "English",
+      "dev.set.on": "On", "dev.set.off": "Off", "dev.set.auto": "Auto", "dev.set.langZh": "中文", "dev.set.langEn": "EN",
       "dev.set.langNote": "Restarts simulator", "dev.set.chNote": "Applies on exit",
       "dev.set.aboutFw": "Firmware {v}", "dev.set.aboutProto": "Protocol v{n}", "dev.set.aboutRx": "Signal {n}/10",
       "dev.set.aboutPlayer": "Player P{n}", "dev.set.aboutCh": "Channel {n}",
@@ -801,7 +801,7 @@
       ui.panel(g, 12, 44, 104, 66);
       if (!c) return;
       const txt = ctx.t(c.textKey, c.vars);
-      g.textBox(18, 50, 92, 28, txt, {key: c.textKey});
+      g.textBox(18, 50, 92, 28, txt, {key: c.textKey, c: c.c || "white"});   // [+] c: text colour (e.g. "danger" for a delete)
       if (c.holdMs) {
         g.text(64, 78, ctx.t("dev.ov.holdA"), {align: "c", w: 96, key: "dev.ov.holdA"});
         g.frame(20, 96, 88, 6, "line");
