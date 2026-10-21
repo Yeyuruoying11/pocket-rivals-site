@@ -1413,10 +1413,12 @@
         vineHits: c.vineHits, finish: min(c.finishCs, 65535), best: min(c.bestCs, 65535), stalls: min(c.stalls, 255), skills: min(c.skills, 255),
       });
     }
-    // engine tone (BEEP, 60-220 Hz with speed) and the heat warning beeps
-    const hz = live && ctx.settings.clicks !== false ? 60 + trunc(160 * min(abs(c.v) >> 8, P.topSpeed) / P.topSpeed) : 0;
+    // engine tone (BEEP, 55-155 Hz with speed; silent when idling: no throttle and
+    // below 4 px/s) and the heat warning beeps (every 600 ms while hot)
+    const idle = !c.u && abs(c.v) < 256 * 4;
+    const hz = live && !idle && ctx.settings.clicks !== false ? 55 + trunc(100 * min(abs(c.v) >> 8, P.topSpeed) / P.topSpeed) : 0;
     if (hz !== m.toneHz) { m.toneHz = hz; ctx.tone(hz); }
-    if (live && c.heat > P.heatWarn * 1000 && now - m.warnAt >= 300) { m.warnAt = now; ctx.sfx("heat_warn"); }
+    if (live && c.heat > P.heatWarn * 1000 && now - m.warnAt >= 600) { m.warnAt = now; ctx.sfx("heat_warn"); }
   }
   function useSkill(ctx) {
     const m = ctx.m, st = ctx.state, c = m && m.car;

@@ -2676,7 +2676,10 @@
     const on = hz > 0 && hh.settings.clicks && hh.settings.volume > 0;
     if (on && !v.toneOsc) {
       v.toneOsc = audio.createOscillator(); v.toneOsc.type = "square";
-      v.toneOsc.connect(v.out); v.toneOsc.start();
+      // the engine is background: a quarter of the sfx level (firmware: a quarter
+      // of the PWM duty, AUDIO_TONE_DUTY_DIV), so it hums under the short sounds
+      if (!v.toneOut) { v.toneOut = audio.createGain(); v.toneOut.gain.value = 0.25; v.toneOut.connect(v.out); }
+      v.toneOsc.connect(v.toneOut); v.toneOsc.start();
     }
     if (v.toneOsc) {
       if (!on) { v.toneOsc.stop(); v.toneOsc = null; }
