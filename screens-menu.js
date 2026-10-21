@@ -217,7 +217,7 @@
   D.stubScreen("ov.confirm", {
     overlay: true,
     lines: ctx => { const c = ctx.local.confirm; return c ? [[c.textKey, c.vars], "{A} / {B}"] : []; },
-    hints: [["A", "dev.ui.yes"], ["B", "dev.ui.no"]],
+    hints: [["A", "dev.ui.ok"], ["B", "dev.ui.back"]],
     input(ctx, ev) {
       if (ev.type !== "down") return;
       if (ev.btn === "A") { ctx.sfx("ui_ok"); ctx.closeConfirm(true); }

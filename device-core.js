@@ -221,6 +221,27 @@
 // pack(name, obj, hdr); unpack(bytes); trial; padLevel; ui; C; opts.
 // URL: ?seed=N ?test=1 ?view=p1|p2|both ?gallery ?fixture=id ?pad=auto|on|off
 //      ?mode=battle|racing|adventure|echo ?speed=0.25..2 ?scale=2|3|4
+// [+] also: DEVICE.speed(v), seed(), world(), hh(p) (internal handheld object),
+//     registry (registries), clearLint(), bytesToStr(arr), mapPressure(raw, min, max),
+//     SSYM, KEYMAP, opts, rng(seed, name) (mulberry32 stream),
+//     trial.defaults() / cfgFrom(battleParams) / endMs(cfg) / stageAt(t, cfg) /
+//     ready(T) / pct(inside, scored), stubModeScreens(prefix, titleKey, hud).
+//
+// ======================= BASE MESSAGES (§7.6) =======================
+//
+// input 0x01 (10 B): joyX:i8 joyY:i8 buttons:u8 pressure:u8 ui:u8 (low nibble
+//   menu cursor, 0xf off the menu; high nibble presence 0 login, 1 menu / lobby,
+//   2 settings, 3 game)
+// action 0x02 (13 B): step:u16 action:u8 arg:u8 flags:u8 (live-action counter) data:u8[3]
+// hello 0x03 (16 B): nick:u8[6] avatar:u8 color:u8 caps:u8 bootNonce:u8 fwBuild:u8
+//   (the C struct's name[6] is "nick" here: "name" is reserved by unpack)
+// ack 0x40 (10 B): step:u16 ackedSeq:u8 accepted:u8 counter:u8
+// lobby 0x42 (52 B): step:u16 phase:u8 flags:u8 centralBoot:u8 match:u8 mode:u8
+//   hover:u8[2] vote:u8[2] readyMask:u8 rematchMask:u8 pausedBy:u8 wins:u8[6]
+//   (player * 3 + modeId) profile[2]{name:u8[6] avatar:u8 color:u8}
+//   helloNonce:u8[2] modesBuilt:u8 evId:u8 evType:u8 evWho:u8 error:u8 modeRes:u8[4]
+// Reserved: echo.state 0x4e (core echo mode). Constants: DEVICE.C (MSG, ACT,
+// LOBBY phases, FLAG, PRESENCE, SEV session events, NODE, protocol / controls values).
 
 (() => {
   "use strict";
@@ -494,6 +515,19 @@
   const M_ROWS = [0, 1, 1, 2, 3, 4, 5, 5, 6];
   const M_ASCII = {};
   for (let i = 0; i < 95; i++) M_ASCII[String.fromCharCode(0x20 + i)] = colsToGlyph(S_FONT_HEX.substr(i * 10, 10), M_ROWS);
+  // Real descenders for g j p q y (the 5x7 ones sit raised): full 12-row cells
+  const M_DESC = {
+    g: ["", "", "", "", ".####", "#...#", "#...#", "#...#", "#...#", ".####", "....#", ".###."],
+    j: ["", "...#.", "", "", "..##.", "...#.", "...#.", "...#.", "...#.", "...#.", "...#.", ".##.."],
+    p: ["", "", "", "", "####.", "#...#", "#...#", "#...#", "#...#", "####.", "#....", "#...."],
+    q: ["", "", "", "", ".####", "#...#", "#...#", "#...#", "#...#", ".####", "....#", "....#"],
+    y: ["", "", "", "", "#...#", "#...#", "#...#", "#...#", "#...#", ".####", "....#", ".###."],
+  };
+  for (const [ch, rows] of Object.entries(M_DESC)) {
+    const bits = new Uint8Array(5 * 12);
+    rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) bits[y * 5 + x] = r[x] === "#" ? 1 : 0; });
+    M_ASCII[ch] = {w: 5, h: 12, bits, full: true};
+  }
 
   const M_PUNCT = "！？：，、。…「」";
   const isAscii = ch => ch >= " " && ch <= "~";
@@ -533,7 +567,8 @@
     const data = c2.getImageData(0, 0, 12, 12).data;
     const bits = new Uint8Array(144);
     let any = 0;
-    for (let i = 0; i < 144; i++) { bits[i] = data[i * 4 + 3] >= 128 ? 1 : 0; any |= bits[i]; }
+    // alpha >= 96 keeps anti-aliased 12 px strokes whole (128 breaks them up)
+    for (let i = 0; i < 144; i++) { bits[i] = data[i * 4 + 3] >= 96 ? 1 : 0; any |= bits[i]; }
     return any ? {w: 12, h: 12, bits, ox: 0, oy: 0} : null;
   }
   // -> glyph or null (missing); m font
@@ -547,7 +582,7 @@
       } catch (e) { recordError("DEVICE_FONT_M", e); }
     }
     if (fontTable && fontTable[ch]) gl = fontTable[ch];
-    else if (isAscii(ch)) gl = Object.assign({ox: 0, oy: 1}, M_ASCII[ch]);
+    else if (isAscii(ch)) gl = Object.assign({ox: 0, oy: M_ASCII[ch].full ? 0 : 1}, M_ASCII[ch]);
     else {
       if (!fontTable) lint("fallback", "font", "m font table not loaded: CJK drawn with canvas fillText");
       gl = canvasGlyph(ch);
@@ -2012,6 +2047,7 @@
       if (hh.centralBoot !== null && m.centralBoot !== hh.centralBoot) {
         clearLinkRecords(hh);
         hh.local.stack = [];
+        hh.dropOverlay = true;          // no "reconnected" linger: the toast says what happened
         hh.ctx.toast("dev.ov.centralReset");
         hh.link.gotState = true;
       }
@@ -2139,6 +2175,7 @@
     hh.nextFrame = hh.now();
   }
   function updateOverlay(hh) {
+    if (hh.dropOverlay) { hh.dropOverlay = false; if (hh.ov) switchOverlay(hh, null); }
     const want = overlayWant(hh);
     const now = hh.now();
     if (hh.ov && want === hh.ov.id) { hh.ov.lingerUntil = null; return; }
@@ -2620,14 +2657,18 @@
       "dev.page.player": "玩家 {n}", "dev.page.keys0": "A=F B=G S=R M=T 捏=V", "dev.page.keys1": "A=K B=L S=I M=O 捏=,",
       "dev.page.pad": "捏", "dev.page.stick": "摇杆", "dev.page.screen": "玩家 {n} 的屏幕",
       "dev.page.paused": "模拟已暂停（按 ` 继续）",
-      "dev.page.help": "两人共用一个键盘。屏幕上的 A / B / S / M 是掌机的按键，不是键盘上的同名键：玩家 1 用 W A S D 推摇杆，F = A、G = B、R = S、T = M，按住 V 用力捏、C 轻捏；玩家 2 用方向键，K = A、L = B、I = S、O = M，按住 , 用力捏、. 轻捏。手机上可以直接按屏幕下面的摇杆、按键和压力条。` 暂停或继续模拟。"},
+      "dev.page.help": "两人共用一个键盘。屏幕上的 A / B / S / M 是掌机的按键，不是键盘上的同名键，按下表找：",
+      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟。",
+      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏"},
     en: {"dev.page.title": "Device simulator", "dev.page.back": "← Back to progress",
       "dev.page.intro": "Two handhelds and a virtual central board: all three modes, two players on one computer. The screens are the real 128×160 pixels, the same as on the TFT.",
       "dev.page.view": "Show", "dev.page.both": "Both", "dev.page.scale": "Scale", "dev.page.auto": "Auto",
       "dev.page.player": "Player {n}", "dev.page.keys0": "A=F B=G S=R M=T pad=V", "dev.page.keys1": "A=K B=L S=I M=O pad=,",
       "dev.page.pad": "Pad", "dev.page.stick": "Stick", "dev.page.screen": "Player {n} screen",
       "dev.page.paused": "Simulation paused (press ` to resume)",
-      "dev.page.help": "Two players share one keyboard. A / B / S / M on the screens are the handheld's buttons, not the keyboard keys with those letters: player 1 steers with W A S D, F = A, G = B, R = S, T = M, hold V to squeeze hard and C to squeeze lightly; player 2 uses the arrow keys, K = A, L = B, I = S, O = M, hold , to squeeze hard and . lightly. On a phone, use the stick, buttons and pressure bar under each screen. ` pauses or resumes the simulation."},
+      "dev.page.help": "Two players share one keyboard. A / B / S / M on the screens are the handheld's buttons, not the keyboard keys with those letters:",
+      "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation.",
+      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light"},
   });
 
   /* ================= 12b. stub helpers and the echo mode ================= */
@@ -2644,11 +2685,10 @@
         }
         const y0 = def.overlay ? 22 : 20;
         if (def.overlay) g.text(64, y0, ctx.t("dev.core.todo", {id}), {align: "c", c: "gold"});
-        else g.frame(2, 16, 124, 128, "line");
         const lines = def.lines ? def.lines(ctx) || [] : [];
         lines.forEach((ln, i) => {
           const s = Array.isArray(ln) ? ctx.t(ln[0], ln[1]) : String(ln);
-          g.text(def.overlay ? 16 : 6, y0 + (def.overlay ? 18 : 0) + i * 14, s, {w: def.overlay ? 96 : 116, c: i === 0 && !def.overlay ? "gold" : "white"});
+          g.text(def.overlay ? 16 : 4, y0 + (def.overlay ? 18 : 0) + i * 14, s, {w: def.overlay ? 96 : 120, c: i === 0 && !def.overlay ? "gold" : "white"});
         });
         if (def.art) def.art(ctx, g);
         if (def.hints) UI.hintBar(g, ctx, typeof def.hints === "function" ? def.hints(ctx) : def.hints);
@@ -2738,7 +2778,7 @@
         return [[titleKey], mine ? ["dev.core.stubWait"] : ["dev.core.stubPick"]];
       },
       art(ctx, g) { DEVICE.PETS.forEach((pt, i) => g.sprite(pt.sprite, 9 + i * 40, 60, {scale: 3})); },
-      hints: [["A", "dev.ui.ok"], null, ["M", "dev.core.holdPause"]],
+      hints: [["A", "dev.ui.ok"]],
       input(ctx, ev) {
         if (ev.btn === "A" && ev.type === "down") { ctx.rt(C.ACT.STUB_PICK); ctx.sfx("ui_ok"); }
       },
@@ -2899,7 +2939,18 @@
     const row = el("div", {class: "dv-row"});
     const handhelds = [0, 1].map(p => buildShell(p));
     handhelds.forEach(h => row.append(h.shell));
-    const help = el("p", {class: "dv-help", text: t("dev.page.help")});
+    const kb = txt => el("kbd", {text: txt});
+    const head = ["dev.page.colPlayer", "dev.page.stick", null, null, null, null, "dev.page.colHard", "dev.page.colLight"];
+    const btnHead = ["A", "B", "S", "M"];
+    const table = el("table", {class: "dv-keytable"},
+      el("thead", null, el("tr", null, ...head.map((k, i) => el("th", {scope: "col", text: k ? t(k) : btnHead[i - 2]})))),
+      el("tbody", null, ...[0, 1].map(p => {
+        const L = KEY_LABEL[p];
+        return el("tr", null, el("th", {scope: "row", text: "P" + (p + 1)}),
+          ...[L.stick, L.a, L.b, L.skill, L.menu, L.pad, L.light].map(k => el("td", null, kb(k))));
+      })));
+    const help = el("div", {class: "dv-help"},
+      el("p", {text: t("dev.page.help")}), el("div", {class: "dv-keywrap"}, table), el("p", {text: t("dev.page.helpTouch")}));
     const debug = el("section", {class: "dv-debug", id: "device-debug"});
     root.append(intro, toolbar, row, help, debug);
     const dom = {root, toolbar, row, debug, handhelds, pausedBadge, viewSeg, scaleSel};
@@ -3056,7 +3107,8 @@
     const d = DEVICE._dom;
     if (!d || !world) return;
     for (const h of d.handhelds) {
-      const v = world.hh[h.p].input.st.pressure;
+      const raw = world.hh[h.p].input.st.pressure;
+      const v = raw > C.CTL_PRESS_RELEASE ? raw : 0;     // hide the resting noise
       if (h.lastPad !== v) { h.padFill.style.height = (v / 255 * 100) + "%"; h.pad.setAttribute("aria-valuenow", String(v)); h.lastPad = v; }
     }
     requestAnimationFrame(updatePadBars);

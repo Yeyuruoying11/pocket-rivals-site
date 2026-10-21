@@ -63,8 +63,8 @@
 }
 .dv-btn kbd { font-size: 10px; font-weight: 400; color: var(--muted); font-family: inherit; }
 .dv-btn:hover { border-color: var(--muted); }
-.dv-a { background: var(--accent); border-color: var(--accent); color: #fff; }
-.dv-a kbd { color: rgba(255, 255, 255, .8); }
+.dv-a { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.dv-a kbd { color: color-mix(in srgb, var(--surface) 80%, transparent); }
 .dv-btn.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .dv-btn.on kbd { color: var(--bg); }
 .dv-pad {
@@ -86,4 +86,17 @@
   .dv-hh { padding: 10px 8px 16px; border-radius: 18px; }
   .dv-controls { gap: 10px; }
   .device-head h1 { font-size: 24px; }
+}
+
+/* keyboard map under the handhelds */
+.dv-help p { margin: 0 0 8px; }
+.dv-keywrap { max-width: 100%; overflow-x: auto; margin-bottom: 8px; }
+.dv-keytable { border-collapse: collapse; font-size: 13px; }
+.dv-keytable th, .dv-keytable td { padding: 3px 10px 3px 0; text-align: left; white-space: nowrap; }
+.dv-keytable thead th { font-weight: 600; color: var(--muted); }
+.dv-keytable tbody th { font-weight: 600; color: var(--ink); }
+.dv-keytable kbd {
+  display: inline-block; min-width: 20px; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 6px; background: var(--surface); color: var(--ink); font-size: 12px; text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
