@@ -254,6 +254,10 @@
 // g.sprite(name, x, y, {scale, flipX, flipY, transpose, frame, color, map [+]})
 //   color = whole sprite in one color; map = per-letter color overrides
 // g.spriteSize(name) -> {w, h, frames}; g.clip(x, y, w, h); g.unclip()
+// g.overBudgetOk [+]: a screen sets it to true while drawing a frame that may
+//   go over the §7.2 SPI budget on purpose (a simulator-only look, e.g. the
+//   full-detail 3D racing views, §5.10): still counted in overBudget, no
+//   redFrame lint. Cleared before every frame.
 // g.stats() -> {fps, px, rects, bytes, spiMs, level}; g.present() (core calls it)
 //
 // DEVICE.ui: topBar(g, ctx, titleKey, {right, signal, title [+], vars [+], titleW [+]}),
@@ -546,7 +550,8 @@
       _front: front,
       wipe() { wipeFrame = 0; },
       get wiping() { return wipeFrame >= 0; },
-      begin() { back.fill(0); g.unclip(); },
+      overBudgetOk: false,
+      begin() { back.fill(0); g.unclip(); g.overBudgetOk = false; },
       // §8.5 present(): compare 8x8 blocks, merge runs per 8-row band, push
       // only the changed rects (4 frames of 32 px strips while wiping)
       present(now) {
@@ -585,7 +590,7 @@
         st.fps = presentTimes.length;
         if (st.level === "red" && strip < 0) {
           // one-off transitions may be red, at most once per 300 ms
-          if (now - lastRed < 300) { hh.overBudget++; lint("redFrame", "P" + (hh.p + 1) + " " + hh.screenId, {px}); }
+          if (now - lastRed < 300) { hh.overBudget++; if (!g.overBudgetOk) lint("redFrame", "P" + (hh.p + 1) + " " + hh.screenId, {px}); }
           lastRed = now;
         }
         return pushed;

@@ -1,5 +1,6 @@
 // Pocket Rivals handheld simulator: 双人赛车 Racing prototype
-// (docs/ui-design.md §4.7 race pick, §4.9 S13 HUD, §4.13 results, §5 rules)
+// (docs/ui-design.md §4.7 race pick, §4.9 S13 HUD, §4.13 results, §5 rules,
+// §5.10 3D views and tracks)
 //
 // One file, two halves (§8.1): the central board (pick, countdown, race
 // clock, positions, gap, skills, vines, finish) and the player board (local
@@ -8,23 +9,50 @@
 // (§8.13): integers only, position 1/256 px, speed 1/256 px/s, heading
 // 0..65535 = 360°, a 256-entry sine table. Pure functions live in `rules`
 // (DEVICE.rules("racing")), which also exports race_config.h (configH()).
-// Screens: race.pick (DEVICE.ui.pickScreen, secret pick) and race.hud.
+// Screens: race.pick (page 0 track + view, page 1 the secret driver pick,
+// DEVICE.ui.pickScreen) and race.hud.
 // Each pet has its own kart, rider and handling (§5.9): sprites
 // race.car.<pet> / race.rider.<pet>, petTune() in the physics.
 // The mode bot (AI rival, §5.8) follows a racing line with pure pursuit,
 // lifts before the U-turns and puddles and watches its heat.
+//
+// TRACKS (§5.10): TRACK_DATA below, Classic first, in the JSON format of the
+// track tools (levels/fpv-tracks: size 16 or 32 tiles of 8 px, centre / bot
+// lines with axis-aligned or 45° segments, 1..6 checkpoints, boosts in four
+// directions, sand, billboards: tree, cone, warning sign, arch). A finished
+// track is dropped in by pasting its JSON into TRACK_DATA (rules.buildTrack
+// checks it at load). The player who "goes first" (opts.first: random, the
+// loser on a rematch) picks the track on race.pick; race.state track:u8
+// carries it (flags 32 = set, 64 = P2 picks). 32x32 tracks do not fit the
+// top-down screen, so both players race them in 3D.
+//
+// 3D VIEWS (§5.10) ARE A SIMULATOR OPTION FOR NOW: the firmware decision
+// comes after the 11-01 frame-rate test on the board. Top-down stays the
+// default; each player may pick a chase cam or a cockpit view on race.pick.
+// Port of the reviewed prototype (scratchpad fpv/): an integer Mode-7 floor
+// (Q12 floor rays, per-row distance tables, deduplicated tile textures =
+// const tables in flash), static sky / haze / HUD layers, billboards in
+// discrete sizes, the karts as rear / side / front billboards, a minimap.
+// The simulator shows the full-detail look, which goes over the §7.2 SPI
+// budget on purpose (g.overBudgetOk: counted in the debug panel's "over
+// budget" row, no redFrame lint); the tuning slider RACE_SIM_3D_HW = 1
+// switches to the hardware variant (clean textures, 128x96 window, 25 fps)
+// so the SPI readouts can show both. In 3D the stick's X axis steers
+// relative (ctl.turn in stepCar), top-down keeps the absolute heading.
+// The rival is drawn interpolated between radio reports (both views).
 (() => {
   "use strict";
   const D = window.DEVICE, C = D.C, A = C.ACT, ui = D.ui;
   const NO_PET = C.NO_PET;
-  const trunc = Math.trunc, abs = Math.abs, min = Math.min, max = Math.max;
+  const trunc = Math.trunc, abs = Math.abs, min = Math.min, max = Math.max, floor = Math.floor;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
   /* ============================== strings ============================== */
 
   // Tunables (§5.7) -> race_config.h. [+] RACE_GRASS_DRAG is an addition:
   // the spec slows a car that runs onto the grass at RACE_COAST only, which
-  // made cutting corners almost free; RACE_SIM_BOT_PCT is simulator only.
+  // made cutting corners almost free; RACE_SIM_BOT_PCT and RACE_SIM_3D_HW
+  // are simulator only (not exported).
   const PARAMS = [
     ["laps", "RACE_LAPS", 1, 9, 1, 3, "", "圈数", "Laps", "圈数，1..9（顶栏 \"LAP 9/9\" 42 px）"],
     ["topSpeed", "RACE_TOP_SPEED", 32, 128, 4, 64, "px/s", "最高速度", "Top speed", "px/s，路面最高速度（一屏宽 128 px = 2 s）"],
@@ -36,7 +64,7 @@
     ["reverseSpeed", "RACE_REVERSE_SPEED", 4, 40, 2, 16, "px/s", "倒车速度", "Reverse", "停住后按住 B 倒车的速度 px/s"],
     ["turnLo", "RACE_TURN_LO_DEG_S", 90, 540, 10, 300, "deg/s", "低速转向", "Turn slow", "车速 0 时车头每秒最多转多少度"],
     ["turnHi", "RACE_TURN_HI_DEG_S", 45, 360, 5, 120, "deg/s", "高速转向", "Turn fast", "最高速时（半径约 31 px，U 形弯要松油）"],
-    ["stickDead", "RACE_STICK_DEAD", 10, 90, 5, 40, "", "摇杆死区", "Stick dead", "|摇杆| 超过这个才改方向"],
+    ["stickDead", "RACE_STICK_DEAD", 10, 90, 5, 40, "", "摇杆死区", "Stick dead", "|摇杆| 超过这个才改方向（3D 视角：|x| 超过这个开始转，90 转满）"],
     ["heatLine", "RACE_HEAT_LINE", 50, 100, 1, 85, "%", "升温线", "Heat line", "油门 % 超过这个开始升温"],
     ["heatRise", "RACE_HEAT_RISE", 0, 100, 1, 25, "/s", "升温", "Heat rise", "每秒升温（一直捏满：4 s 熄火一次）"],
     ["heatCool", "RACE_HEAT_COOL", 0, 100, 1, 20, "/s", "降温", "Heat cool", "每秒降温"],
@@ -74,7 +102,9 @@
     ["sproutTopPct", "RACE_SPROUT_TOP_PCT", 80, 110, 1, 96, "%", "叶芽极速", "Sprout top", "叶芽：路面最高速度 %"],
     ["sproutTurnPct", "RACE_SPROUT_TURN_PCT", 50, 200, 5, 125, "%", "叶芽转向", "Sprout turn", "叶芽：转向速度 %（最高速时半径约 24 px）"],
     ["botPct", "RACE_SIM_BOT_PCT", 50, 110, 5, 100, "%", "电脑难度", "Bot pace", "模拟器专用：AI 对手的油门 %"],
+    ["sim3dHw", "RACE_SIM_3D_HW", 0, 1, 1, 0, "", "3D硬件版", "3D HW look", "模拟器专用：1 = 3D 视角用硬件版（简洁纹理 + 128x96 窗口 + 25 fps）"],
   ];
+  const SIM_ONLY = new Set(["botPct", "sim3dHw"]);   // not in race_config.h
   const DEFAULTS = {};
   for (const p of PARAMS) DEFAULTS[p[0]] = p[5];
 
@@ -93,6 +123,13 @@
     "dev.race.sameDriver": "两人选了同一只", "dev.race.hintPick": "选", "dev.race.hintLock": "选定",
     // per-pet handling, one line each (§5.9)
     "dev.race.trait.ember": "跑得最快，但升温快", "dev.race.trait.tide": "降温快，水洼不打滑", "dev.race.trait.sprout": "转弯最灵，极速稍低",
+    // race.pick page 0: track + view (§5.10)
+    "dev.race.setupTitle": "赛道和视角", "dev.race.lapsN": "{n}圈",
+    "dev.race.youPick": "你来选赛道", "dev.race.trackSet": "赛道选好了 {OK}",
+    "dev.race.rivalPicks": "对方在选赛道…", "dev.race.rivalChose": "对方选好了赛道", "dev.race.waitTrack": "等对方选赛道",
+    "dev.race.view": "视角", "dev.race.view.top": "俯视", "dev.race.view.chase": "车后", "dev.race.view.cockpit": "车内",
+    "dev.race.viewDesc.top": "摇杆指哪车头朝哪", "dev.race.viewDesc.3d": "摇杆左右转弯", "dev.race.only3d": "仅3D",
+    "dev.race.hintRow": "换行", "dev.race.hintSet": "换", "dev.race.hintNext": "确定",
     // S13 HUD (§4.9)
     "dev.race.lap": "第{n}/{m}圈", "dev.race.pos1": "第1", "dev.race.pos2": "第2",
     "dev.race.go": "出发！", "dev.race.finalLap": "最后一圈！", "dev.race.wrongWay": "逆行！",
@@ -119,6 +156,12 @@
     "dev.race.rivalChoosing": "Rival: choosing...", "dev.race.rivalPicked": "Rival: ready {OK}", "dev.race.waitRival": "Waiting...",
     "dev.race.sameDriver": "Same driver", "dev.race.hintPick": "Pick", "dev.race.hintLock": "Lock",
     "dev.race.trait.ember": "Fastest, heats fast", "dev.race.trait.tide": "Cools fast, no skid", "dev.race.trait.sprout": "Sharp turns, slower",
+    "dev.race.setupTitle": "TRACK & VIEW", "dev.race.lapsN": "{n} laps",
+    "dev.race.youPick": "You pick the track", "dev.race.trackSet": "Track set {OK}",
+    "dev.race.rivalPicks": "Rival picks track…", "dev.race.rivalChose": "Rival chose track", "dev.race.waitTrack": "Wait for the track",
+    "dev.race.view": "View", "dev.race.view.top": "Top", "dev.race.view.chase": "Chase", "dev.race.view.cockpit": "Cockpit",
+    "dev.race.viewDesc.top": "Stick = car heading", "dev.race.viewDesc.3d": "Stick L/R turns", "dev.race.only3d": "3D only",
+    "dev.race.hintRow": "Row", "dev.race.hintSet": "Set", "dev.race.hintNext": "Next",
     "dev.race.lap": "LAP {n}/{m}", "dev.race.pos1": "1ST", "dev.race.pos2": "2ND",
     "dev.race.go": "GO!", "dev.race.finalLap": "FINAL LAP!", "dev.race.wrongWay": "WRONG WAY!",
     "dev.race.overheat": "OVERHEAT!", "dev.race.skid": "Skid!", "dev.race.perfectStart": "PERFECT GO!", "dev.race.wheelspin": "Wheelspin!",
@@ -150,6 +193,11 @@
 
   /* ============================== messages (§7.6) ============================== */
 
+  // race.state track:u8 = index into TRACK_DATA (flags 32: the track is set,
+  // flags 64: P2 picks it). vines[].tile:u8 is the low byte of the tile index;
+  // on 32x32 tracks (1024 tiles) bits 6-7 of ttl carry bits 8-9 (ttl <= 30 s).
+  // No vine = tile 255 with those bits 0. RACE_PICK arg 0..2 = driver,
+  // 0x40 | i = lock track i (the picker only); RACE_SKILL data[1] = tile >> 8.
   D.registerMessage("race.input", C.MSG.RACE_INPUT, [
     "step:u16", "tCs:u16", "x:u8", "y:u8", "hd:u8", "speed:u8", "lap:u8", "cp:u8", "flags:u8", "vineHits:u8",
     "finish:u16", "best:u16", "stalls:u8", "skills:u8"], {kind: "uplink"});
@@ -161,6 +209,9 @@
     "gap:i16", "leader:u8", "evId:u8", "evType:u8", "evTarget:u8", "evAmount:u8"], {kind: "mode"});
 
   const PH = {PICK: 0, COUNTDOWN: 1, RACE: 2, FINISH: 3, RESULTS: 4};
+  // race.state flags (bits 0-2 are the core's)
+  const SF = {P1_PICKED: 8, P2_PICKED: 16, TRACK_SET: 32, P2_TRACK: 64};
+  const TRACK_LOCK = 0x40;     // RACE_PICK arg: 0x40 | track index
   // car flags (race.input / race.state cars[].flags)
   const CF = {DASH: 1, SKID: 2, BOOST: 4, STALL: 8, SNARED: 16, SPLASHED: 32, WRONGWAY: 64, FINISHED: 128};
   // central events (race.state evType); evTarget = the player it hits
@@ -168,6 +219,7 @@
   const GAP_NONE = -32768;
   const REVEAL_MS = 1500;      // both picks shown on S11 before the countdown
   const STEP_MS = 20;          // local physics, 50 Hz
+  const RIVAL_LAG_MS = 60;     // the rival is drawn this far in the past, between two reports
   const PET_EMBER = 0, PET_TIDE = 1, PET_SPROUT = 2;
   const SKILL = ["dash", "splash", "vine"];
 
@@ -253,6 +305,142 @@
     tide: ["..l..", ".lll.", "lolol", ".lll."],
     sprout: ["ll.ll", ".lll.", "lolol", ".lll."],
   };
+  // 3D billboards (§5.10): the same three karts seen from behind, from the
+  // side (nose right; flipped for the other side) and from the front, with
+  // the rider's head (h, e = eyes; from behind no eyes) and the player's
+  // color as a ground shadow under the wheels (s). Same shapes as from
+  // above: Ember's V fins and pointed nose with a gold tip, Tide's wing wider
+  // than the kart, Sprout's leaf on the right and the square bumper.
+  // o / k = void (outline, tyres), b / d / l = pet color / shade / light,
+  // r = tail lights. 15 wide (rear, front) and 18 wide (side), so the 5 px
+  // head sits in the middle.
+  const K3_ROWS = {
+    ember: {
+      rear: [
+        "......h.h......",
+        ".....hhhhh.....",
+        ".l...hhhhh...l.",
+        ".ll..ohhho..ll.",
+        "..lloooooooll..",
+        "kkobbbbbbbbbokk",
+        "kkobrbbbbbrbokk",
+        "kkobbbbbbbbbokk",
+        "kkodddddddddokk",
+        "kk.ooooooooo.kk",
+        ".sssssssssssss."],
+      side: [
+        ".......h.h........",
+        "......hhhhh.......",
+        "l.....hhhhe.......",
+        "ll....ohhho.......",
+        ".llooooooooooo....",
+        ".obbbbbbbbbbbbboo.",
+        ".obbbbbbbbbbbbbbbl",
+        ".oddddddddddddoo..",
+        "..okko.....okko...",
+        "..okko.....okko...",
+        ".ssssssssssssssss."],
+      front: [
+        "......h.h......",
+        ".....hhhhh.....",
+        ".l...heheh...l.",
+        ".ll..ohhho..ll.",
+        "..lloooooooll..",
+        "kkobbbbbbbbbokk",
+        "kkoobbblbbbookk",
+        "kk..oobbboo..kk",
+        "kk...ooooo...kk",
+        ".sssssssssssss."],
+    },
+    tide: {
+      rear: [
+        ".......h.......",
+        "......hhh......",
+        ".....hhhhh.....",
+        "l....ohhho....l",
+        "lllllllllllllll",
+        "kkobbbbbbbbbokk",
+        "kkobrbbbbbrbokk",
+        "kkobbbbbbbbbokk",
+        "kkodddddddddokk",
+        "kk.ooooooooo.kk",
+        ".sssssssssssss."],
+      side: [
+        ".......h..........",
+        "......hhh.........",
+        ".l...hhhhe........",
+        "lll..ohhho........",
+        "llllooooooooooo...",
+        ".obbbbbbbbbbbbbbo.",
+        ".obbbbbbbbbbbbbbbo",
+        ".oddddddddddddddo.",
+        "..okko.....okko...",
+        "..okko.....okko...",
+        ".ssssssssssssssss."],
+      front: [
+        ".......h.......",
+        "......hhh......",
+        ".....heheh.....",
+        "l....ohhho....l",
+        "lllllllllllllll",
+        "kkobbbbbbbbbokk",
+        "kk.obbbbbbbo.kk",
+        "kk..ooooooo..kk",
+        ".sssssssssssss."],
+    },
+    sprout: {
+      rear: [
+        ".....hh.hh.....",
+        "......hhh......",
+        ".....hhhhh..ll.",
+        ".....ohhho.llll",
+        "..ooooooooolll.",
+        "kkobbbbbbbbbokk",
+        "kkobrbbbbbrbokk",
+        "kkobbbbbbbbbokk",
+        "kkodddddddddokk",
+        "kkoooooooooookk",
+        ".sssssssssssss."],
+      side: [
+        "......hh.hh.......",
+        ".......hhh........",
+        "..l...hhhhe.......",
+        ".lll..ohhho.......",
+        "lll.oooooooooooooo",
+        ".obbbbbbbbbbbbbbbo",
+        ".obbbbbbbbbbbbbbbo",
+        ".oddddddddddddddoo",
+        "..okko.....okko...",
+        "..okko.....okko...",
+        ".ssssssssssssssss."],
+      front: [
+        ".....hh.hh.....",
+        "......hhh......",
+        ".ll..heheh.....",
+        "llll.ohhho.....",
+        ".lllooooooooo..",
+        "kkobbbbbbbbbokk",
+        "kkobdddddddbokk",
+        "kkoooooooooookk",
+        ".sssssssssssss."],
+    },
+  };
+  // Track billboards (from the prototype): tree, cone, chevron sign (points
+  // right; flipped for a left turn), lone gate; vines as a low tuft
+  const BB_ROWS = {
+    tree: ["....DDDD....", "..DDggggDD..", ".DgggGGgggD.", ".DggGGgggggD", "DggGgggggggD", "DgggggggggDD",
+      "DDgggggggDgD", ".DDgggggDDD.", "..DDDDDDDD..", ".....tt.....", ".....tt.....", ".....tt.....", "....tttt...."],
+    cone: ["...o...", "..oFo..", "..oWo..", ".oFFFo.", ".oWWWo.", "oFFFFFo", "ooooooo"],
+    sign: ["ooooooooo", "oRWRRWRRo", "oRRWRRWRo", "oRRRWRRWo", "oRRWRRWRo", "oRWRRWRRo", "ooooooooo", "....m....", "....m....", "....m...."],
+    arch: ["WoWoWoWoWoWoWoWo", "oWoWoWoWoWoWoWoW", "aaaaaaaaaaaaaaaa", "mm............mm", "mm............mm", "mm............mm",
+      "mm............mm", "mm............mm", "mm............mm", "mm............mm", "mm............mm", "mm............mm", "mm............mm"],
+    vine: [".G..g..G.", "gGg.GgGgg", "GgdgGgdgG", "ddddddddd"],
+  };
+  const BB_MAP = {
+    tree: {D: "grassDk", g: "grass", G: "grassLt", t: "fireDk"}, cone: {o: "void", F: "fire", W: "white"},
+    sign: {o: "void", R: "danger", W: "white", m: "muted"}, arch: {W: "white", o: "void", a: "accent", m: "muted"},
+    vine: {g: "grass", G: "grassLt", d: "grassDk"},
+  };
   // Racing skill icons (8x8, §2.4): Flare Dash ">>", Splash fountain, Vine curl;
   // trait icons for the pick cards: fast, grip (drop over a tread), turn
   const RACE_ICONS = {
@@ -269,7 +457,13 @@
     D.PETS.forEach(pt => {
       defs["race.car." + pt.id] = {w: 10, h: 10, map: {o: "void", b: pt.color, d: pt.dk, l: pt.lt, k: "void"}, frames: CAR_ROWS[pt.id]};
       defs["race.rider." + pt.id] = {w: 5, h: 4, map: {l: pt.lt, o: "void"}, frames: [RIDER_ROWS[pt.id]]};
+      for (const v of ["rear", "side", "front"]) {
+        const rows = K3_ROWS[pt.id][v];
+        defs["race.k3." + pt.id + "." + v] = {w: rows[0].length, h: rows.length, frames: [rows],
+          map: {o: "void", k: "void", e: "void", b: pt.color, d: pt.dk, l: pt.lt, h: pt.lt, r: pt.id === "ember" ? "gold" : "danger", s: "white"}};
+      }
     });
+    for (const [k, rows] of Object.entries(BB_ROWS)) defs["race.bb." + k] = {w: rows[0].length, h: rows.length, map: BB_MAP[k], frames: [rows]};
     for (const [k, [c1, c2, ...rows]] of Object.entries(RACE_ICONS)) defs["race.icon." + k] = {w: 8, h: 8, map: {"#": c1, "+": c2}, frames: [rows]};
     D.registerSprites("race.", defs);
   }
@@ -280,93 +474,6 @@
     else if (pet === PET_TIDE) { t.coolPct = P.tideCoolPct; t.puddleSafe = P.tidePuddleSafe; t.puddleCool = P.tidePuddleCool; }
     else if (pet === PET_SPROUT) { t.topPct = P.sproutTopPct; t.turnPct = P.sproutTurnPct; }
     return t;
-  }
-
-  /* ============================== track (§5.2) ============================== */
-
-  const MAP = [
-    "................",
-    ".######=#######.",
-    ".######=##~####.",
-    ".##..........##.",
-    ".##..........#v.",
-    ".##..........##.",
-    ".##..##2~##..##.",
-    ".##..##2###..##.",
-    ".^#..##..##..##.",
-    ".##..##..##..##.",
-    ".##..##..##..##.",
-    ".##..##..##..##.",
-    ".##3###..###1##.",
-    ".##3###..###1##.",
-    "...T....T....T..",
-    "................",
-  ];
-  const K = {GRASS: 0, ROAD: 1, LINE: 2, CP1: 3, CP2: 4, CP3: 5, PUDDLE: 6, BOOST_UP: 7, BOOST_DN: 8, TREE: 9};
-  const KIND_OF = {".": K.GRASS, "#": K.ROAD, "=": K.LINE, "1": K.CP1, "2": K.CP2, "3": K.CP3, "~": K.PUDDLE, "^": K.BOOST_UP, "v": K.BOOST_DN, "T": K.TREE};
-  const isRoad = k => k >= K.ROAD && k <= K.BOOST_DN;
-  const TRACK_Y = 16;          // screen y of track row 0
-  const FINISH_X = 64;         // finish line: crossing x = 64 going right, y < 32 (rows 0-3)
-  // Centre line (track px), clockwise from the finish line; 464 px = 58 tiles
-  const LINE_PTS = [[64, 16], [112, 16], [112, 104], [80, 104], [80, 56], [48, 56], [48, 104], [16, 104], [16, 16], [64, 16]];
-  // Racing line for the AI: upper lane on the top straight (misses the
-  // puddle), outer lanes on both sides (takes both boost pads)
-  const BOT_PTS = [[64, 13], [114, 13], [114, 104], [80, 104], [80, 56], [48, 56], [48, 104], [13, 104], [13, 13], [64, 13]];
-  const START = [[68, 12], [68, 20]];   // P1 (8,1), P2 (8,2), nose right, just past the line
-
-  function makeLine(pts) {
-    const segs = [];
-    let s0 = 0;
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
-      const len = abs(bx - ax) + abs(by - ay);
-      const hd = bx > ax ? 0 : by > ay ? 16384 : bx < ax ? 32768 : 49152;
-      segs.push({ax, ay, bx, by, len, s0, hd});
-      s0 += len;
-    }
-    return {segs, len: s0};
-  }
-  const CENTER = makeLine(LINE_PTS), BOTLINE = makeLine(BOT_PTS);
-  const TRACK_LEN = CENTER.len;   // 464
-  // Nearest point on an axis-aligned polyline -> {s, d2, seg}; ties go to the earlier segment
-  function project(line, x, y) {
-    let best = null;
-    for (const sg of line.segs) {
-      let px, py, along;
-      if (sg.ay === sg.by) { px = clamp(x, min(sg.ax, sg.bx), max(sg.ax, sg.bx)); py = sg.ay; along = abs(px - sg.ax); }
-      else { py = clamp(y, min(sg.ay, sg.by), max(sg.ay, sg.by)); px = sg.ax; along = abs(py - sg.ay); }
-      const d2 = (x - px) * (x - px) + (y - py) * (y - py);
-      if (!best || d2 < best.d2) best = {s: sg.s0 + along, d2, seg: sg};
-    }
-    return best;
-  }
-  function pointAt(line, s) {
-    s = ((s % line.len) + line.len) % line.len;
-    for (const sg of line.segs) {
-      if (s <= sg.s0 + sg.len) {
-        const a = s - sg.s0;
-        return [sg.ax + Math.sign(sg.bx - sg.ax) * a, sg.ay + Math.sign(sg.by - sg.ay) * a];
-      }
-    }
-    return [line.segs[0].ax, line.segs[0].ay];
-  }
-  // Tile tables (flash in C): kind, driving direction, distance number 0..57
-  const KIND = new Uint8Array(256), DIR = new Uint16Array(256), PROG = new Uint8Array(256);
-  for (let ty = 0; ty < 16; ty++) for (let tx = 0; tx < 16; tx++) {
-    const i = ty * 16 + tx;
-    KIND[i] = KIND_OF[MAP[ty][tx]];
-    const pr = project(CENTER, tx * 8 + 4, ty * 8 + 4);
-    DIR[i] = pr.seg.hd;
-    PROG[i] = Math.floor(pr.s / 8) % 58;
-  }
-  const kindAt = (xpx, ypx) => (xpx < 0 || ypx < 0 || xpx > 127 || ypx > 127) ? K.GRASS : KIND[(ypx >> 3) * 16 + (xpx >> 3)];
-  // Progress for ranking: laps * 464 + distance along the centre line,
-  // corrected near the finish line with the next checkpoint
-  function progress(lap, cp, xpx, ypx) {
-    let s = project(CENTER, xpx, ypx).s;
-    if (cp === 0 && s > TRACK_LEN / 2) s -= TRACK_LEN;
-    if (cp === 3 && s < TRACK_LEN / 4) s += TRACK_LEN;
-    return lap * TRACK_LEN + s;
   }
 
   /* ============================== fixed-point math ============================== */
@@ -388,14 +495,327 @@
   }
   const angDiff = (a, b) => ((a - b + 32768) & 0xffff) - 32768;   // signed shortest a - b
 
+  /* ============================== tracks (§5.2, §5.10) ============================== */
+
+  // The track table. Copies of levels/fpv-tracks/tracks/*.json; Classic
+  // (= the §5.2 track) must stay first. test: true = a loader test track
+  // (shown as such on race.pick). Format: tracks/README.md + validate.js.
+  const TRACK_DATA = [
+    {
+      id: "classic", name: {"zh": "经典", "en": "Classic"}, blurb: {"zh": "原版俯视赛道", "en": "The original top-down"},
+      size: 16,
+      map: [
+        "................",
+        ".######=#######.",
+        ".######=##~####.",
+        ".##..........##.",
+        ".##..........#v.",
+        ".##..........##.",
+        ".##..##2~##..##.",
+        ".##..##2###..##.",
+        ".^#..##..##..##.",
+        ".##..##..##..##.",
+        ".##..##..##..##.",
+        ".##..##..##..##.",
+        ".##3###..###1##.",
+        ".##3###..###1##.",
+        "...T....T....T..",
+        "................",
+      ],
+      line: [[64,16],[112,16],[112,104],[80,104],[80,56],[48,56],[48,104],[16,104],[16,16],[64,16]],
+      bot: [[64,13],[114,13],[114,104],[80,104],[80,56],[48,56],[48,104],[13,104],[13,13],[64,13]],
+      start: [[68,12],[68,20]], heading: 0, laps: 3,
+      notes: "原版俯视赛道（mode-racing.js §5.2），16×16 一屏放下。\n顺时针：上直道 → 右侧下坡 → 中间 U 形弯 → 左侧回到起点。\n水洼在上直道和 U 形弯入口，加速板在左右两侧直道。",
+    },
+    {
+      id: "test-32", name: {"zh": "测试 8 字", "en": "Test Figure-8"}, blurb: {"zh": "加载器测试用", "en": "Loader test track"},
+      size: 32, test: true,
+      map: [
+        "................................",
+        ".................A.......S......",
+        "...............##=#########.....",
+        "...............##=##########....",
+        ".........T.....##A........###.o.",
+        "...............##...sssss..###.o",
+        "......T........##...sssss...##..",
+        "...............##...sssss...##..",
+        "............T..44...sssss...##..",
+        "...............##...........##..",
+        ".........A.....##.......T...##..",
+        "...............##...........11..",
+        "...............##...........##S.",
+        "...............##...........##..",
+        "...............##...........##..",
+        "..o#################<#~#######..",
+        "..o#################<#########.o",
+        "...##..T.......##.............o.",
+        "...##..........##...............",
+        "...##..........##...T...........",
+        "...22..........##...............",
+        "...##..........##.....T.........",
+        ".S.##..........^^...............",
+        "...##..........##...............",
+        "...##..........##........T......",
+        "...###.........##...............",
+        "..s.###........##...............",
+        "..ss.####>##3####...............",
+        "...ss.###>##3####...............",
+        "..................S.............",
+        "..T.............................",
+        "................................",
+      ],
+      line: [[128,24],[208,24],[232,48],[232,128],[32,128],[32,200],[56,224],[128,224],[128,24]],
+      bot: [[128,24],[208,24],[232,48],[232,128],[32,128],[32,200],[56,224],[128,224],[128,24]],
+      start: [[152,20],[152,28]], heading: 0, laps: 3,
+      notes: "加载器测试赛道，不是正式设计。\n8 字形：中间 (128,128) 平面交叉，两条路各走一次。\n两个 45° 切角、4 个检查点、四个方向的加速板、沙地、锥桶、警示牌、拱门（终点上方一对 + 单独一个）。",
+    },
+
+  ];
+  const K = {GRASS: 0, ROAD: 1, LINE: 2, CP1: 3, CP2: 4, CP3: 5 /* CP1..CP6 = 3..8 */, PUDDLE: 9,
+    BOOST_UP: 10, BOOST_DN: 11, BOOST_L: 12, BOOST_R: 13, SAND: 14, TREE: 15, CONE: 16, SIGN: 17, ARCH: 18};
+  const KIND_OF = {".": K.GRASS, "#": K.ROAD, "=": K.LINE, "1": 3, "2": 4, "3": 5, "4": 6, "5": 7, "6": 8, "~": K.PUDDLE,
+    "^": K.BOOST_UP, "v": K.BOOST_DN, "<": K.BOOST_L, ">": K.BOOST_R, "s": K.SAND, "T": K.TREE, "o": K.CONE, "S": K.SIGN, "A": K.ARCH};
+  // road = everything a car drives on at full speed; sand and the billboard
+  // tiles drive like grass (they never block)
+  const isRoad = k => k >= K.ROAD && k <= K.BOOST_R;
+  const isBoost = k => k >= K.BOOST_UP && k <= K.BOOST_R;
+  const isCP = k => k >= K.CP1 && k <= K.CP1 + 5;
+  const TRACK_Y = 16;          // screen y of track row 0 (top-down, 16x16 tracks)
+
+  // Centre / bot line: axis-aligned or exactly 45° segments. len = true
+  // length (diagonal = |dx| √2), u = unit direction, hd = heading 0..65535,
+  // s = distance along the line from point 0. Built once per track (flash
+  // tables on the device); the floats here are offline / ranking only.
+  function makeLine(pts) {
+    const segs = [];
+    let s0 = 0;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+      const dx = bx - ax, dy = by - ay, adx = abs(dx), ady = abs(dy);
+      if ((!adx && !ady) || (adx && ady && adx !== ady)) throw new Error("line segment " + i + " is not axis-aligned or 45°");
+      const diag = !!(adx && ady), len = diag ? adx * Math.SQRT2 : adx + ady, k = diag ? Math.SQRT1_2 : 1;
+      segs.push({ax, ay, bx, by, len, s0, hd: iatan2(dy, dx), ux: Math.sign(dx) * k, uy: Math.sign(dy) * k, diag, i});
+      s0 += len;
+    }
+    return {segs, len: s0};
+  }
+  function segProj(sg, x, y) {
+    const t = clamp((x - sg.ax) * sg.ux + (y - sg.ay) * sg.uy, 0, sg.len);
+    const px = sg.ax + sg.ux * t, py = sg.ay + sg.uy * t;
+    return {s: sg.s0 + t, d2: (x - px) * (x - px) + (y - py) * (y - py), seg: sg};
+  }
+  // Nearest point on the line -> {s, d2, seg}; ties go to the earlier segment
+  function project(line, x, y) {
+    let best = null;
+    for (const sg of line.segs) { const p = segProj(sg, x, y); if (!best || p.d2 < best.d2) best = p; }
+    return best;
+  }
+  const sDist = (line, a, b) => { const L = line.len; const d = abs(a - b) % L; return d > L / 2 ? L - d : d; };
+  // nearest point whose s is within `win` of `hint` (crossovers: stay on the pass we are on); global if none
+  function projectHint(line, x, y, hint, win = 48) {
+    if (hint == null) return project(line, x, y);
+    let best = null;
+    for (const sg of line.segs) {
+      const p = segProj(sg, x, y);
+      if (sDist(line, p.s, hint) <= win && (!best || p.d2 < best.d2)) best = p;
+    }
+    return best || project(line, x, y);
+  }
+  function pointAt(line, s) {
+    s = ((s % line.len) + line.len) % line.len;
+    for (const sg of line.segs) {
+      if (s <= sg.s0 + sg.len) { const a = s - sg.s0; return [sg.ax + sg.ux * a, sg.ay + sg.uy * a, sg]; }
+    }
+    const sg = line.segs[0];
+    return [sg.ax, sg.ay, sg];
+  }
+  // first turn after s (colinear joints skipped): signed angle, distance, and how much it turns within 40 px
+  function turnAhead(line, s) {
+    const segs = line.segs, n = segs.length;
+    s = ((s % line.len) + line.len) % line.len;
+    let i = 0;
+    while (i < n - 1 && s >= segs[i].s0 + segs[i].len) i++;
+    let d = segs[i].s0 + segs[i].len - s;
+    for (let k = 0; k < n; k++) {
+      const a = segs[(i + k) % n], b = segs[(i + k + 1) % n], t1 = angDiff(b.hd, a.hd);
+      if (t1 === 0) { d += b.len; continue; }
+      let cum = t1, mx = abs(t1), run = 0, j = (i + k + 1) % n;
+      for (let q = 0; q < n && run + segs[j].len <= 40; q++) {
+        run += segs[j].len;
+        const jn = (j + 1) % n;
+        cum += angDiff(segs[jn].hd, segs[j].hd); mx = max(mx, abs(cum)); j = jn;
+      }
+      return {d, t1, next: b, eighths: Math.round(mx / 8192)};
+    }
+    return {d: 999, t1: 0, next: segs[0], eighths: 0};
+  }
+  const kindT = (T, tx, ty) => (tx < 0 || ty < 0 || tx >= T.N || ty >= T.N) ? K.GRASS : T.KIND[ty * T.N + tx];
+  const kindPt = (T, x, y) => kindT(T, floor(x / 8), floor(y / 8));
+  const sRel = (T, s) => ((s - T.S_FIN) % T.LEN + T.LEN) % T.LEN;   // distance after the finish line
+
+  // JSON -> track object with the per-tile tables (const in flash on the
+  // device): KIND, DIRA (heading of the nearest centre-line segment), DIRB
+  // (a second heading where a non-neighbouring segment passes within 8 px:
+  // crossovers; -1 elsewhere, so Classic's tables are the old ones), PROG
+  // (distance after the finish / 8), the finish plane FIN, checkpoint
+  // distances S_CP, billboards DECOS and arches over the road SPANS.
+  function buildTrack(tj, idx) {
+    const n = tj.size;
+    if (n !== 16 && n !== 32) throw new Error("size must be 16 or 32");
+    if (!Array.isArray(tj.map) || tj.map.length !== n) throw new Error("map must have " + n + " rows");
+    const T = {idx, id: String(tj.id), json: tj, test: !!tj.test, N: n, NSH: n === 16 ? 4 : 5, WPX: n * 8,
+      MMSH: n === 16 ? 10 : 11, MAP: tj.map.slice(), KIND: new Uint8Array(n * n), NCP: 0, cache: {}};
+    T.QOUT = ~(T.WPX * 4096 - 1);
+    for (let ty = 0; ty < n; ty++) {
+      const row = tj.map[ty];
+      if (typeof row !== "string" || row.length !== n) throw new Error("map row " + ty + " must be " + n + " wide");
+      for (let tx = 0; tx < n; tx++) {
+        const k = KIND_OF[row[tx]];
+        if (k === undefined) throw new Error("map (" + tx + "," + ty + "): unknown tile " + row[tx]);
+        T.KIND[ty * n + tx] = k;
+        if (isCP(k)) T.NCP = max(T.NCP, k - K.CP1 + 1);
+      }
+    }
+    if (!T.NCP) throw new Error("no checkpoints");
+    T.CENTER = makeLine(tj.line); T.BOTLINE = makeLine(tj.bot); T.LEN = T.CENTER.len;
+    // finish: where the centre line leaves the '=' tiles (Classic: x = 64)
+    T.S_FIN = null;
+    for (let i = 1, steps = Math.ceil(T.LEN * 2) + 1; i <= steps * 2 && T.S_FIN === null; i++) {
+      const s0 = (i - 1) / 2, s1 = i / 2;
+      const a = pointAt(T.CENTER, s0), b = pointAt(T.CENTER, s1);
+      if (kindPt(T, a[0], a[1]) === K.LINE && kindPt(T, b[0], b[1]) !== K.LINE) T.S_FIN = s1 % T.LEN;
+    }
+    if (T.S_FIN === null) throw new Error("the centre line never crosses a '=' tile");
+    {
+      // finish plane: point + axis direction (dx, dy in -1..1) + lateral window
+      // lo..hi in Q8 (the '=' strip the line crosses, + 8 px); Classic = x
+      // crosses 64 going right with y < 32, as before
+      const [fx, fy] = pointAt(T.CENTER, T.S_FIN), sg = pointAt(T.CENTER, T.S_FIN - 0.5)[2];
+      const dx = Math.sign(sg.ux), dy = Math.sign(sg.uy);
+      const [lx, ly] = pointAt(T.CENTER, T.S_FIN - 0.5), seen = new Set(), stack = [[floor(lx / 8), floor(ly / 8)]];
+      let lo = 1e9, hi = -1e9;
+      while (stack.length) {
+        const [tx, ty] = stack.pop(), key = ty * n + tx;
+        if (seen.has(key) || kindT(T, tx, ty) !== K.LINE) continue;
+        seen.add(key);
+        for (const [cx, cy] of [[0, 0], [8, 0], [0, 8], [8, 8]]) {
+          const lat = -(tx * 8 + cx - fx) * dy + (ty * 8 + cy - fy) * dx;
+          lo = min(lo, lat); hi = max(hi, lat);
+        }
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (a || b) stack.push([tx + a, ty + b]);
+      }
+      const mg = 8 * (dx && dy ? Math.SQRT2 : 1);
+      T.FIN = {x: Math.round(fx * 256), y: Math.round(fy * 256), dx, dy, lo: Math.round((lo - mg) * 256), hi: Math.round((hi + mg) * 256)};
+    }
+    // checkpoints: s (after the finish) where the centre line first touches CP k, in order
+    T.S_CP = [0];
+    for (let k = 1; k <= T.NCP; k++) {
+      let found = null;
+      const from = T.S_CP[k - 1];
+      if (from !== null) {
+        for (let s = from; s < T.LEN; s += 0.5) {
+          const p = pointAt(T.CENTER, s + T.S_FIN);
+          if (kindPt(T, p[0], p[1]) === K.CP1 + k - 1) { found = s; break; }
+        }
+      }
+      T.S_CP.push(found);
+    }
+    T.S_CP.push(T.LEN);
+    T.DIRA = new Uint16Array(n * n); T.DIRB = new Int32Array(n * n).fill(-1); T.PROG = new Uint8Array(n * n);
+    const ns = T.CENTER.segs.length;
+    for (let ty = 0; ty < n; ty++) for (let tx = 0; tx < n; tx++) {
+      const i = ty * n + tx, cx = tx * 8 + 4, cy = ty * 8 + 4, near = project(T.CENTER, cx, cy);
+      T.DIRA[i] = near.seg.hd;
+      T.PROG[i] = floor(sRel(T, near.s) / 8) & 255;
+      let bd = 1e9;
+      for (const sg of T.CENTER.segs) {
+        const di = abs(sg.i - near.seg.i);
+        if (di <= 1 || di === ns - 1) continue;       // a neighbour = a corner, not a crossover
+        const p = segProj(sg, cx, cy);
+        if (p.d2 <= 64 && abs(angDiff(sg.hd, near.seg.hd)) > 8192 && p.d2 < bd) { bd = p.d2; T.DIRB[i] = sg.hd; }
+      }
+    }
+    T.START = tj.start.map(p => [p[0] | 0, p[1] | 0]);
+    T.HEADING = (tj.heading | 0) & 0xffff;
+    // billboards; two 'A' with only road (1..8 tiles) between them on a row / column = one arch over the road
+    const used = new Set();
+    T.SPANS = [];
+    for (let ty = 0; ty < n; ty++) for (let tx = 0; tx < n; tx++) {
+      if (T.KIND[ty * n + tx] !== K.ARCH || used.has(ty * n + tx)) continue;
+      for (const [sx, sy] of [[1, 0], [0, 1]]) {
+        let j = 1;
+        while (j <= 9 && isRoad(kindT(T, tx + sx * j, ty + sy * j))) j++;
+        const ox = tx + sx * j, oy = ty + sy * j;
+        if (j >= 2 && j <= 9 && kindT(T, ox, oy) === K.ARCH && !used.has(oy * n + ox)) {
+          used.add(ty * n + tx); used.add(oy * n + ox);
+          T.SPANS.push({ax: tx * 8 + 4, ay: ty * 8 + 4, bx: ox * 8 + 4, by: oy * 8 + 4});
+          break;
+        }
+      }
+    }
+    T.DECOS = [];
+    for (let i = 0; i < n * n; i++) {
+      const k = T.KIND[i];
+      if (k < K.TREE || used.has(i)) continue;
+      const d = {x: (i & (n - 1)) * 8 + 4, y: (i >> T.NSH) * 8 + 4, k, flip: false};
+      if (k === K.SIGN) d.flip = turnAhead(T.CENTER, project(T.CENTER, d.x, d.y).s).t1 < 0;   // chevrons point into the next turn
+      T.DECOS.push(d);
+    }
+    return T;
+  }
+  const TRACKS = [];
+  for (const tj of TRACK_DATA) {
+    try { TRACKS.push(buildTrack(tj, TRACKS.length)); }
+    catch (e) { if (!TRACKS.length) throw e; console.warn("[racing] track " + tj.id + " skipped: " + e.message); }
+  }
+  const CL = TRACKS[0];                    // Classic
+  const trackOf = i => TRACKS[i] || CL;
+  {
+    const tz = {}, te = {};
+    for (const T of TRACKS) {
+      const j = T.json;
+      tz["dev.race.trk." + T.id] = j.name.zh; te["dev.race.trk." + T.id] = j.name.en;
+      tz["dev.race.trkB." + T.id] = j.blurb.zh; te["dev.race.trkB." + T.id] = j.blurb.en;
+    }
+    D.registerStrings("dev.race.", {zh: tz, en: te});
+  }
+  // the old single-track names (Classic), still exported in rules
+  const MAP = CL.MAP, KIND = CL.KIND, DIR = CL.DIRA, PROG = CL.PROG, START = CL.START, TRACK_LEN = CL.LEN;
+  function kindAt(xpx, ypx, T = CL) {
+    return (xpx < 0 || ypx < 0 || xpx >= T.WPX || ypx >= T.WPX) ? K.GRASS : T.KIND[((ypx >> 3) << T.NSH) + (xpx >> 3)];
+  }
+  // Progress for ranking (px, comparable between cars): laps * length +
+  // distance after the finish, the projection kept to the stretch between
+  // the checkpoint the car has and the next one (a crossover cannot put it
+  // on the other pass). Central only; the firmware can use PROG + the
+  // in-tile offset.
+  function progress(lap, cp, xpx, ypx, T = CL) {
+    const L = T.LEN, lo = T.S_CP[cp], hi = T.S_CP[cp + 1];
+    let best = null, bestScore = 0;
+    for (const sg of T.CENTER.segs) {
+      const p = segProj(sg, xpx, ypx), r = sRel(T, p.s);
+      let out = 0;
+      if (lo != null && hi != null) {
+        const r2 = cp === 0 && r > L / 2 ? r - L : r;
+        out = r2 < lo - 24 ? lo - 24 - r2 : r2 > hi + 24 ? r2 - hi - 24 : 0;
+      }
+      const score = p.d2 + (out ? 1e6 + out : 0);
+      if (!best || score < bestScore) { best = p; bestScore = score; }
+    }
+    let s = sRel(T, best.s);
+    if (cp === 0 && s > L / 2) s -= L;
+    if (cp === T.NCP && s < L / 4) s += L;
+    return lap * L + s;
+  }
+
   /* ============================== car physics (§5.3) ============================== */
 
-  function newCar(p) {
+  function newCar(p, T = CL) {
     return {
-      x: START[p][0] * 256, y: START[p][1] * 256, hd: 0, v: 0, heat: 0, u: 0,
+      x: T.START[p][0] * 256, y: T.START[p][1] * 256, hd: T.HEADING, v: 0, heat: 0, u: 0,
       lap: 0, cp: 0, tile: -1, steer: 1,
       stallUntil: 0, skidUntil: 0, skidDir: 1, boostUntil: 0, perfect: false, dashUntil: 0, snareUntil: 0, spinUntil: 0, splashUntil: 0,
-      wrongMs: 0, wrong: false, vineTile: 255, vineHits: 0,
+      wrongMs: 0, wrong: false, vineTile: -1, vineHits: 0,
       stalls: 0, skills: 0, skillLap: -1, lapStart: 0, lastLapCs: 0, bestCs: 0, finishCs: 0, finished: false,
     };
   }
@@ -407,7 +827,7 @@
   // Effective top speed in px/s at this moment (before the throttle)
   function topSpeed(c, P, t, kind, env, tn) {
     tn = tn || petTune(P, env.pet);
-    let top = (kind === K.GRASS || kind === K.TREE) ? P.grassSpeed : trunc(P.topSpeed * tn.topPct / 100);
+    let top = !isRoad(kind) ? P.grassSpeed : trunc(P.topSpeed * tn.topPct / 100);
     const boost = max(t < c.boostUntil ? P.boostPct : 0, t < c.dashUntil ? P.dashPct : 0);
     top = trunc(top * (100 + boost) / 100);
     if (env.draft && P.draftPct > 0) top = trunc(top * (100 + P.draftPct) / 100);
@@ -415,20 +835,30 @@
     if (t < c.snareUntil) top = trunc(top * P.vinePct / 100);
     return top;
   }
-  // One 20 ms step. ctl = {u: 0..100, brake, sx, sy (stick, + = up)};
-  // env = {t (local race ms), laps, vineTile (rival's vine or 255), draft, catchup,
-  // pet (this car's driver: per-pet handling, §5.9; missing = no trait)}.
+  // Most the heading may turn in one step (1/65536 turns): slower at speed,
+  // halved while skidding or snared
+  function turnStep(c, P, t, tn) {
+    const vpx = min(abs(c.v) >> 8, P.topSpeed);
+    let turn = trunc((P.turnLo - trunc((P.turnLo - P.turnHi) * vpx / P.topSpeed)) * tn.turnPct / 100);
+    if (t < c.skidUntil || t < c.snareUntil) turn = trunc(turn / 2);
+    return trunc(turn * 65536 * STEP_MS / 360000);
+  }
+  // One 20 ms step. ctl = {u: 0..100, brake, and either sx, sy (stick, + =
+  // up: the wanted heading, top-down) or turn (stick x -100..100: relative
+  // steering, 3D views)}; env = {t (local race ms), laps, vineTile (rival's
+  // vine tile or -1), draft, catchup, pet (this car's driver: per-pet
+  // handling, §5.9; missing = no trait), T (track; missing = Classic)}.
   // Returns the events of this step (strings) for sounds and banners.
   function stepCar(c, P, ctl, env) {
     const ev = [];
-    const t = env.t, dt = STEP_MS;
+    const t = env.t, dt = STEP_MS, T = env.T || CL;
     let u = clamp(ctl.u | 0, 0, 100);
     if (c.finished) u = 0;
     if (t < c.stallUntil) u = min(u, 30);
     if (t < c.spinUntil) u = 0;
     c.u = u;
     const px = c.x >> 8, py = c.y >> 8;
-    const ti = (py >> 3) * 16 + (px >> 3), kind = KIND[ti];
+    const ti = ((py >> 3) << T.NSH) + (px >> 3), kind = T.KIND[ti];
     const tn = petTune(P, env.pet);
     if (ti !== c.tile) {
       c.tile = ti;
@@ -438,17 +868,18 @@
         c.v = trunc(c.v * 70 / 100);
         ev.push("skid");
       }
-      if (kind === K.BOOST_UP || kind === K.BOOST_DN) { c.boostUntil = max(c.boostUntil, t + P.boostMs); c.perfect = false; ev.push("boost"); }
+      if (isBoost(kind)) { c.boostUntil = max(c.boostUntil, t + P.boostMs); c.perfect = false; ev.push("boost"); }
     }
     // the rival's vines (checked locally: 50 ms reports would miss an 8 px tile)
-    if (ti !== c.vineTile) c.vineTile = 255;
-    if (env.vineTile !== 255 && ti === env.vineTile && c.vineTile !== ti) {
+    const vine = env.vineTile == null || (env.vineTile === 255 && T.N === 16) ? -1 : env.vineTile;   // 255 = none (old callers)
+    if (ti !== c.vineTile) c.vineTile = -1;
+    if (vine >= 0 && ti === vine && c.vineTile !== ti) {
       c.vineTile = ti; c.vineHits = (c.vineHits + 1) & 255;
       if (t < c.dashUntil) ev.push("burned");
       else { c.snareUntil = t + P.snareMs; ev.push("snared"); }
     }
     // speed
-    const grass = kind === K.GRASS || kind === K.TREE;
+    const grass = !isRoad(kind);
     const top = topSpeed(c, P, t, kind, env, tn);
     const target = trunc(top * 256 * u / 100);
     const st = k => trunc(k * 256 * dt / 1000);   // px/s^2 -> 1/256 px/s per step
@@ -470,33 +901,43 @@
     if (hot && t >= c.boostUntil && t >= c.dashUntil) c.heat += trunc(P.heatRise * dt * tn.heatPct / 100);
     else if (!hot) c.heat = max(0, c.heat - trunc(P.heatCool * dt * tn.coolPct / 100));
     if (c.heat >= 100000) { c.heat = 0; c.stallUntil = t + P.stallMs; c.stalls++; ev.push("overheat"); }
-    // steering: the stick is the wanted heading; slower turning at speed
-    const vpx = min(abs(c.v) >> 8, P.topSpeed);
-    let turn = trunc((P.turnLo - trunc((P.turnLo - P.turnHi) * vpx / P.topSpeed)) * tn.turnPct / 100);
-    if (t < c.skidUntil || t < c.snareUntil) turn = trunc(turn / 2);
-    const maxStep = trunc(turn * 65536 * dt / 360000);
-    const sx = ctl.sx | 0, sy = ctl.sy | 0;
-    if (sx * sx + sy * sy > P.stickDead * P.stickDead) {
-      const want = iatan2(-sy, sx);
-      const d = angDiff(want, c.hd);
-      if (d !== 0) c.steer = d > 0 ? 1 : -1;
-      c.hd = (c.hd + clamp(d, -maxStep, maxStep)) & 0xffff;
+    // steering: slower turning at speed
+    const maxStep = turnStep(c, P, t, tn);
+    if (ctl.turn != null) {
+      // RELATIVE (3D views): stick x past the dead zone turns the car, full
+      // rate of this speed from |x| = 90 (keys = ±100)
+      const a = abs(ctl.turn | 0);
+      if (a > P.stickDead) {
+        const amt = min(100, trunc((a - P.stickDead) * 100 / max(1, 90 - P.stickDead)));
+        c.steer = ctl.turn > 0 ? 1 : -1;
+        c.hd = (c.hd + c.steer * trunc(maxStep * amt / 100)) & 0xffff;
+      }
+    } else {
+      // ABSOLUTE (top-down): the stick is the wanted heading
+      const sx = ctl.sx | 0, sy = ctl.sy | 0;
+      if (sx * sx + sy * sy > P.stickDead * P.stickDead) {
+        const want = iatan2(-sy, sx);
+        const d = angDiff(want, c.hd);
+        if (d !== 0) c.steer = d > 0 ? 1 : -1;
+        c.hd = (c.hd + clamp(d, -maxStep, maxStep)) & 0xffff;
+      }
     }
     if (t < c.skidUntil) c.hd = (c.hd + c.skidDir * trunc(90 * 65536 * dt / 360000)) & 0xffff;
-    // move; the screen edge stops the car in that direction
-    const ox = c.x;
+    // move; the edge of the map (4 px in) stops the car in that direction
+    const ox = c.x, oy = c.y;
     c.x += trunc(c.v * icos(c.hd) * dt / 1024000);
     c.y += trunc(c.v * isin(c.hd) * dt / 1024000);
-    const lo = 4 * 256, hi = 124 * 256 - 1;
+    const lo = 4 * 256, hi = (T.WPX - 4) * 256 - 1;
     if (c.x < lo || c.x > hi) { c.x = clamp(c.x, lo, hi); c.v = trunc(c.v * abs(isin(c.hd)) / 1024); }
     if (c.y < lo || c.y > hi) { c.y = clamp(c.y, lo, hi); c.v = trunc(c.v * abs(icos(c.hd)) / 1024); }
-    // checkpoints in order, then the finish line
-    const nx = c.x >> 8, ny = c.y >> 8, nti = (ny >> 3) * 16 + (nx >> 3), nk = KIND[nti];
+    // checkpoints in order, then crossing the finish plane forwards
+    const nx = c.x >> 8, ny = c.y >> 8, nti = ((ny >> 3) << T.NSH) + (nx >> 3), nk = T.KIND[nti];
     if (!c.finished) {
-      if (c.cp === 0 && nk === K.CP1) c.cp = 1;
-      else if (c.cp === 1 && nk === K.CP2) c.cp = 2;
-      else if (c.cp === 2 && nk === K.CP3) c.cp = 3;
-      else if (c.cp === 3 && ox < FINISH_X * 256 && c.x >= FINISH_X * 256 && ny < 32) {
+      const F = T.FIN;
+      const a0 = (ox - F.x) * F.dx + (oy - F.y) * F.dy, a1 = (c.x - F.x) * F.dx + (c.y - F.y) * F.dy;
+      const lat = -(c.x - F.x) * F.dy + (c.y - F.y) * F.dx;
+      if (c.cp < T.NCP && nk === K.CP1 + c.cp) c.cp++;
+      else if (c.cp === T.NCP && a0 < 0 && a1 >= 0 && lat >= F.lo && lat < F.hi) {
         const lapCs = trunc((t + dt - c.lapStart) / 10);
         c.lap++; c.cp = 0; c.lapStart = t + dt; c.lastLapCs = lapCs;
         if (!c.bestCs || lapCs < c.bestCs) c.bestCs = lapCs;
@@ -504,10 +945,11 @@
         else { ev.push("lap"); if (c.lap === env.laps - 1) ev.push("finalLap"); }
       }
     }
-    // wrong way: heading > 120° off the road direction for 0.5 s
+    // wrong way: heading > 120° off every road direction of this tile for 0.5 s
     if (isRoad(nk) && abs(c.v) > 4 * 256) {
       const hd = c.v < 0 ? (c.hd + 32768) & 0xffff : c.hd;
-      c.wrongMs = abs(angDiff(hd, DIR[nti])) > 21845 ? c.wrongMs + dt : 0;
+      const off = min(abs(angDiff(hd, T.DIRA[nti])), T.DIRB[nti] >= 0 ? abs(angDiff(hd, T.DIRB[nti])) : 65536);
+      c.wrongMs = off > 21845 ? c.wrongMs + dt : 0;
       const w = c.wrongMs >= 500;
       if (w && !c.wrong) ev.push("wrongWay");
       if (w || c.wrongMs === 0) c.wrong = w;
@@ -515,18 +957,20 @@
     return ev;
   }
   // The tile behind the car (Vine Snare drops its vines there)
-  function tileBehind(c) {
+  function tileBehind(c, T = CL) {
     const bx = (c.x >> 8) - trunc(10 * icos(c.hd) / 1024), by = (c.y >> 8) - trunc(10 * isin(c.hd) / 1024);
-    const k = kindAt(bx, by);
-    if (bx >= 0 && by >= 0 && bx < 128 && by < 128 && isRoad(k)) return (by >> 3) * 16 + (bx >> 3);
-    return ((c.y >> 11) * 16 + (c.x >> 11)) & 255;
+    const k = kindAt(bx, by, T);
+    if (bx >= 0 && by >= 0 && bx < T.WPX && by < T.WPX && isRoad(k)) return ((by >> 3) << T.NSH) + (bx >> 3);
+    return ((c.y >> 11) << T.NSH) + (c.x >> 11);
   }
+  // race.state vines[] <-> tile index (-1 = none); see the messages section
+  const vineOf = v => (v.tile === 255 && (v.ttl >> 6) === 0 ? -1 : v.tile | ((v.ttl >> 6) << 8));
   // race_config.h text (§5.7) for the export button
   function configH(params) {
     const P = Object.assign({}, DEFAULTS, params || {});
     const lines = ["// race_config.h: Pocket Rivals racing tunables (exported from the device simulator)", "#pragma once", ""];
     for (const p of PARAMS) {
-      if (p[0] === "botPct") continue;   // simulator only
+      if (SIM_ONLY.has(p[0])) continue;   // simulator only
       const def = ("#define " + p[1] + " ").padEnd(31) + String(P[p[0]]).padEnd(6);
       lines.push(p[9] ? def + "// " + p[9] : def.trimEnd());
     }
@@ -537,14 +981,16 @@
 
   function centralCreate(api, opts) {
     const P = Object.assign({}, DEFAULTS, opts.params || {});
-    const blankCar = p => ({x: START[p][0], y: START[p][1], hd: 0, speed: 0, lap: 0, cp: 0, flags: 0, finish: 0, best: 0, stalls: 0, skills: 0, vineHits: 0});
+    const blankCar = (p, T) => ({x: T.START[p][0], y: T.START[p][1], hd: T.HEADING >> 8, speed: 0, lap: 0, cp: 0, flags: 0, finish: 0, best: 0, stalls: 0, skills: 0, vineHits: 0});
     const s = {
       phase: PH.PICK, pet: [NO_PET, NO_PET], pickedAt: null, cdEnd: -1, raceMs: 0, lastG: api.gameNow(),
-      cars: [blankCar(0), blankCar(1)], vines: [{tile: 255, until: 0}, {tile: 255, until: 0}],
+      track: 0, trackSet: false, picker: opts.first === 1 ? 1 : 0,
+      cars: [blankCar(0, CL), blankCar(1, CL)], vines: [{tile: -1, until: 0}, {tile: -1, until: 0}],
       passT: [[0], [0]], firstFinishMs: -1, finishOrder: [], skillLap: [-1, -1],
       ev: {id: 0, type: 0, target: 0, amount: 0}, evQ: [], evAt: -1e9, winner: null, quitBy: null,
     };
     const g = () => api.gameNow();
+    const T = () => trackOf(s.track);
     function emit(type, target, amount) { s.evQ.push({type, target, amount: amount & 255}); }
     function startCountdown(isStart) {
       s.cdEnd = g() + P.countdownMs;
@@ -552,8 +998,16 @@
       api.nextStep();
       api.broadcast();
     }
-    const passes = c => c.lap * 4 + c.cp;
-    function prog(i) { const c = s.cars[i]; return progress(c.lap, c.cp, c.x, c.y); }
+    // both drivers in and the track set: reveal, then the countdown
+    function maybeReveal() {
+      if (s.pickedAt == null && s.trackSet && s.pet[0] !== NO_PET && s.pet[1] !== NO_PET) { s.pickedAt = g(); api.nextStep(); }
+    }
+    function setTrack(i) {
+      s.track = i; s.trackSet = true;
+      s.cars = [blankCar(0, T()), blankCar(1, T())];
+    }
+    const passes = c => c.lap * (T().NCP + 1) + c.cp;
+    function prog(i) { const c = s.cars[i]; return progress(c.lap, c.cp, c.x, c.y, T()); }
     function leader() {
       const f = s.cars.map(c => c.finish);
       if (f[0] && f[1]) return f[0] < f[1] ? 0 : f[1] < f[0] ? 1 : s.finishOrder[0];
@@ -584,7 +1038,7 @@
             if (now >= s.cdEnd) { s.cdEnd = -1; if (s.phase === PH.COUNTDOWN) s.phase = PH.RACE; api.broadcast(); }
           } else {
             s.raceMs += dt;
-            for (const v of s.vines) if (v.tile !== 255 && s.raceMs >= v.until) { v.tile = 255; api.broadcast(); }
+            for (const v of s.vines) if (v.tile >= 0 && s.raceMs >= v.until) { v.tile = -1; api.broadcast(); }
             if (s.phase === PH.FINISH && s.raceMs - s.firstFinishMs >= P.finishWaitMs) endRace();
             else if (s.raceMs >= P.timeLimitS * 1000) endRace();
           }
@@ -599,9 +1053,19 @@
       },
       action(p, a, arg, data) {
         if (a === A.RACE_PICK) {
-          if (s.phase !== PH.PICK || arg > 2 || s.pet[p] !== NO_PET) return false;
+          if (s.phase !== PH.PICK) return false;
+          if (arg >= TRACK_LOCK) {
+            // the picker sets (or changes, until the reveal) the track
+            const i = arg - TRACK_LOCK;
+            if (p !== s.picker || i >= TRACKS.length || s.pickedAt != null) return false;
+            setTrack(i);
+            maybeReveal();
+            api.broadcast();
+            return true;
+          }
+          if (arg > 2 || s.pet[p] !== NO_PET) return false;
           s.pet[p] = arg;
-          if (s.pet[0] !== NO_PET && s.pet[1] !== NO_PET) { s.pickedAt = g(); api.nextStep(); }
+          maybeReveal();
           api.broadcast();
           return true;
         }
@@ -609,16 +1073,21 @@
           if ((s.phase !== PH.RACE && s.phase !== PH.FINISH) || s.cdEnd >= 0) return false;
           const lap = data && data[0] != null ? data[0] : 0;
           if (lap <= s.skillLap[p] || lap > s.cars[p].lap + 1) return false;   // once per lap
-          s.skillLap[p] = lap;
           const q = 1 - p, pet = s.pet[p];
+          let tile = -1;
+          if (pet === PET_SPROUT) {
+            const Tr = T();
+            tile = (arg & 255) | (((data && data[1]) & 3) << 8);
+            if (tile >= Tr.N * Tr.N || tile === 255 || !isRoad(Tr.KIND[tile])) return false;
+          }
+          s.skillLap[p] = lap;
           if (pet === PET_EMBER) emit(EV.DASH, p, 0);
           else if (pet === PET_TIDE) {
             if (s.pet[q] === PET_SPROUT) emit(EV.ABSORB, q, 0);
             else emit(EV.SPLASH, q, (s.cars[q].flags & CF.DASH) ? 1 : 0);
           } else if (pet === PET_SPROUT) {
-            if (!isRoad(KIND[arg & 255])) return false;
-            s.vines[p] = {tile: arg & 255, until: s.raceMs + P.vineMs};
-            emit(EV.VINE, q, arg);
+            s.vines[p] = {tile, until: s.raceMs + P.vineMs};
+            emit(EV.VINE, q, tile);
           }
           return true;
         }
@@ -627,13 +1096,13 @@
       message(p, name, f) {
         if (name !== "race.input" || !inRace()) return;
         const c = s.cars[p];
-        const lap = min(f.lap, P.laps), cp = f.cp & 3;
-        const was = passes(c), now = lap * 4 + cp;
-        for (let k = was + 1; k <= now && k <= 40; k++) s.passT[p][k] = f.tCs;
+        const lap = min(f.lap, P.laps), cp = min(f.cp, T().NCP);
+        const was = passes(c), now = lap * (T().NCP + 1) + cp;
+        for (let k = was + 1; k <= now && k <= 80; k++) s.passT[p][k] = f.tCs;
         Object.assign(c, {x: f.x, y: f.y, hd: f.hd, speed: f.speed, lap, cp, flags: f.flags, best: f.best, stalls: f.stalls, skills: f.skills});
         if (f.vineHits !== c.vineHits) {
           c.vineHits = f.vineHits;
-          if (s.vines[1 - p].tile !== 255) { s.vines[1 - p].tile = 255; api.broadcast(); }
+          if (s.vines[1 - p].tile >= 0) { s.vines[1 - p].tile = -1; api.broadcast(); }
         }
         if ((f.flags & CF.FINISHED) && !c.finish && f.finish > 0 && s.phase !== PH.COUNTDOWN) {
           c.finish = f.finish;
@@ -646,13 +1115,18 @@
       snapshot() {
         const both = s.pet[0] !== NO_PET && s.pet[1] !== NO_PET;
         return {
-          phase: s.phase, flags: (s.pet[0] !== NO_PET ? 8 : 0) | (s.pet[1] !== NO_PET ? 16 : 0),
-          laps: P.laps, track: 0,
+          phase: s.phase, flags: (s.pet[0] !== NO_PET ? SF.P1_PICKED : 0) | (s.pet[1] !== NO_PET ? SF.P2_PICKED : 0)
+            | (s.trackSet ? SF.TRACK_SET : 0) | (s.picker ? SF.P2_TRACK : 0),
+          laps: P.laps, track: s.track,
           countdown: s.cdEnd >= 0 ? clamp(s.cdEnd - g(), 0, 65535) : 0,
           raceCs: trunc(s.raceMs / 10) & 0xffff,
           cars: s.cars.map((c, i) => ({x: c.x, y: c.y, hd: c.hd, speed: c.speed, lap: c.lap, cp: c.cp, flags: c.flags,
             pet: both ? s.pet[i] : NO_PET, finish: c.finish, best: c.best, stalls: c.stalls, skills: c.skills})),
-          vines: s.vines.map(v => ({tile: v.tile, ttl: v.tile === 255 ? 0 : clamp(Math.ceil((v.until - s.raceMs) / 1000), 0, 255)})),
+          vines: s.vines.map(v => {
+            if (v.tile < 0) return {tile: 255, ttl: 0};
+            const ttl = clamp(Math.ceil((v.until - s.raceMs) / 1000), 0, 63);
+            return {tile: v.tile & 255, ttl: ttl | ((v.tile >> 8) << 6)};
+          }),
           gap: gap(), leader: s.phase === PH.RESULTS && s.winner != null ? s.winner : leader(),
           evId: s.ev.id, evType: s.ev.type, evTarget: s.ev.target, evAmount: s.ev.amount,
         };
@@ -677,11 +1151,18 @@
       resume() { if (inRace()) startCountdown(s.phase === PH.COUNTDOWN); },
       // fixtures / tests: DEVICE.debug(cmd, arg)
       debug(cmd, arg) {
-        if (cmd === "pick") {            // arg = P1 pet + 4 * P2 pet; skip the reveal wait
+        if (cmd === "pick") {            // arg = P1 pet + 4 * P2 pet; skip the reveal wait (the track stays as it is)
           if (s.phase !== PH.PICK) return "not pick";
           s.pet = [arg & 3, (arg >> 2) & 3].map(v => (v > 2 ? 0 : v));
+          if (!s.trackSet) setTrack(s.track);
           s.pickedAt = g() - REVEAL_MS;
           api.nextStep();
+          return "ok";
+        }
+        if (cmd === "track") {           // arg = track index: set it as if the picker had
+          if (s.phase !== PH.PICK || s.pickedAt != null || !TRACKS[arg]) return "no";
+          setTrack(arg);
+          maybeReveal();
           return "ok";
         }
         if (cmd === "go") { if (s.cdEnd >= 0) s.cdEnd = g(); return "ok"; }
@@ -716,13 +1197,21 @@
     const v = st && st.cars[ctx.p].pet;
     return v != null && v !== NO_PET ? v : m.myPet;
   };
+  // View (§5.10): this board's choice (ctx.local, kept for the power-on),
+  // "top" on a 32x32 track becomes the chase cam
+  const VIEWS = ["top", "chase", "cockpit"];
+  const viewsFor = T => (T && T.N === 32 ? ["chase", "cockpit"] : VIEWS);
+  const prefView = ctx => (ctx.local && VIEWS.includes(ctx.local.raceView) ? ctx.local.raceView : "top");
+  const viewOf = (ctx, T) => { const v = prefView(ctx); return T.N === 32 && v === "top" ? "chase" : v; };
+  const hwLook = ctx => !!ctx.params("racing").sim3dHw;
+  const pickerOf = st => (st && (st.flags & SF.P2_TRACK) ? 1 : 0);
 
   function playerCreate(ctx) {
     return {
-      P: paramsOf(ctx), car: newCar(ctx.p), pl: D.padLevel.create(), acc: 0, raceT: 0,
+      P: paramsOf(ctx), T: CL, trackIdx: -1, car: newCar(ctx.p, CL), pl: D.padLevel.create(), acc: 0, raceT: 0,
       goAt: null, cdStep: -1, cdIsStart: false, went: false, cdShown: 0, goShowUntil: 0, frozenNoSig: false,
       evSeen: -1, banner: null, parts: [], partAt: 0, lastSend: -1e9, toneHz: 0, warnAt: 0, myPet: NO_PET,
-      noteKey: null, noteDone: false,
+      noteKey: null, noteDone: false, rh: [],
     };
   }
   function banner(ctx, key, c = "gold", ms = 1500, vars) {
@@ -764,12 +1253,28 @@
       banner(ctx, "dev.race.absorbed", "grassLt");
     }
   }
+  // Rival reports for the interpolated drawing: a new entry only when the
+  // reported pose changed (a state that repeats the last report would make
+  // the rival stop for a frame and then jump), or every 200 ms
+  function noteRival(ctx, m, msg) {
+    const rc = msg.cars[1 - ctx.p], now = ctx.now(), h = m.rh, last = h[h.length - 1];
+    if (last && last.x === rc.x && last.y === rc.y && last.hd === rc.hd && now - last.at < 200) return;
+    h.push({x: rc.x, y: rc.y, hd: rc.hd, speed: rc.speed, at: now});
+    if (h.length > 8) h.shift();
+  }
   function playerOnState(ctx, msg, prev) {
     const m = ctx.m;
     if (!m) return;
     if (m.evSeen < 0) m.evSeen = msg.evId;
     else if (msg.evId !== m.evSeen) { m.evSeen = msg.evId; handleEvent(ctx, msg); }
     if (msg.cars[ctx.p].pet !== NO_PET) m.myPet = msg.cars[ctx.p].pet;
+    // the track is set: our car goes to its start grid (until GO)
+    if ((msg.flags & SF.TRACK_SET) && msg.track !== m.trackIdx) {
+      m.trackIdx = msg.track; m.T = trackOf(msg.track);
+      if (!m.went) { const u = m.car.u; m.car = newCar(ctx.p, m.T); m.car.u = u; }
+      m.rh = [];
+    }
+    if (msg.phase !== PH.PICK) noteRival(ctx, m, msg);
     if (racing(msg) && msg.countdown > 0 && msg.step !== m.cdStep) {
       m.cdStep = msg.step;
       m.goAt = ctx.gameNow() + msg.countdown;
@@ -782,7 +1287,7 @@
       m.went = true;
       m.raceT = msg.raceCs * 10;
       const sc = msg.cars[ctx.p], c = m.car;
-      if (prev == null && (sc.lap || sc.cp || sc.x !== START[ctx.p][0])) {
+      if (prev == null && (sc.lap || sc.cp || sc.x !== m.T.START[ctx.p][0])) {
         Object.assign(c, {x: sc.x * 256 + 128, y: sc.y * 256 + 128, hd: sc.hd << 8, lap: sc.lap, cp: sc.cp,
           stalls: sc.stalls, skills: sc.skills, bestCs: sc.best, lapStart: m.raceT});
         if (sc.finish) { c.finished = true; c.finishCs = sc.finish; }
@@ -809,23 +1314,53 @@
       }
     } else m.goShowUntil = ctx.now() + 600;
   }
+  // The rival as the rules see it (draft, catch-up, the bot): the last report
+  // plus dead reckoning, whole px
   function rivalView(ctx) {
     const st = ctx.state;
     if (!st) return null;
-    const q = 1 - ctx.p, rc = st.cars[q];
+    const q = 1 - ctx.p, rc = st.cars[q], T = ctx.m ? ctx.m.T : CL;
     const age = min(100, max(0, ctx.stateAge()));
     const live = st.phase === PH.RACE || st.phase === PH.FINISH;
     const hd = rc.hd << 8;
     const adv = live && !(st.flags & C.FLAG.PAUSED) && st.countdown === 0 ? rc.speed * age : 0;
     return {
-      x: clamp(rc.x + trunc(adv * icos(hd) / 1024000), 4, 123), y: clamp(rc.y + trunc(adv * isin(hd) / 1024000), 4, 123),
+      x: clamp(rc.x + trunc(adv * icos(hd) / 1024000), 4, T.WPX - 5), y: clamp(rc.y + trunc(adv * isin(hd) / 1024000), 4, T.WPX - 5),
       hd, pet: rc.pet, flags: rc.flags, lap: rc.lap, cp: rc.cp,
     };
+  }
+  // The rival as drawn (both views): RIVAL_LAG_MS in the past, interpolated
+  // between the two reports around that moment (Q8 px, sub-pixel steps);
+  // past the newest report, dead reckoning from it (at most 100 ms).
+  // ctx.local.raceRival = "radio" draws rivalView() instead (comparison).
+  function rivalPose(ctx, m) {
+    const st = ctx.state, h = m.rh;
+    if (!st) return null;
+    const rc = st.cars[1 - ctx.p], T = m.T;
+    if ((ctx.local && ctx.local.raceRival === "radio") || !h.length) {
+      const rv = rivalView(ctx);
+      return {x: rv.x * 256 + 128, y: rv.y * 256 + 128, hd: rv.hd, pet: rc.pet, flags: rc.flags};
+    }
+    const tr = ctx.now() - RIVAL_LAG_MS;
+    const out = (x, y, hd) => ({x, y, hd: hd & 0xffff, pet: rc.pet, flags: rc.flags});
+    for (let i = h.length - 1; i > 0; i--) {
+      const a = h[i - 1], b = h[i];
+      if (a.at <= tr && tr <= b.at) {
+        const f = trunc((tr - a.at) * 256 / max(1, b.at - a.at)), ha = a.hd << 8;
+        return out(a.x * 256 + 128 + (b.x - a.x) * f, a.y * 256 + 128 + (b.y - a.y) * f, ha + trunc(angDiff(b.hd << 8, ha) * f / 256));
+      }
+    }
+    const n = h[h.length - 1];
+    if (tr < h[0].at) return out(h[0].x * 256 + 128, h[0].y * 256 + 128, h[0].hd << 8);
+    const live = (st.phase === PH.RACE || st.phase === PH.FINISH) && !(st.flags & C.FLAG.PAUSED) && st.countdown === 0;
+    const hd = n.hd << 8, adv = live ? n.speed * min(100, tr - n.at) : 0;
+    const lo = 4 * 256, hi = (T.WPX - 4) * 256;
+    return out(clamp(n.x * 256 + 128 + trunc(adv * icos(hd) / 4000), lo, hi), clamp(n.y * 256 + 128 + trunc(adv * isin(hd) / 4000), lo, hi), hd);
   }
   function playerTick(ctx, dt) {
     const m = ctx.m, st = ctx.state;
     if (!m || !st) return;
-    const P = m.P, c = m.car;
+    const P = m.P, c = m.car, T = m.T;
     if (!racing(st)) { if (m.toneHz) { ctx.tone(0); m.toneHz = 0; } m.acc = 0; return; }
     const paused = !!(st.flags & C.FLAG.PAUSED), nosig = ctx.stateAge() > C.CENTRAL_TIMEOUT_MS;
     if (m.goAt != null && !paused && !nosig) {
@@ -837,22 +1372,24 @@
     const live = m.went && m.goAt == null && !paused && !nosig && (st.phase === PH.RACE || st.phase === PH.FINISH);
     if (nosig) m.frozenNoSig = true;
     else if (m.frozenNoSig) { m.frozenNoSig = false; if (live) m.raceT = st.raceCs * 10; }
+    const rel = viewOf(ctx, T) !== "top";     // 3D: relative steering
     m.acc += dt;
     while (m.acc >= STEP_MS) {
       m.acc -= STEP_MS;
       const u = ctx.padLevel(m.pl, STEP_MS);
       if (!live) { c.u = c.finished ? 0 : u; continue; }
       const rv = rivalView(ctx);
-      const env = {t: m.raceT, laps: st.laps, vineTile: st.vines[1 - ctx.p].tile, draft: false, catchup: false, pet: myPet(ctx, m)};
+      const env = {t: m.raceT, laps: st.laps, vineTile: vineOf(st.vines[1 - ctx.p]), draft: false, catchup: false, pet: myPet(ctx, m), T};
       if (rv && P.draftPct > 0) {
         // rival 10-40 px ahead in my heading, within 6 px of my line
         const dx = rv.x - (c.x >> 8), dy = rv.y - (c.y >> 8);
         const along = trunc((dx * icos(c.hd) + dy * isin(c.hd)) / 1024), side = trunc((dy * icos(c.hd) - dx * isin(c.hd)) / 1024);
         env.draft = along >= 10 && along <= 40 && abs(side) <= 6 && c.v > 0;
       }
-      if (rv && P.catchupPct > 0) env.catchup = progress(rv.lap, rv.cp, rv.x, rv.y) - progress(c.lap, c.cp, c.x >> 8, c.y >> 8) > TRACK_LEN / 2;
+      if (rv && P.catchupPct > 0) env.catchup = progress(rv.lap, rv.cp, rv.x, rv.y, T) - progress(c.lap, c.cp, c.x >> 8, c.y >> 8, T) > T.LEN / 2;
       const inp = ctx.input;
-      const evs = stepCar(c, P, {u, brake: !!inp.b, sx: inp.x, sy: inp.y}, env);
+      const ctl = rel ? {u, brake: !!inp.b, turn: inp.x} : {u, brake: !!inp.b, sx: inp.x, sy: inp.y};
+      const evs = stepCar(c, P, ctl, env);
       m.raceT += STEP_MS;
       if (evs.length) onEvents(ctx, evs);
       // smoke when hot, gold trail when boosted (decoration only)
@@ -893,19 +1430,30 @@
     c.skills++;
     if (pet === PET_EMBER) { c.dashUntil = m.raceT + P.dashMs; c.heat = 0; ctx.rt(A.RACE_SKILL, 0, [c.lap, 0, 0]); }
     else if (pet === PET_TIDE) ctx.rt(A.RACE_SKILL, 0, [c.lap, 0, 0]);
-    else { const tile = tileBehind(c); m.vinePending = {tile, until: ctx.now() + 400}; ctx.rt(A.RACE_SKILL, tile, [c.lap, 0, 0]); }
+    else {
+      const tile = tileBehind(c, m.T);
+      m.vinePending = {tile, until: ctx.now() + 400};
+      ctx.rt(A.RACE_SKILL, tile & 255, [c.lap, tile >> 8, 0]);
+    }
     ctx.sfx("skill_race");
   }
 
-  /* ============================== drawing ============================== */
+  /* ============================== drawing: top-down ============================== */
 
   const fmtSec = cs => { if (!cs) return "--"; const s = cs / 100; return s >= 100 ? String(Math.floor(s)) : (Math.floor(cs / 10) / 10).toFixed(1); };
   const fmtClock = ms => { const ds = Math.floor(max(0, ms) / 100); return Math.floor(ds / 600) + ":" + String(Math.floor(ds / 10) % 60).padStart(2, "0") + "." + (ds % 10); };
   const hash = (a, b) => ((a * 73856093) ^ (b * 19349663)) >>> 0;
 
-  function drawTile(g, tx, ty, now) {
-    const k = KIND[ty * 16 + tx], x = tx * 8, y = TRACK_Y + ty * 8;
-    if (k === K.GRASS || k === K.TREE) {
+  // One 8x8 tile of a 16x16 track (Classic's tiles exactly as before; sand,
+  // side boosts and the billboard tiles for the other tracks)
+  function drawTile(g, T, tx, ty, now) {
+    const k = T.KIND[ty * 16 + tx], x = tx * 8, y = TRACK_Y + ty * 8;
+    if (k === K.SAND) {
+      g.rect(x, y, 8, 8, "gold");
+      g.hline(x, y + 2, 3, "fire"); g.hline(x + 4, y + 1, 3, "fire"); g.hline(x + 1, y + 5, 3, "fire"); g.hline(x + 5, y + 6, 3, "fire");
+      return;
+    }
+    if (!isRoad(k)) {
       g.rect(x, y, 8, 8, "grassDk");
       const h = hash(tx, ty);
       g.px(x + (h & 7), y + ((h >> 3) & 7), "grass");
@@ -914,6 +1462,13 @@
         g.rect(x + 1, y + 1, 6, 5, "grass"); g.rect(x + 2, y, 4, 7, "grass");
         g.rect(x + 2, y + 1, 2, 2, "grassLt"); g.px(x + 1, y + 2, "grassLt");
         g.rect(x + 3, y + 6, 2, 2, "fireDk");
+      } else if (k === K.CONE) {
+        g.rect(x + 3, y + 2, 2, 4, "fire"); g.rect(x + 2, y + 4, 4, 2, "fire"); g.rect(x + 3, y + 3, 2, 1, "white"); g.rect(x + 2, y + 6, 4, 1, "void");
+      } else if (k === K.SIGN) {
+        g.rect(x + 1, y + 1, 6, 4, "danger"); g.rect(x + 2, y + 2, 1, 2, "white"); g.rect(x + 4, y + 2, 1, 2, "white"); g.rect(x + 3, y + 5, 2, 3, "muted");
+      } else if (k === K.ARCH) {
+        g.rect(x, y + 3, 8, 2, "white"); g.rect(x, y + 3, 1, 2, "muted"); g.rect(x + 7, y + 3, 1, 2, "muted");
+        g.rect(x + 2, y + 3, 1, 2, "accent"); g.rect(x + 5, y + 3, 1, 2, "accent");
       }
       return;
     }
@@ -923,20 +1478,21 @@
     } else if (k === K.PUDDLE) {
       g.rect(x + 1, y + 1, 6, 6, "water"); g.rect(x, y + 2, 8, 4, "water"); g.rect(x + 2, y, 4, 8, "water");
       g.hline(x + 2, y + 2, 2, "waterLt"); g.hline(x + 4, y + 5, 2, "waterLt");
-    } else if (k === K.BOOST_UP || k === K.BOOST_DN) {
+    } else if (isBoost(k)) {
       const c = Math.floor(now / 200) & 1 ? "gold" : "fire";
       for (const oy of [0, 4]) {
-        const rows = k === K.BOOST_UP ? [[3, 2], [2, 4], [1, 6]] : [[1, 6], [2, 4], [3, 2]];
-        rows.forEach(([cx, w], i) => g.hline(x + cx, y + oy + i, w, c));
+        const rows = k === K.BOOST_UP || k === K.BOOST_L ? [[3, 2], [2, 4], [1, 6]] : [[1, 6], [2, 4], [3, 2]];
+        if (k === K.BOOST_UP || k === K.BOOST_DN) rows.forEach(([cx, w], i) => g.hline(x + cx, y + oy + i, w, c));
+        else rows.forEach(([cy, h], i) => g.vline(x + oy + i, y + cy, h, c));
       }
     }
   }
   // road edges: a 1 px muted kerb wherever road meets grass
-  function drawKerbs(g) {
+  function drawKerbs(g, T) {
     for (let ty = 0; ty < 16; ty++) for (let tx = 0; tx < 16; tx++) {
-      if (!isRoad(KIND[ty * 16 + tx])) continue;
+      if (!isRoad(T.KIND[ty * 16 + tx])) continue;
       const x = tx * 8, y = TRACK_Y + ty * 8;
-      const grassAt = (dx, dy) => { const nx = tx + dx, ny = ty + dy; return nx < 0 || ny < 0 || nx > 15 || ny > 15 || !isRoad(KIND[ny * 16 + nx]); };
+      const grassAt = (dx, dy) => { const nx = tx + dx, ny = ty + dy; return nx < 0 || ny < 0 || nx > 15 || ny > 15 || !isRoad(T.KIND[ny * 16 + nx]); };
       if (grassAt(0, -1)) g.hline(x, y, 8, "muted");
       if (grassAt(0, 1)) g.hline(x, y + 7, 8, "muted");
       if (grassAt(-1, 0)) g.vline(x, y, 8, "muted");
@@ -974,43 +1530,67 @@
     g.sprite(car, bx, by, Object.assign({frame, scale: s}, o, paint));
     if (rider) g.sprite(rider, rx, ry, Object.assign({scale: s}, opt.color ? {color: opt.color} : {}));
   }
-  function drawLights(g, n) {
-    // panel + 3 lights (10x10) at x 44 / 59 / 74, y 46: danger -> gold -> grassLt
-    g.rect(24, 40, 80, 24, "panel"); g.hline(24, 40, 80, "accent"); g.hline(24, 63, 80, "accent");
+  // countdown lights, banners: panel x 24-103, y .. y + 23 (top-down: y 40,
+  // on the inner grass; 3D: in the sky)
+  function drawLights(g, n, y = 40) {
+    // panel + 3 lights (10x10) at x 44 / 59 / 74: danger -> gold -> grassLt
+    g.rect(24, y, 80, 24, "panel"); g.hline(24, y, 80, "accent"); g.hline(24, y + 23, 80, "accent");
     const cols = ["danger", "gold", "grassLt"];
     const widths = [4, 8, 10, 10, 10, 10, 10, 10, 8, 4];
     for (let i = 0; i < 3; i++) {
       const c = i < n ? cols[i] : "line";
-      widths.forEach((w, r) => g.hline(44 + 15 * i + (10 - w) / 2, 46 + r, w, c));
+      widths.forEach((w, r) => g.hline(44 + 15 * i + (10 - w) / 2, y + 6 + r, w, c));
     }
   }
-  // announcement strip on the inner grass (x 24-103, y 40-63), text budget 78
-  function drawBanner(g, ctx, key, vars, c) {
-    g.rect(24, 40, 80, 24, "panel"); g.hline(24, 40, 80, "accent"); g.hline(24, 63, 80, "accent");
-    g.text(64, 45, ctx.t(key, vars), {align: "c", c, w: 78, key});
+  // announcement strip, text budget 78
+  function drawBanner(g, ctx, key, vars, c, y = 40) {
+    g.rect(24, y, 80, 24, "panel"); g.hline(24, y, 80, "accent"); g.hline(24, y + 23, 80, "accent");
+    g.text(64, y + 5, ctx.t(key, vars), {align: "c", c, w: 78, key});
+  }
+  // countdown lights, GO!, wrong way, banners, the finish wait (one at a time)
+  function drawAnnounce(g, ctx, m, st, y) {
+    const now = ctx.now(), c = m.car, P = m.P, me = ctx.p;
+    const paused = !!(st.flags & C.FLAG.PAUSED);
+    if (m.goAt != null && !paused) {
+      const left = m.goAt - ctx.gameNow();
+      drawLights(g, left > 2000 ? 1 : left > 1000 ? 2 : 3, y);
+    } else if (now < m.goShowUntil) {
+      g.rect(24, y, 80, 24, "panel"); g.hline(24, y, 80, "accent"); g.hline(24, y + 23, 80, "accent");
+      g.text(64, y - 2, ctx.t("dev.race.go"), {align: "c", scale: 2, c: "grassLt", w: 78, key: "dev.race.go"});
+    } else if (c.wrong && !c.finished && m.went) {
+      drawBanner(g, ctx, "dev.race.wrongWay", null, Math.floor(now / 300) & 1 ? "danger" : "white", y);
+    } else if (m.banner && now < m.banner.until) {
+      drawBanner(g, ctx, m.banner.key, m.banner.vars, m.banner.c, y);
+    } else if (st.phase === PH.FINISH && !c.finished && m.went) {
+      // the rival is through: show how long is left
+      const left = max(0, P.finishWaitMs - (st.raceCs * 10 - (st.cars[1 - me].finish * 10)));
+      drawBanner(g, ctx, "dev.race.waitLeft", {n: Math.ceil(left / 1000)}, "danger", y);
+    }
   }
 
   function drawHud(ctx, g) {
     const m = ctx.m, st = ctx.state;
+    if (m && st && viewOf(ctx, m.T) !== "top") { draw3D(ctx, g, m, st, viewOf(ctx, m.T)); return; }
     const now = ctx.now();
-    const P = m ? m.P : DEFAULTS;
+    const P = m ? m.P : DEFAULTS, T = m ? m.T : CL;
     const cols = colors(ctx), me = ctx.p;
     // track (static; the block compare pushes only what moves)
-    for (let ty = 0; ty < 16; ty++) for (let tx = 0; tx < 16; tx++) drawTile(g, tx, ty, now);
-    drawKerbs(g);
+    for (let ty = 0; ty < 16; ty++) for (let tx = 0; tx < 16; tx++) drawTile(g, T, tx, ty, now);
+    drawKerbs(g, T);
     if (!m || !st) { drawTopBar(g, ctx, null, null); return; }
     const c = m.car, t = m.raceT;
     for (let q = 0; q < 2; q++) {
-      const v = st.vines[q];
-      if (v.tile !== 255) drawVine(g, v.tile, q === me);
+      const v = vineOf(st.vines[q]);
+      if (v >= 0) drawVine(g, v, q === me);
     }
-    if (m.vinePending && now < m.vinePending.until && st.vines[me].tile === 255) drawVine(g, m.vinePending.tile, true);
+    if (m.vinePending && now < m.vinePending.until && vineOf(st.vines[me]) < 0) drawVine(g, m.vinePending.tile, true);
     m.parts = m.parts.filter(pt => now - pt.at < 500);
     for (const pt of m.parts) g.rect(pt.x - 1, TRACK_Y + pt.y - 1, 2, 2, pt.c);
-    // rival below, me on top
-    const rv = rivalView(ctx);
+    // rival below (interpolated), me on top
+    const rp = st.phase !== PH.PICK ? rivalPose(ctx, m) : null;
+    const rv = rp ? {x: rp.x >> 8, y: rp.y >> 8} : null;
     const myX = c.x >> 8, myY = c.y >> 8;
-    if (rv && st.phase !== PH.PICK) drawCar(g, rv.x, TRACK_Y + rv.y, rv.hd, cols[1 - me], rv.pet);
+    if (rp) drawCar(g, rv.x, TRACK_Y + rv.y, rp.hd, cols[1 - me], rp.pet);
     const blinkStall = t < c.stallUntil && (Math.floor(now / 120) & 1);
     drawCar(g, myX, TRACK_Y + myY, c.hd, cols[me], myPet(ctx, m), blinkStall ? {color: "muted"} : {});
     const counting = m.goAt != null || !m.went;
@@ -1039,22 +1619,7 @@
       g.frame(wx, Y + wy, w, w, "waterLt");
     }
     // announcements (inner grass, never on the road)
-    const paused = !!(st.flags & C.FLAG.PAUSED);
-    if (m.goAt != null && !paused) {
-      const left = m.goAt - ctx.gameNow();
-      drawLights(g, left > 2000 ? 1 : left > 1000 ? 2 : 3);
-    } else if (now < m.goShowUntil) {
-      g.rect(24, 40, 80, 24, "panel"); g.hline(24, 40, 80, "accent"); g.hline(24, 63, 80, "accent");
-      g.text(64, 38, ctx.t("dev.race.go"), {align: "c", scale: 2, c: "grassLt", w: 78, key: "dev.race.go"});
-    } else if (c.wrong && !c.finished && m.went) {
-      drawBanner(g, ctx, "dev.race.wrongWay", null, Math.floor(now / 300) & 1 ? "danger" : "white");
-    } else if (m.banner && now < m.banner.until) {
-      drawBanner(g, ctx, m.banner.key, m.banner.vars, m.banner.c);
-    } else if (st.phase === PH.FINISH && !c.finished && m.went) {
-      // the rival is through: show how long is left
-      const left = max(0, P.finishWaitMs - (st.raceCs * 10 - (st.cars[1 - me].finish * 10)));
-      drawBanner(g, ctx, "dev.race.waitLeft", {n: Math.ceil(left / 1000)}, "danger");
-    }
+    drawAnnounce(g, ctx, m, st, 40);
     drawTopBar(g, ctx, m, st);
     drawBottomBar(g, ctx, m, st);
   }
@@ -1072,39 +1637,527 @@
     // weak signal: blink the antenna left of the clock
     if (ctx.stateAge() > 300 && Math.floor(ctx.now() / 250) & 1) g.sprite("icon.antenna", 77, 3);
   }
-  function drawBottomBar(g, ctx, m, st) {
+  // gap to the rival at the last checkpoint both passed (+ = behind), right-aligned at x
+  function drawGap(g, ctx, st, x, y) {
+    const gap = st.gap === GAP_NONE ? null : ctx.p === 0 ? st.gap : -st.gap;
+    if (gap == null) g.text(x, y, "--", {align: "r", c: "muted", w: 32});
+    else {
+      const a = abs(gap), s = a >= 1000 ? String(Math.min(99, Math.floor(a / 100))) : (Math.floor(a / 10) / 10).toFixed(1);
+      g.text(x, y, (gap > 0 ? "+" : gap < 0 ? "-" : "") + s, {align: "r", c: gap > 0 ? "danger" : "grassLt", w: 32});
+    }
+  }
+  // throttle (accent) with the puddle-safe and heat-line ticks, heat below
+  // (gold, danger above the warning line, blinking while stalled)
+  function drawBars(g, ctx, m, bx, bw, y1, y2, h) {
     const P = m.P, c = m.car, now = ctx.now();
+    const tn = petTune(P, myPet(ctx, m));
+    const at = pct => bx + trunc(clamp(pct, 0, 100) * (bw - 1) / 100);
+    g.rect(bx, y1, bw, h, "void");
+    if (c.u > 0) g.rect(bx, y1, at(c.u) - bx + 1, h, "accent");
+    if (tn.puddleSafe <= 100) g.vline(at(tn.puddleSafe), y1 - 1, h + 2, "waterLt");   // Tide never skids: no tick
+    g.vline(at(P.heatLine), y1 - 1, h + 2, "danger");
+    g.rect(bx, y2, bw, h, "void");
+    const stalled = m.raceT < c.stallUntil;
+    const heat = trunc(c.heat / 1000);
+    if (stalled) { if (Math.floor(now / 150) & 1) g.rect(bx, y2, bw, h, "danger"); }
+    else if (heat > 0) g.rect(bx, y2, at(heat) - bx + 1, h, heat > P.heatWarn ? "danger" : "gold");
+  }
+  function drawBottomBar(g, ctx, m, st) {
+    const c = m.car;
     g.rect(0, 147, 128, 13, "panel");
     g.hline(0, 146, 128, "line");
     // racing skill icon of my pet (its colors; "line" once used this lap)
-    const petIdx = myPet(ctx, m), tn = petTune(P, petIdx);
+    const petIdx = myPet(ctx, m);
     const used = c.skillLap === c.lap || c.finished;
     if (D.PETS[petIdx]) g.sprite("race.icon." + SKILL[petIdx], 3, 149, used ? {color: "line"} : {});
-    // throttle (accent) with the puddle-safe and heat-line ticks
-    const bx = 14, bw = 62;
-    const at = pct => bx + trunc(clamp(pct, 0, 100) * (bw - 1) / 100);
-    g.rect(bx, 148, bw, 4, "void");
-    if (c.u > 0) g.rect(bx, 148, at(c.u) - bx + 1, 4, "accent");
-    if (tn.puddleSafe <= 100) g.vline(at(tn.puddleSafe), 147, 6, "waterLt");   // Tide never skids: no tick
-    g.vline(at(P.heatLine), 147, 6, "danger");
-    // heat (gold, danger above the warning line, blinking while stalled)
-    g.rect(bx, 154, bw, 4, "void");
-    const stalled = m.raceT < c.stallUntil;
-    const heat = trunc(c.heat / 1000);
-    if (stalled) { if (Math.floor(now / 150) & 1) g.rect(bx, 154, bw, 4, "danger"); }
-    else if (heat > 0) g.rect(bx, 154, at(heat) - bx + 1, 4, heat > P.heatWarn ? "danger" : "gold");
+    drawBars(g, ctx, m, 14, 62, 148, 154, 4);
     // throttle source: pad or A
     g.sprite(ctx.padOn() ? "icon.PAD" : "icon.A", 80, 149);
-    // gap to the rival at the last checkpoint both passed (+ = behind)
-    const gap = st.gap === GAP_NONE ? null : ctx.p === 0 ? st.gap : -st.gap;
-    if (gap == null) g.text(123, 146, "--", {align: "r", c: "muted", w: 32});
-    else {
-      const a = abs(gap), s = a >= 1000 ? String(Math.min(99, Math.floor(a / 100))) : (Math.floor(a / 10) / 10).toFixed(1);
-      g.text(123, 146, (gap > 0 ? "+" : gap < 0 ? "-" : "") + s, {align: "r", c: gap > 0 ? "danger" : "grassLt", w: 32});
+    drawGap(g, ctx, st, 123, 146);
+  }
+
+  /* ============================== drawing: 3D views (§5.10, simulator option) ============================== */
+
+  // Everything below draws palette indices straight into the back buffer
+  // (g._back) like the firmware's 4 bpp frame buffer would; text, icons and
+  // bars still go through g. Integer / fixed point in the per-frame paths:
+  // camera Q12 (1/4096 px), the sine table, per-row tables built once.
+  const SW = 128, SH = 160;
+  const PI = {};
+  for (const p of D.PALETTE) PI[p.name] = p.index;
+  // H = camera height (px), back = px behind the car centre, f = focal length
+  // in screen px (FOV = 2 atan(64 / f) = 90°), hz = horizon rows below the
+  // window top, hood = static cockpit hood rows at the bottom of the window
+  const CAMS = {cockpit: {H: 5, back: 0, f: 64, hz: 22, hood: 10}, chase: {H: 16, back: 20, f: 64, hz: 18, hood: 0}};
+  const LAYOUTS = {full: {y0: 14, y1: 128}, small: {y0: 14, y1: 110}};   // 3D window 128x114 / 128x96 (hardware variant)
+  const FOG_PX = 104;          // floor beyond this is a static haze band
+  const NEAR_Q = 2 * 4096;
+  const SIZES = [3, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64];   // billboard widths (pre-scaled copies in flash)
+  const DECO_W = {[K.TREE]: 11, [K.CONE]: 4, [K.SIGN]: 7, [K.ARCH]: 14};   // billboard width in world px
+  const DECO_SPR = {[K.TREE]: "tree", [K.CONE]: "cone", [K.SIGN]: "sign", [K.ARCH]: "arch"};
+  const KART_W = 7, VINE_W = 8, ARCH_H = 14, ARCH_BAND = 4;
+  function pickSize(w16) {     // wanted width in 1/16 px
+    if (w16 < 32) return 0;
+    let best = SIZES[0];
+    for (const s of SIZES) if (abs(s * 16 - w16) < abs(best * 16 - w16)) best = s;
+    return best;
+  }
+  const idxMap = map => { const o = {}; for (const [k, v] of Object.entries(map)) o[k] = PI[v]; return o; };
+  const BB = {};
+  for (const [k, rows] of Object.entries(BB_ROWS)) BB[k] = {w: rows[0].length, h: rows.length, rows, map: idxMap(BB_MAP[k])};
+  // kart billboard: the pet's 3 views; map per (pet, shadow color, one color)
+  const K3 = {};
+  D.PETS.forEach(pt => {
+    K3[pt.id] = {};
+    for (const v of ["rear", "side", "front"]) { const rows = K3_ROWS[pt.id][v]; K3[pt.id][v] = {w: rows[0].length, h: rows.length, rows}; }
+  });
+  const kartMaps = {};
+  function kartMap(petIdx, shadow, one) {
+    const key = petIdx + "|" + shadow + "|" + (one || "");
+    let mp = kartMaps[key];
+    if (!mp) {
+      const pt = D.PETS[petIdx];
+      const base = pt ? {o: "void", k: "void", e: "void", b: pt.color, d: pt.dk, l: pt.lt, h: pt.lt, r: pt.id === "ember" ? "gold" : "danger"}
+        : {o: "void", k: "void", e: "void", b: "muted", d: "line", l: "muted", h: "muted", r: "line"};
+      base.s = shadow;
+      if (one) for (const k of Object.keys(base)) if (k !== "s") base[k] = one;
+      mp = kartMaps[key] = idxMap(base);
     }
+    return mp;
+  }
+  // Nearest-neighbour scaled draw into the back buffer, clipped to cl
+  // (firmware: the same loop with a 16.16 step)
+  function drawScaled(back, spr, map, x, y, dw, dh, flipX, cl) {
+    if (dw <= 0 || dh <= 0) return;
+    const sx = trunc((spr.w << 16) / dw), sy = trunc((spr.h << 16) / dh);
+    for (let j = 0; j < dh; j++) {
+      const yy = y + j;
+      if (yy < cl.y0 || yy >= cl.y1) continue;
+      const row = spr.rows[(j * sy) >> 16];
+      for (let i = 0; i < dw; i++) {
+        const xx = x + i;
+        if (xx < 0 || xx >= SW) continue;
+        let k = (i * sx) >> 16;
+        if (flipX) k = spr.w - 1 - k;
+        const ch = row[k];
+        if (ch === ".") continue;
+        const c = map[ch];
+        if (c !== undefined) back[yy * SW + xx] = c;
+      }
+    }
+  }
+  // (x1 <= x0 must return: a rect wholly left of the screen gives a negative
+  // end index, and TypedArray.fill counts that from the END of the buffer —
+  // an arch post far to the left once painted the whole frame muted)
+  const fillB = (back, x, y, w, h, c, cl) => {
+    const x0 = max(x, 0), y0 = max(y, cl ? cl.y0 : 0), x1 = min(x + w, SW), y1 = min(y + h, cl ? cl.y1 : SH);
+    if (x1 <= x0) return;
+    for (let yy = y0; yy < y1; yy++) back.fill(c, yy * SW + x0, yy * SW + x1);
+  };
+
+  /* ---------- floor textures (built once per track and style; const tables in flash) ---------- */
+
+  // L0: 32x32 sub-texels per 8 px tile (4 per px) for near rows; L1: 8x8 for
+  // middle rows; L2: one color per tile for far rows. Identical tiles share
+  // one texture (the firmware build script would dedupe offline). "detail" =
+  // the simulator look, "clean" = the hardware variant (flat grass, no
+  // asphalt specks: far fewer changed blocks).
+  const hashI = (a, b) => ((Math.imul(a, 73856093) ^ Math.imul(b, 19349663)) >>> 0);
+  function rumble(T, tx, ty, fx, fy, wx, wy) {
+    let best = 9, along = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if ((!dx && !dy) || isRoad(kindT(T, tx + dx, ty + dy))) continue;
+      const ddx = dx < 0 ? fx : dx > 0 ? 8 - fx : 0, ddy = dy < 0 ? fy : dy > 0 ? 8 - fy : 0;
+      const d = max(ddx, ddy);
+      if (d < best) { best = d; along = dx === 0 ? wx : dy === 0 ? wy : 0; }
+    }
+    if (best >= 1.5) return -1;
+    return (floor(along / 2) & 1) ? PI.white : PI.danger;   // 2 px red / 2 px white kerb
+  }
+  function grassTexel(style, tx, ty, fx, fy) {
+    if (style === "clean") return PI.grassDk;
+    const odd = (tx ^ ty) & 1, ix = floor(fx), iy = floor(fy);
+    const tuft = (ix === 2 && iy === 2) || (ix === 1 && iy === 1 && fx - 1 < 0.5) || (ix === 3 && iy === 1 && fx - 3 >= 0.5)
+      || (ix === 6 && iy === 6) || (ix === 5 && iy === 5 && fx - 5 < 0.5) || (ix === 7 && iy === 5 && fx - 7 >= 0.5);
+    if (tuft) return odd ? PI.grassLt : PI.grass;
+    return odd ? PI.grass : PI.grassDk;   // 8 px checker so motion reads on the grass
+  }
+  function sandTexel(style, fx, fy) {
+    if (style === "clean") return PI.gold;
+    const ix = floor(fx), w = floor(fy + ((ix >> 1) & 1) * 0.75) & 3;
+    if (w === 1 && ix !== 3 && ix !== 7) return PI.fire;
+    if ((ix === 5 && floor(fy) === 3) || (ix === 1 && floor(fy) === 6)) return PI.fireDk;
+    return PI.gold;
+  }
+  function texel(T, style, tx, ty, X, Y, nearLine) {
+    const k = kindT(T, tx, ty);
+    const fx = (X + 0.5) / 4, fy = (Y + 0.5) / 4, wx = tx * 8 + fx, wy = ty * 8 + fy;
+    if (k === K.SAND) return sandTexel(style, fx, fy);
+    if (!isRoad(k)) return grassTexel(style, tx, ty, fx, fy);
+    if (k === K.LINE) return ((floor(fx / 2) + floor(fy / 2)) & 1) ? PI.white : PI.void;   // finish checker
+    let c = PI.line;
+    if (style === "detail" && hashI(floor(fx * 2) + 1, floor(fy * 2) + 7) % 13 === 0) c = PI.panel;   // asphalt specks
+    if (nearLine) {
+      const pr = project(T.CENTER, wx, wy);
+      if (pr.d2 < 0.36 && (floor(pr.s / 4) & 1) === 0) c = PI.muted;                       // centre dashes
+    }
+    const rb = rumble(T, tx, ty, fx, fy, wx, wy);
+    if (rb >= 0) c = rb;
+    if (k === K.PUDDLE) {
+      const ex = fx - 4, ey = fy - 4, r2 = ex * ex + ey * ey * 1.4;
+      if (r2 < 10) c = (ex + ey > -3.4 && ex + ey < -2.2) || (ex + ey > 1.6 && ex + ey < 2.2) ? PI.waterLt : PI.water;
+      else if (r2 < 13) c = PI.waterDk;
+    } else if (isBoost(k)) {
+      // ly = distance from the arrow tip, lt = across the arrow
+      const ly = k === K.BOOST_UP ? fy : k === K.BOOST_DN ? 8 - fy : k === K.BOOST_L ? fx : 8 - fx;
+      const lt = k === K.BOOST_UP || k === K.BOOST_DN ? fx : fy;
+      const q = (((ly - abs(lt - 4)) % 4) + 4) % 4;
+      if (abs(lt - 4) < 3.1 && ly > 0.4 && ly < 7.6) { if (q < 1.5) c = PI.gold; else if (q < 2.1) c = PI.fire; }
+    }
+    return c;
+  }
+  function flatColour(T, tx, ty) {
+    const k = kindT(T, tx, ty);
+    if (k === K.SAND) return PI.gold;
+    if (!isRoad(k)) return PI.grassDk;
+    if (k === K.LINE) return PI.white;
+    if (k === K.PUDDLE) return PI.water;
+    if (isBoost(k)) return PI.gold;
+    return PI.line;
+  }
+  function buildTextures(T, style) {
+    const N = T.N, maps = [new Map(), new Map()], lists = [[], []];
+    const intern = (lv, arr) => {
+      const key = arr.join(",");
+      let id = maps[lv].get(key);
+      if (id === undefined) { id = lists[lv].length; lists[lv].push(arr); maps[lv].set(key, id); }
+      return id;
+    };
+    const one = (tx, ty) => {
+      const a0 = new Array(1024), a1 = new Array(64);
+      const near = tx < N && ty < N && project(T.CENTER, tx * 8 + 4, ty * 8 + 4).d2 < 7 * 7;
+      for (let Y = 0; Y < 32; Y++) for (let X = 0; X < 32; X++) a0[Y * 32 + X] = texel(T, style, tx, ty, X, Y, near);
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) a1[y * 8 + x] = a0[(y * 4 + 2) * 32 + x * 4 + 2];
+      return [intern(0, a0), intern(1, a1), flatColour(T, tx, ty)];
+    };
+    const X = {TILE0: new Uint16Array(N * N), TILE1: new Uint16Array(N * N), TILE2: new Uint8Array(N * N), OUT0: [0, 0], OUT1: [0, 0], OUT2: [0, 0]};
+    for (let ty = 0; ty < N; ty++) for (let tx = 0; tx < N; tx++) {
+      const [a, b, c] = one(tx, ty);
+      X.TILE0[ty * N + tx] = a; X.TILE1[ty * N + tx] = b; X.TILE2[ty * N + tx] = c;
+    }
+    for (let p = 0; p < 2; p++) { const [a, b, c] = one(N + p, N); X.OUT0[p] = a; X.OUT1[p] = b; X.OUT2[p] = c; }   // grass outside the map
+    X.TEX0 = new Uint8Array(lists[0].length * 1024); lists[0].forEach((a, i) => X.TEX0.set(a, i * 1024));
+    X.TEX1 = new Uint8Array(lists[1].length * 64); lists[1].forEach((a, i) => X.TEX1.set(a, i * 64));
+    X.flashBytes4bpp = (lists[0].length * 1024 + lists[1].length * 64) / 2 + 3 * N * N;
+    return X;
+  }
+  const texset = (T, style) => (T.cache["tex." + style] || (T.cache["tex." + style] = buildTextures(T, style)));
+
+  /* ---------- static layers: sky, haze, hood, bottom HUD + minimap ---------- */
+
+  const MM_COL = {[K.TREE]: "grass", [K.CONE]: "fire", [K.SIGN]: "danger", [K.ARCH]: "white", [K.SAND]: "fireDk"};
+  const minimapColour = k => (MM_COL[k] ? MM_COL[k] : !isRoad(k) ? "grassDk" : k === K.LINE ? "white" : k === K.PUDDLE ? "water"
+    : isBoost(k) ? "gold" : "line");
+  const hudTop = y1 => y1 + ((SH - y1 - 32) >> 1);    // the 32 px HUD rows (minimap height)
+  function scene(T, view, win, myCol, hood) {
+    const key = "scene." + view + "|" + win + (CAMS[view].hood ? "|" + myCol + "|" + hood.join(",") : "");
+    return T.cache[key] || (T.cache[key] = buildScene(T, view, win, myCol, hood));
+  }
+  function buildScene(T, view, win, myCol, hood) {
+    const bg = new Uint8Array(SW * SH);
+    const cam = CAMS[view], L = LAYOUTS[win];
+    const y0 = L.y0, y1 = L.y1, hz = y0 + cam.hz, Hq = cam.H * 4096, f = cam.f;
+    const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < SW && y < SH) bg[y * SW + x] = c; };
+    fillB(bg, 0, 0, SW, 13, PI.panel); fillB(bg, 0, 13, SW, 1, PI.line);
+    // sky: static, so it costs nothing in the 8x8 compare
+    for (let y = y0; y <= hz; y++) {
+      const r = y - y0, n = hz - y0;
+      for (let x = 0; x < SW; x++) bg[y * SW + x] = r * 100 < n * 35 ? PI.water : r * 2 < n ? (((x + y) & 1) ? PI.water : PI.waterLt) : PI.waterLt;
+    }
+    for (const [cx, cy, rw] of [[24, y0 + 6, 9], [92, y0 + 4, 7], [62, y0 + 9, 5]]) {   // clouds
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -rw; dx <= rw; dx++) {
+        if (dx * dx * 9 + dy * dy * rw * rw <= 9 * rw * rw) put(cx + dx, cy + dy, dy > 1 ? PI.waterLt : PI.white);
+      }
+    }
+    // far mountains (muted, white tops) and near hills (grassDk) along the horizon
+    for (let x = 0; x < SW; x++) {
+      const m = 3 + abs(((x * 5) % 46) - 23) / 4 + ((x * 13) % 7) / 3;
+      for (let j = 0; j < m; j++) put(x, hz - 1 - j, j > m - 2 && m > 7 ? PI.white : PI.muted);
+      const hh = 1 + ((x >> 3) * 7 % 5 > 2 ? 2 : 1) + ((x & 7) > 2 && (x & 7) < 6 ? 1 : 0);
+      for (let j = 0; j < hh; j++) put(x, hz - j, PI.grassDk);
+    }
+    // floor rows: per-row distance tables (const in flash: 2 x 4 B per row)
+    const rows = [];
+    for (let y = hz + 1; y < y1; y++) {
+      const r = y - hz, Zq = trunc(Hq * f / r), Wq = trunc(Hq / r);
+      rows.push({y, r, Zq, Wq, lvl: Wq * 2 < 4096 ? 0 : Wq * 2 < 3 * 4096 ? 1 : 2, fog: Zq > FOG_PX * 4096, skip: false});
+    }
+    let fogN = 0;
+    for (const R of rows) if (R.fog) {
+      R.skip = true;
+      for (let x = 0; x < SW; x++) bg[R.y * SW + x] = fogN === 0 ? PI.muted : ((x + R.y) & 1) ? PI.muted : PI.grassDk;
+      fogN++;
+    }
+    // cockpit hood: a static overlay in the kart's colors, the player's color as the trim
+    let ovl = null;
+    if (cam.hood) {
+      ovl = new Uint8Array(SW * SH).fill(255);
+      const [body, dk, lt] = hood;
+      for (let i = 0; i < cam.hood; i++) {
+        const y = y1 - cam.hood + i, half = 26 + trunc(i * 40 / max(1, cam.hood - 1));
+        for (let x = 64 - half; x < 64 + half; x++) {
+          if (x < 0 || x >= SW) continue;
+          const e = min(x - (64 - half), 64 + half - 1 - x);
+          ovl[y * SW + x] = i === 0 || e === 0 ? PI.void : e < 3 ? dk : i === 1 ? myCol : abs(x * 2 - 127) < 8 ? lt : body;
+        }
+      }
+      for (const R of rows) {
+        let all = true;
+        for (let x = 0; x < SW && all; x++) if (ovl[R.y * SW + x] === 255) all = false;
+        if (all) R.skip = true;
+      }
+    }
+    // bottom HUD: panel, bar troughs, minimap (2 px per tile on 16x16, 1 px on 32x32)
+    const top = hudTop(y1), mm = 32 >> T.NSH;
+    fillB(bg, 0, y1, SW, SH - y1, PI.panel); fillB(bg, 0, y1, 92, 1, PI.line);
+    for (let ty = 0; ty < T.N; ty++) for (let tx = 0; tx < T.N; tx++) fillB(bg, 94 + tx * mm, top + ty * mm, mm, mm, PI[minimapColour(T.KIND[ty * T.N + tx])]);
+    return {view, bg, ovl, rows, y0, y1, hz, Hq, f, cam, top};
+  }
+
+  /* ---------- Mode-7 floor, projection, billboards ---------- */
+
+  // Camera: position in Q12, heading; forward F and right R from the sine table
+  function camOf(c, cam) {
+    const hd = c.hd, Fx = icos(hd), Fy = isin(hd);
+    return {x: c.x * 16 - Fx * cam.back * 4, y: c.y * 16 - Fy * cam.back * 4, hd, Fx, Fy, Rx: -Fy, Ry: Fx};
+  }
+  // One frame of floor: per row 6 multiplies + 4 shifts of setup, per pixel
+  // 2 adds, an in-map test, a tile lookup and a texel lookup (~16 ops)
+  function renderFloor(back, S, cam, X, T) {
+    const {Fx, Fy, Rx, Ry} = cam, NSH = T.NSH, QOUT = T.QOUT;
+    const {TILE0, TILE1, TILE2, TEX0, TEX1, OUT0, OUT1, OUT2} = X;
+    for (const R of S.rows) {
+      if (R.skip) continue;
+      const o = R.y * SW;
+      const cx = cam.x + ((Fx * R.Zq) >> 10), cy = cam.y + ((Fy * R.Zq) >> 10);
+      const du = (Rx * R.Wq) >> 10, dv = (Ry * R.Wq) >> 10;
+      let u = cx - du * 64 + (du >> 1), v = cy - dv * 64 + (dv >> 1);    // centre of column 0
+      if (R.lvl === 0) {
+        for (let x = o, e = o + SW; x < e; x++) {
+          const t = ((u | v) & QOUT) === 0 ? TILE0[((v >> 15) << NSH) | (u >> 15)] : OUT0[((u ^ v) >> 15) & 1];
+          back[x] = TEX0[(t << 10) | ((v >> 5) & 0x3E0) | ((u >> 10) & 31)];
+          u += du; v += dv;
+        }
+      } else if (R.lvl === 1) {
+        for (let x = o, e = o + SW; x < e; x++) {
+          const t = ((u | v) & QOUT) === 0 ? TILE1[((v >> 15) << NSH) | (u >> 15)] : OUT1[((u ^ v) >> 15) & 1];
+          back[x] = TEX1[(t << 6) | ((v >> 9) & 0x38) | ((u >> 12) & 7)];
+          u += du; v += dv;
+        }
+      } else {
+        for (let x = o, e = o + SW; x < e; x++) {
+          back[x] = ((u | v) & QOUT) === 0 ? TILE2[((v >> 15) << NSH) | (u >> 15)] : OUT2[((u ^ v) >> 15) & 1];
+          u += du; v += dv;
+        }
+      }
+    }
+  }
+  // Point (ox, oy) in Q8 px -> {sx, gy (ground row), zq (Q12 depth), dx, dy}
+  function project3(S, cam, ox, oy) {
+    const dx = ox * 16 - cam.x, dy = oy * 16 - cam.y;
+    const zq = (dx * cam.Fx + dy * cam.Fy) >> 10, xq = (dx * cam.Rx + dy * cam.Ry) >> 10;
+    if (zq < NEAR_Q) return null;
+    return {zq, sx: 64 + trunc(xq * S.f / zq), gy: S.hz + trunc(S.Hq * S.f / zq), dx, dy};
+  }
+  // Arch over the road: two posts and a banner between their tops, a
+  // trapezoid column by column; the end behind the camera is cut at the
+  // near plane, so the banner sweeps overhead as you drive through
+  function spanItem(S, cam, sp) {
+    const cs = (ox, oy) => {
+      const dx = ox * 4096 - cam.x, dy = oy * 4096 - cam.y;
+      return {zq: (dx * cam.Fx + dy * cam.Fy) >> 10, xq: (dx * cam.Rx + dy * cam.Ry) >> 10};
+    };
+    let a = cs(sp.ax, sp.ay), b = cs(sp.bx, sp.by);
+    if (a.zq < NEAR_Q && b.zq < NEAR_Q) return null;
+    if (a.zq > FOG_PX * 4096 && b.zq > FOG_PX * 4096) return null;
+    const z = (a.zq + b.zq) >> 1, postA = a.zq >= NEAR_Q, postB = b.zq >= NEAR_Q;
+    const cut = (p, q) => ({zq: NEAR_Q, xq: p.xq + trunc((q.xq - p.xq) * (NEAR_Q - p.zq) / (q.zq - p.zq))});
+    if (!postA) a = cut(a, b);
+    if (!postB) b = cut(b, a);
+    const scr = (p, post) => ({sx: 64 + trunc(p.xq * S.f / p.zq), top: S.hz + trunc((S.Hq - ARCH_H * 4096) * S.f / p.zq),
+      bot: S.hz + trunc((S.Hq - (ARCH_H - ARCH_BAND) * 4096) * S.f / p.zq), gy: S.hz + trunc(S.Hq * S.f / p.zq),
+      pw: max(1, trunc(2 * S.f * 4096 / p.zq)), post});
+    return {span: true, z, a: scr(a, postA), b: scr(b, postB)};
+  }
+  function drawSpan(back, cl, it) {
+    for (const e of [it.a, it.b]) if (e.post) fillB(back, e.sx - (e.pw >> 1), e.top, e.pw, e.gy - e.top + 1, PI.muted, cl);
+    let l = it.a, r = it.b;
+    if (l.sx > r.sx) { l = it.b; r = it.a; }
+    const x0 = max(0, l.sx), x1 = min(SW - 1, r.sx), span = max(1, r.sx - l.sx);
+    for (let x = x0; x <= x1; x++) {
+      const f = trunc((x - l.sx) * 256 / span);
+      const top = l.top + ((r.top - l.top) * f >> 8), bot = l.bot + ((r.bot - l.bot) * f >> 8);
+      for (let y = max(top, cl.y0); y <= min(bot, cl.y1 - 1); y++) back[y * SW + x] = y === top || y === bot ? PI.white : ((x >> 2) & 1) ? PI.accent : PI.gold;
+    }
+  }
+  // A kart as a billboard; the view (rear / side / front) from its heading
+  // against the line of sight
+  function kartItem(S, cam, pose, petIdx, shadow, one) {
+    const p = project3(S, cam, pose.x, pose.y);
+    if (!p || p.zq > FOG_PX * 4096) return null;
+    const w = pickSize(trunc(KART_W * 16 * S.f * 4096 / p.zq));
+    if (!w) return null;
+    const rel = angDiff(pose.hd, iatan2(p.dy, p.dx));
+    const v = abs(rel) < 8192 ? "rear" : abs(rel) > 24576 ? "front" : "side";
+    const pt = D.PETS[petIdx];
+    return {z: p.zq, sx: p.sx, gy: p.gy, w, spr: K3[pt ? pt.id : "ember"][v], flip: v === "side" && rel < 0, map: kartMap(petIdx, shadow, one), view: v};
+  }
+  function bbItem(S, cam, x, y, name, wpx, flip) {
+    const p = project3(S, cam, x, y);
+    if (!p || p.zq > FOG_PX * 4096) return null;
+    const w = pickSize(trunc(wpx * 16 * S.f * 4096 / p.zq));
+    return w ? {z: p.zq, sx: p.sx, gy: p.gy, w, spr: BB[name], flip: !!flip, map: BB[name].map} : null;
+  }
+
+  function draw3D(ctx, g, m, st, view) {
+    const T = m.T, P = m.P, c = m.car, me = ctx.p, now = ctx.now(), t = m.raceT;
+    const hw = hwLook(ctx), cols = colors(ctx);
+    const petIdx = myPet(ctx, m), pt = D.PETS[petIdx];
+    const hood = pt ? [PI[pt.color], PI[pt.dk], PI[pt.lt]] : [PI.muted, PI.line, PI.muted];
+    const S = scene(T, view, hw ? "small" : "full", PI[cols[me]], hood);
+    const back = g._back, cl = {y0: S.y0, y1: S.y1};
+    // the full-detail look is over the SPI budget on purpose; the hardware variant is not exempt
+    g.overBudgetOk = !hw;
+    back.set(S.bg);
+    const cam = camOf(c, S.cam);
+    renderFloor(back, S, cam, texset(T, hw ? "clean" : "detail"), T);
+    const items = [];
+    const add = it => { if (it) items.push(it); };
+    for (const d of T.DECOS) add(bbItem(S, cam, d.x * 256, d.y * 256, DECO_SPR[d.k], DECO_W[d.k], d.flip));
+    for (const sp of T.SPANS) add(spanItem(S, cam, sp));
+    const vineAt = tile => add(bbItem(S, cam, ((tile & (T.N - 1)) * 8 + 4) * 256, ((tile >> T.NSH) * 8 + 4) * 256, "vine", VINE_W, false));
+    for (let q = 0; q < 2; q++) { const v = vineOf(st.vines[q]); if (v >= 0) vineAt(v); }
+    if (m.vinePending && now < m.vinePending.until && vineOf(st.vines[me]) < 0) vineAt(m.vinePending.tile);
+    m.parts = m.parts.filter(q => now - q.at < 500);
+    for (const q of m.parts) {
+      const p = project3(S, cam, q.x * 256, q.y * 256);
+      if (p && p.zq < FOG_PX * 4096) items.push({z: p.zq, part: true, sx: p.sx, gy: p.gy, w: clamp(trunc(2 * S.f * 4096 / p.zq), 1, 4), c: PI[q.c]});
+    }
+    const rp = st.phase !== PH.PICK ? rivalPose(ctx, m) : null;
+    if (rp) add(kartItem(S, cam, rp, rp.pet, cols[1 - me], null));
+    let own = null;
+    if (S.cam.back > 0) {
+      const blink = t < c.stallUntil && (Math.floor(now / 120) & 1);
+      own = kartItem(S, cam, {x: c.x, y: c.y, hd: c.hd}, petIdx, cols[me], blink ? "muted" : null);
+      if (own) { own.own = true; items.push(own); }
+    }
+    items.sort((a, b) => b.z - a.z);
+    for (const it of items) {
+      if (it.span) { drawSpan(back, cl, it); continue; }
+      if (it.part) { fillB(back, it.sx - (it.w >> 1), it.gy - it.w - 3, it.w, it.w, it.c, cl); continue; }
+      const dh = trunc((it.spr.h * it.w + (it.spr.w >> 1)) / it.spr.w);
+      drawScaled(back, it.spr, it.map, it.sx - (it.w >> 1), it.gy - dh + 1, it.w, dh, it.flip, cl);
+      if (it.own && (t < c.boostUntil || t < c.dashUntil)) {   // boost flames under the rear
+        const fy = it.gy - 1, fl = (now >> 6) & 1, q = it.w >> 2;
+        fillB(back, it.sx - q - 1, fy, 3, 2 + fl, PI.fire, cl); fillB(back, it.sx + q - 1, fy, 3, 3 - fl, PI.fire, cl);
+        fillB(back, it.sx - q, fy, 1, 1, PI.gold, cl); fillB(back, it.sx + q, fy, 1, 1, PI.gold, cl);
+      }
+    }
+    if (S.ovl) { const o = S.ovl; for (let i = (S.y1 - S.cam.hood) * SW, e = S.y1 * SW; i < e; i++) if (o[i] !== 255) back[i] = o[i]; }
+    // Splash: the view under water except a window around my kart (chase) / ahead of the hood
+    if (t < c.splashUntil && m.went) {
+      const w = P.splashWindow, cy = own ? own.gy - 6 : S.y1 - S.cam.hood - (w >> 1);
+      const wx = (SW - w) >> 1, wy = clamp(cy - (w >> 1), S.y0, S.y1 - w);
+      g.dither(0, S.y0, SW, wy - S.y0, "waterDk", "water");
+      g.dither(0, wy + w, SW, S.y1 - wy - w, "waterDk", "water");
+      g.dither(0, wy, wx, w, "waterDk", "water");
+      g.dither(wx + w, wy, SW - wx - w, w, "waterDk", "water");
+      g.frame(wx, wy, w, w, "waterLt");
+    }
+    drawAnnounce(g, ctx, m, st, S.y0 + 2);
+    drawTopBar(g, ctx, m, st);
+    // bottom HUD: skill icon, throttle + heat, pad / A, gap, minimap dots
+    const y = S.top, used = c.skillLap === c.lap || c.finished;
+    if (pt) g.sprite("race.icon." + SKILL[petIdx], 3, y + 3, used ? {color: "line"} : {});
+    drawBars(g, ctx, m, 14, 76, y + 3, y + 10, 4);
+    g.sprite(ctx.padOn() ? "icon.PAD" : "icon.A", 3, y + 20);
+    drawGap(g, ctx, st, 90, y + 16);
+    const sh = T.MMSH;
+    const dot = (x, yy, col) => g.rect(94 + clamp((x >> sh) - 1, 0, 30), y + clamp((yy >> sh) - 1, 0, 30), 2, 2, col);
+    if (rp) dot(rp.x, rp.y, cols[1 - me]);
+    dot(c.x, c.y, cols[me]);
+    g.px(94 + clamp((c.x >> sh) + (icos(c.hd) >> 9), 0, 31), y + clamp((c.y >> sh) + (isin(c.hd) >> 9), 0, 31), "white");
   }
 
   /* ============================== screens ============================== */
+
+  // race.pick page 0 (§5.10): track (the picker; the other one sees it) and
+  // this board's view. A = on to the driver pick (page 1, §4.7 / §5.9.5).
+  const VIEW_KEY = {top: "dev.race.view.top", chase: "dev.race.view.chase", cockpit: "dev.race.view.cockpit"};
+  function setupState(ctx, st) {
+    const s = ctx.s.pick || (ctx.s.pick = {sel: 0, locked: false});
+    if (s.page == null) {
+      const mine = pickerOf(st) === ctx.p, last = ctx.local ? ctx.local.raceTrack : null;
+      s.page = st && (st.flags & (SF.P1_PICKED << ctx.p)) ? 1 : 0;
+      s.track = mine && TRACKS[last] ? last : st ? st.track : 0;
+      s.row = mine ? 0 : 1;
+    }
+    return s;
+  }
+  function setupInput(ctx, ev, s, st) {
+    if (ev.type !== "down" && ev.type !== "repeat") return;
+    const mine = pickerOf(st) === ctx.p, set = !!(st.flags & SF.TRACK_SET);
+    const T = mine ? trackOf(s.track) : set ? trackOf(st.track) : null;
+    if ((ev.btn === "UP" || ev.btn === "DOWN") && mine) { s.row ^= 1; ctx.sfx("ui_move"); return; }
+    if (ev.btn === "LEFT" || ev.btn === "RIGHT") {
+      const d = ev.btn === "LEFT" ? -1 : 1;
+      if (s.row === 0 && mine) s.track = (s.track + d + TRACKS.length) % TRACKS.length;
+      else {
+        const list = viewsFor(T), cur = T ? viewOf(ctx, T) : prefView(ctx);
+        ctx.local.raceView = list[(list.indexOf(cur) + d + list.length) % list.length];
+      }
+      ctx.sfx("ui_move");
+      return;
+    }
+    if (ev.btn === "A" && ev.type === "down") {
+      if (mine) { ctx.rt(A.RACE_PICK, TRACK_LOCK | s.track); ctx.local.raceTrack = s.track; }
+      else if (!set) { ctx.toast("dev.race.waitTrack", null, 1000); ctx.sfx("ui_deny"); return; }
+      s.page = 1;
+      ctx.sfx("ui_ok");
+    }
+  }
+  function drawSetup(ctx, g, st, s) {
+    const mine = pickerOf(st) === ctx.p, set = !!(st.flags & SF.TRACK_SET);
+    const T = mine ? trackOf(s.track) : set ? trackOf(st.track) : null;
+    ui.topBar(g, ctx, "dev.race.setupTitle", {right: ctx.t("dev.race.lapsN", {n: st.laps}), signal: false});
+    const note = mine ? (set && st.track === s.track ? "dev.race.trackSet" : "dev.race.youPick") : set ? "dev.race.rivalChose" : "dev.race.rivalPicks";
+    g.text(4, 14, ctx.t(note), {w: 120, c: "muted", key: note});
+    // track row
+    const row0 = mine && s.row === 0, row1 = !mine || s.row === 1;
+    if (row0) g.frame(2, 27, 124, 16, ctx.color());
+    if (mine) { g.text(4, 28, "{L}", {c: row0 ? "white" : "muted"}); g.text(116, 28, "{R}", {c: row0 ? "white" : "muted"}); }
+    const nameKey = T ? "dev.race.trk." + T.id : null;
+    g.text(64, 28, T ? ctx.t(nameKey) : "…", {align: "c", w: 96, c: T ? "white" : "muted", key: nameKey});
+    // preview (4 px per tile on 16x16, 2 px on 32x32), size, blurb
+    g.frame(5, 45, 66, 66, "line");
+    if (T) {
+      const ps = 64 >> T.NSH;
+      for (let ty = 0; ty < T.N; ty++) for (let tx = 0; tx < T.N; tx++) g.rect(6 + tx * ps, 46 + ty * ps, ps, ps, minimapColour(T.KIND[ty * T.N + tx]));
+      if (T.N === 32) { g.rect(6, 96, 64, 14, "panel"); g.text(38, 96, ctx.t("dev.race.only3d"), {align: "c", w: 62, c: "gold", key: "dev.race.only3d"}); }
+      g.text(76, 42, T.N + "x" + T.N, {font: "s", w: 48, c: "muted"});
+      g.textBox(76, 54, 48, 56, ctx.t("dev.race.trkB." + T.id), {key: "dev.race.trkB." + T.id});
+    } else g.text(38, 64, "?", {align: "c", scale: 2, c: "muted"});
+    // view row
+    if (row1) g.frame(2, 111, 124, 16, ctx.color());
+    g.text(4, 112, ctx.t("dev.race.view"), {w: 34, c: "muted", key: "dev.race.view"});
+    const v = T ? viewOf(ctx, T) : prefView(ctx);
+    g.text(40, 112, "{L}", {c: row1 ? "white" : "muted"}); g.text(116, 112, "{R}", {c: row1 ? "white" : "muted"});
+    g.text(82, 112, ctx.t(VIEW_KEY[v]), {align: "c", w: 60, key: VIEW_KEY[v]});
+    const dk = v === "top" ? "dev.race.viewDesc.top" : "dev.race.viewDesc.3d";
+    g.text(4, 130, ctx.t(dk), {w: 120, c: "muted", key: dk});
+    ui.hintBar(g, ctx, mine ? [["UP", "dev.race.hintRow"], ["LR", "dev.race.hintSet"], ["A", "dev.race.hintNext"]]
+      : [["LR", "dev.race.hintSet"], ["A", "dev.race.hintNext"]], {disabled: mine ? false : [false, !set]});
+  }
 
   D.registerScreen("race.pick", {
     secret: true, fps: 10,
@@ -1112,6 +2165,8 @@
     input(ctx, ev) {
       const st = ctx.state;
       if (!st || st.phase !== PH.PICK || (st.flags & (8 << ctx.p))) return;
+      const s = setupState(ctx, st);
+      if (s.page === 0) { setupInput(ctx, ev, s, st); return; }
       const r = ui.pickInput(ctx, ev, ctx.s.pick, {count: 3});
       if (r && r.pick != null) {
         ctx.rt(A.RACE_PICK, r.pick);
@@ -1119,7 +2174,13 @@
       }
     },
     draw(ctx, g) {
-      const st = ctx.state, s = ctx.s.pick || {sel: 0};
+      const st = ctx.state;
+      if (st && st.phase === PH.PICK) {
+        const s0 = setupState(ctx, st);
+        if (st.flags & (8 << ctx.p)) s0.page = 1;
+        if (s0.page === 0) { drawSetup(ctx, g, st, s0); return; }
+      }
+      const s = ctx.s.pick || {sel: 0};
       const mineIn = !!(st && (st.flags & (8 << ctx.p)));
       const rivalIn = !!(st && (st.flags & (8 << (1 - ctx.p))));
       const locked = s.locked || mineIn;
@@ -1161,7 +2222,9 @@
   });
 
   D.registerScreen("race.hud", {
-    fps: 30, toastY: 44, toastX: [24, 80], holdBarAt: [90, 147, 34, 12], antennaAt: [77, 3],
+    // 3D hardware variant: 25 fps cap (§5.10)
+    fps: ctx => (ctx.m && viewOf(ctx, ctx.m.T) !== "top" && hwLook(ctx) ? 25 : 30),
+    toastY: 44, toastX: [24, 80], holdBarAt: [90, 147, 34, 12], antennaAt: [77, 3],
     input(ctx, ev) {
       if (ev.btn === "SKILL" && ev.type === "down") useSkill(ctx);
       else if (ev.btn === "MENU" && ev.type === "click") ctx.toast("dev.race.holdM", null, 1200);
@@ -1171,23 +2234,19 @@
 
   /* ============================== AI rival (§5.8) ============================== */
 
-  // Distance along the bot line to the next corner, and whether it is the
-  // first of a U (two corners within 48 px)
-  function nextCorner(s) {
-    const segs = BOTLINE.segs;
-    for (let i = 0; i < segs.length; i++) {
-      const sg = segs[i], end = sg.s0 + sg.len;
-      if (s < end) {
-        const nx = segs[(i + 1) % segs.length];
-        return {d: end - s, u: nx.len <= 48, after: nx.len};
-      }
-    }
-    return {d: 999, u: false, after: 999};
+  // Next corner of the bot line and its corner speed (before pace): a 90°
+  // corner followed by a short straight (<= 48 px, a U-turn) or >= 135° of
+  // turning within 40 px -> 44 px/s, 90° -> 50, a lone 45° kink -> 58
+  // (Classic only has 90° corners: the same as before)
+  function nextCorner(T, s) {
+    const ta = turnAhead(T.BOTLINE, s);
+    const vc = ta.eighths >= 3 || (abs(ta.t1) >= 16384 && ta.next.len <= 48) ? 44 : ta.eighths >= 2 ? 50 : ta.eighths >= 1 ? 58 : 64;
+    return {d: ta.d, vc, u: vc === 44};
   }
   function botDrive(ctx, ctl) {
-    const m = ctx.m, st = ctx.state, c = m.car, P = m.P;
+    const m = ctx.m, st = ctx.state, c = m.car, P = m.P, T = m.T;
     // each bot gets its own lane offset and a pace that changes a little every lap
-    const B = m.bot || (m.bot = {stuckMs: 0, revUntil: 0, last: 0, lap: -1, jitter: 100, lane: ctx.p ? 3 : 0});
+    const B = m.bot || (m.bot = {stuckMs: 0, revUntil: 0, last: 0, lap: -1, jitter: 100, lane: ctx.p ? 3 : 0, s: null});
     const now = ctx.now();
     if (B.lap !== c.lap) { B.lap = c.lap; B.jitter = 95 + ctl.rng.int(9); }
     const pace = trunc(P.botPct * B.jitter / 100);
@@ -1201,26 +2260,27 @@
     }
     if (c.finished) { ctl.pressure(0); ctl.stick(0, 0); ctl.hold("B", false); return; }
     const x = c.x / 256, y = c.y / 256, v = c.v / 256;
-    const pr = project(BOTLINE, x, y);
-    const look = 14 + max(0, v) * 0.22;
-    let [tx, ty] = pointAt(BOTLINE, pr.s + look);
-    // lane offset: to the right of the driving direction (inside of this clockwise track)
-    const sg = project(BOTLINE, tx, ty).seg;
-    tx += -Math.sign(sg.by - sg.ay) * B.lane; ty += Math.sign(sg.bx - sg.ax) * B.lane;
-    let dx = tx - x, dy = ty - y;
+    const pr = projectHint(T.BOTLINE, x, y, B.s);    // hint = last position on the line (crossovers)
+    B.s = pr.s;
+    const look = 14 + max(0, v) * 0.22, sT = pr.s + look;
+    let [tx, ty] = pointAt(T.BOTLINE, sT);
+    // lane offset: to the right of the driving direction (inside of a clockwise track)
+    const sg = projectHint(T.BOTLINE, tx, ty, sT).seg;
+    tx += -sg.uy * B.lane; ty += sg.ux * B.lane;
+    const dx = tx - x, dy = ty - y;
     const len = Math.hypot(dx, dy) || 1;
     // throttle: 85 % on the straights; before a corner, lift or brake so the
     // speed is down to the corner speed in time (U-turns are slower)
     let u = 85, brake = false;
-    const nc = nextCorner(pr.s);
-    const vc = (nc.u ? 44 : 50) * pace / 100;
+    const nc = nextCorner(T, pr.s);
+    const vc = nc.vc * pace / 100;
     const d = max(1, nc.d - 6);
     const need = v > vc ? (v * v - vc * vc) / (2 * d) : 0;
     if (need > P.coast * 1.6) { brake = true; u = 0; }
     else if (need > 0) u = 0;
     else if (nc.d < 20 && v >= vc - 2) u = trunc(vc * 100 / P.topSpeed);
     if (pr.d2 > 64) u = min(u, 70);   // off the line: slow down to get back
-    const aheadK = kindAt(trunc(x + 10 * Math.cos(c.hd * Math.PI / 32768)), trunc(y + 10 * Math.sin(c.hd * Math.PI / 32768)));
+    const aheadK = kindAt(trunc(x + 10 * Math.cos(c.hd * Math.PI / 32768)), trunc(y + 10 * Math.sin(c.hd * Math.PI / 32768)), T);
     if (aheadK === K.PUDDLE) u = min(u, petTune(P, myPet(ctx, m)).puddleSafe - 4);
     if (c.heat > 62000) u = min(u, P.heatLine - 2);
     if (!brake && need <= 0) u = trunc(u * pace / 100);
@@ -1230,27 +2290,45 @@
     const rev = now < B.revUntil;
     ctl.hold("B", rev || brake);
     ctl.pressure(rev ? 0 : toPressure(u));
-    ctl.stick(trunc(dx * 100 / len), trunc(-dy * 100 / len));
-    // skills, once per lap
+    if (viewOf(ctx, T) !== "top") {
+      // 3D view = relative steering: push the stick just far enough to turn
+      // by the heading error this step (what the absolute stick would do)
+      const want = iatan2(trunc(dy * 256), trunc(dx * 256)), e = angDiff(want, c.hd);
+      const ms = turnStep(c, P, m.raceT, petTune(P, myPet(ctx, m)));
+      let sx = 0;
+      if (e !== 0 && ms > 0) {
+        const amt = min(100, Math.ceil(abs(e) * 100 / ms));
+        sx = Math.sign(e) * min(100, P.stickDead + max(1, Math.ceil(amt * (90 - P.stickDead) / 100)));
+      }
+      ctl.stick(sx, 0);
+    } else ctl.stick(trunc(dx * 100 / len), trunc(-dy * 100 / len));
+    // skills, once per lap (positions along the bot line scaled to Classic's 480 px)
     if (c.skillLap !== c.lap && st.phase !== PH.PICK && now - B.last > 500) {
       B.last = now;
       const pet = myPet(ctx, m), rv = rivalView(ctx);
-      const mine = progress(c.lap, c.cp, trunc(x), trunc(y));
-      const theirs = rv ? progress(rv.lap, rv.cp, rv.x, rv.y) : mine;
-      const straight = nc.d > 40 && !nc.u;
+      const mine = progress(c.lap, c.cp, trunc(x), trunc(y), T);
+      const theirs = rv ? progress(rv.lap, rv.cp, rv.x, rv.y, T) : mine;
+      const straight = nc.d > 40 && !nc.u, fr = pr.s * 480 / T.BOTLINE.len, k = T.LEN / CL.LEN;
       let go = false;
-      if (pet === PET_EMBER) go = straight && (c.heat > 50000 || pr.s > 300);
-      else if (pet === PET_TIDE) go = abs(theirs - mine) < 120 || pr.s > 330;
-      else if (pet === PET_SPROUT) go = (mine - theirs > 8 && mine - theirs < 70) || pr.s > 400;
+      if (pet === PET_EMBER) go = straight && (c.heat > 50000 || fr > 300);
+      else if (pet === PET_TIDE) go = abs(theirs - mine) < 120 * k || fr > 330;
+      else if (pet === PET_SPROUT) go = (mine - theirs > 8 && mine - theirs < 70 * k) || fr > 400;
       if (go) ctl.press("SKILL");
     }
   }
   function botPick(ctx, ctl) {
-    const s = ctx.s.pick, st = ctx.state;
-    if (!s || !st || st.phase !== PH.PICK || s.locked || (st.flags & (8 << ctx.p))) return;
+    const st = ctx.state;
+    if (!st || st.phase !== PH.PICK || (st.flags & (8 << ctx.p))) return;
+    const s = setupState(ctx, st);
+    if (s.locked) return;
     const B = ctx.s.bot || (ctx.s.bot = {want: ctl.rng.int(3), at: ctx.now() + 400});
     if (ctx.now() < B.at) return;
     B.at = ctx.now() + 300;
+    if (s.page === 0) {
+      // keep the track and the view as they are; the other board waits for the track
+      if (pickerOf(st) === ctx.p || (st.flags & SF.TRACK_SET)) ctl.press("A");
+      return;
+    }
     if (s.sel !== B.want) ctl.press("RIGHT", 60);
     else ctl.press("A");
   }
@@ -1262,9 +2340,14 @@
     icon: "ui.mode.race", coop: false, status: "prototype", needsStick: true, stateMsg: "race.state",
     params: PARAMS.map(p => ({key: p[0], c: p[1], labelKey: "dev.race.p." + p[0], min: p[2], max: p[3], step: p[4], def: p[5], unit: p[6]})),
     rules: {
-      MAP, KIND: Array.from(KIND), DIR: Array.from(DIR), PROG: Array.from(PROG), K, PH, CF, EV, START, TRACK_LEN, DEFAULTS,
-      newCar, stepCar, carFlags, progress, project: (x, y) => project(CENTER, x, y), tileBehind, iatan2, isin, icos, configH,
-      petTune, CAR_ROWS, RIDER_ROWS,
+      MAP, KIND: Array.from(KIND), DIR: Array.from(DIR), PROG: Array.from(PROG), K, PH, CF, EV, SF, START, TRACK_LEN, DEFAULTS,
+      newCar, stepCar, carFlags, progress, project: (x, y) => project(CL.CENTER, x, y), tileBehind, iatan2, isin, icos, configH,
+      petTune, turnStep, CAR_ROWS, RIDER_ROWS, K3_ROWS,
+      // tracks (§5.10): TRACK_DATA, the built tracks (KIND / DIRA / DIRB / PROG / FIN / S_CP ...), the loader
+      TRACK_DATA, tracks: () => TRACKS, trackOf, buildTrack, viewsFor, CAMS, LAYOUTS,
+      // where this board draws the rival (Q8 px; tests compare it with rivalView and the real car)
+      rivalPose: ctx => (ctx.m && ctx.state ? rivalPose(ctx, ctx.m) : null),
+      textures: (i, style) => { const X = texset(trackOf(i), style || "detail"); return {L0: X.TEX0.length >> 10, L1: X.TEX1.length >> 6, flashBytes4bpp: X.flashBytes4bpp}; },
     },
     lobby: {badgeKey: "dev.lobby.laps", badgeVars: p => ({n: p.laps}), goals: ["dev.race.goal1", "dev.race.goal2"],
       keys: [["STICK", "dev.race.k1n", "dev.race.k1"], ["PAD", "dev.race.k2n", "dev.race.k2"],
@@ -1363,5 +2446,26 @@
     T.shot("splashed");
     T.assert(T.hh(1).ctx.m.car.splashUntil > T.hh(1).ctx.m.raceT, "P2 is under the splash");
     T.assert(T.find(1, T.hh(1).ctx.t("dev.race.splashed")), "P2 sees the splash banner");
+  }});
+  // 3D views (§5.10): P1 chase, P2 cockpit on Classic, then the last track
+  // (32x32 when there is one) with P1 on "top", which must become the chase cam
+  D.registerFixture("race.views", {titleKey: "dev.menu.race", run(T) {
+    T.reset({seed: 23, mode: "racing", params: {racing: {laps: 1}}});
+    T.hh(0).ctx.local.raceView = "chase"; T.hh(1).ctx.local.raceView = "cockpit";
+    T.step(1200); T.shot("setup");
+    T.debug("pick", 0 + 4 * 1);
+    T.bot(0, true); T.bot(1, true);
+    T.step(7000); T.shot("chase-cockpit");
+    T.assert(T.screen(0).id === "race.hud" && T.hh(0).ctx.m.car.lap + T.hh(0).ctx.m.car.cp > 0, "P1 drives in the chase cam");
+    const last = TRACKS.length - 1;
+    T.reset({seed: 24, mode: "racing", params: {racing: {laps: 1}}});
+    T.hh(0).ctx.local.raceView = "top";
+    T.step(1200);
+    T.debug("track", last); T.debug("pick", 2 + 4 * 0);
+    T.bot(0, true); T.bot(1, true);
+    T.step(6000); T.shot("track-" + TRACKS[last].id);
+    const m0 = T.hh(0).ctx.m;
+    T.assert(m0.T === TRACKS[last], "the boards race the chosen track");
+    T.assert(TRACKS[last].N !== 32 || viewOf(T.hh(0).ctx, m0.T) === "chase", "a 32x32 track forces 3D");
   }});
 })();
