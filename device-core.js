@@ -2019,7 +2019,11 @@
       saveSettings(patch) { Object.assign(hh.settings, patch); hh.settingsDirty = true; },
       setLanguage(lang) {
         if (lang === LANG) return;
-        world.langDraft = {p: hh.p, screen: hh.screenId, logins: world.hh.map(h => h.flash.cur && h.local.loggedIn ? h.flash.cur : null)};
+        // [+] each login also carries its profile: under ?test=1 (or with storage
+        // blocked) the "flash" does not survive the reload, and a login whose
+        // slot came back empty would leave the board logged in with no profile
+        world.langDraft = {p: hh.p, screen: hh.screenId, logins: world.hh.map(h => h.flash.cur && h.local.loggedIn
+          ? Object.assign({}, h.flash.cur, h.flash.cur.slot === "guest" ? {} : {saved: h.flash.slots[h.flash.cur.slot] || null}) : null)};
         for (const h of world.hh) writeFlash(h);
         if (typeof I18N.keepDraft !== "function") {
           try { sessionStorage.setItem("pr.device.langDraft", JSON.stringify(world.langDraft)); } catch {}
@@ -3391,7 +3395,11 @@
   function applyDraft(d) {
     for (const hh of world.hh) {
       const login = d.logins && d.logins[hh.p];
-      if (login) { hh.flash.cur = login; hh.local.loggedIn = true; }
+      if (login) {
+        const {saved, ...cur} = login;
+        if (cur.slot !== "guest" && !hh.flash.slots[cur.slot] && saved) hh.flash.slots[cur.slot] = saved;
+        if (cur.slot === "guest" || hh.flash.slots[cur.slot]) { hh.flash.cur = cur; hh.local.loggedIn = true; }
+      }
       hh.local.booted = true;
       if (hh.p === d.p && (d.screen === "settings" || d.screen === "settings.cal")) hh.local.stack = [{id: "settings", params: null}];
     }
