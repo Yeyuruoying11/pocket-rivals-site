@@ -20,7 +20,7 @@
     "en": {
       "area": "Gameplay",
       "title": "New gameplay: band-tracking attack trial + chained blocks",
-      "body": "The attacker no longer holds a button to charge. Instead they take a 2-second tracking trial: use the pressure pad (or hold A) to keep the pointer on the moving band, and the share of time inside the band is the score. Below 50 is a Normal strike (the defender blocks once), 50–79 a Strong strike (2 blocks, faster and narrower), 80 and up a Finishing strike (3 blocks). Each block stops its own share of the damage. The firmware (protocol v5), the terminal version and the web prototype follow exactly the same rules; the spec is docs/attack-trial.md in the code repository. Not yet tested on the boards; the Finishing strike may be a bit too easy, so feel free to tune the parameters in the “Game prototype” tab."
+      "body": "The attacker no longer holds a button to charge. Instead they take a 2-second tracking trial: use the pressure pad (or hold A) to keep the pointer on the moving band, and the share of time inside the band is the score. Below 50 is a Normal strike (the defender blocks once), 50–79 a Strong strike (2 blocks, faster and narrower), 80 and up a Finishing strike (3 blocks). Each block stops its own share of the damage. The firmware (protocol v5), the terminal version and the web prototype follow exactly the same rules; the spec is docs/attack-trial.md in the code repository. Not yet tested on the boards; the Finishing strike may be a bit too easy, so feel free to tune the parameters in the “Battle prototype” tab."
     }
   },
   {

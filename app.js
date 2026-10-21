@@ -119,8 +119,8 @@ I18N.add({
     "app.hero.tagline": "A wireless two-player turn-based battle game built on the micro:bit V2",
     "app.cd.d": "days", "app.cd.h": "hrs", "app.cd.m": "min", "app.cd.s": "sec",
     "app.cd.cap": "until the final demo (Dec 7)",
-    "app.tab.overview": "Overview", "app.tab.timeline": "Timeline", "app.tab.hardware": "Hardware & Pins",
-    "app.tab.battle": "Game prototype", "app.tab.updates": "Updates", "app.tab.reviews": "Guestbook",
+    "app.tab.overview": "Overview", "app.tab.timeline": "Timeline", "app.tab.hardware": "Hardware & pins",
+    "app.tab.battle": "Battle prototype", "app.tab.updates": "Updates", "app.tab.reviews": "Guestbook",
     "app.who.label": "By member:",
     "app.all": "All",
     "app.everyone": "Everyone",
@@ -129,10 +129,10 @@ I18N.add({
     "app.loadFailed": "Couldn't load the data: {msg}",
 
     "app.overview.arch": "System architecture",
-    "app.overview.archHint": "click any module for details",
+    "app.overview.archHint": "Click any module for details",
     "app.overview.archIntro": "The two player boards handle input and display, the central board runs the battle logic, and the three boards talk to each other over 802.15.4 radio.",
     "app.overview.team": "Team roles",
-    "app.overview.teamHint": "click a member to see only their tasks",
+    "app.overview.teamHint": "Click a member to see only their tasks",
     "app.overview.latest": "Latest updates",
     "app.overview.seeAll": "See all updates →",
     "app.stats.current": "This week",
@@ -154,7 +154,7 @@ I18N.add({
     "app.team.count.one": "{n} task owned · {doing} in progress · {pct}% done",
 
     "app.timeline.title": "Timeline",
-    "app.timeline.hint": "click a task for details",
+    "app.timeline.hint": "Click a task for details",
     "app.timeline.milestones": "Milestones",
     "app.timeline.modules": "Module tasks",
     "app.timeline.onlyNow": "Only tasks in progress this week",
@@ -170,7 +170,7 @@ I18N.add({
 
     "app.hw.parts": "Parts list",
     "app.hw.pinMap": "Pin map",
-    "app.hw.pinHint": "click a pin for details",
+    "app.hw.pinHint": "Click a pin for details",
     "app.hw.noMatrix": "Disable the on-board LED matrix",
     "app.part.have": "Have", "app.part.arrived": "Arrived", "app.part.ordered": "Ordered",
     "app.part.buy": "To buy", "app.part.choosing": "Choosing model", "app.part.later": "Buy later",
@@ -200,11 +200,11 @@ I18N.add({
     "app.updates.none": "No updates yet.",
     "app.updates.noMatch": "No matching updates.",
     "app.composer.title": "Write an update",
-    "app.composer.hint": "fill it in, copy it and paste it into updates.json on GitHub",
+    "app.composer.hint": "Fill it in, copy it and paste it into updates.json on GitHub",
     "app.composer.date": "Date",
     "app.composer.author": "Author",
     "app.composer.area": "Category",
-    "app.composer.areaPh": "e.g. Wireless, Audio",
+    "app.composer.areaPh": "e.g. Wireless, Display, Hardware",
     "app.composer.titleLbl": "Title (Chinese)",
     "app.composer.titlePh": "One sentence on what was done",
     "app.composer.bodyLbl": "Details (Chinese)",
@@ -392,7 +392,7 @@ function renderStats() {
   const inHand = parts.filter(p => ["have", "arrived"].includes(p.status)).length;
   const who = state.member ? memberName(state.member) : "";
   const label = key => who ? tr(key + "Of", {who}) : tr(key);
-  const weekTxt = currentWeek < 1 ? tr("app.stats.notStarted") : currentWeek > 12 ? tr("app.stats.ended") : `Week ${currentWeek}`;
+  const weekTxt = currentWeek < 1 ? tr("app.stats.notStarted") : currentWeek > 12 ? tr("app.stats.ended") : tr("app.task.week", {w: currentWeek});
   const ws = weekStart(Math.min(Math.max(currentWeek, 1), 12));
   const toBuy = parts.filter(p => ["buy", "choosing"].includes(p.status)).length;
 
@@ -669,6 +669,8 @@ function initComposer() {
   };
   f.addEventListener("input", update);
   update();
+  // Keep what's typed when the language is switched (the page reloads)
+  I18N.keepDraft("composer", () => I18N.formValues(f), v => I18N.fillForm(f, v));
   $("#copy-json").addEventListener("click", () => copyText($("#compose-json").textContent));
 }
 

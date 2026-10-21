@@ -6,7 +6,8 @@
 
 (() => {
   const $ = s => document.querySelector(s);
-  const store = window.PR.store;
+  // app.js sets window.PR; don't let a failure there stop this module
+  const store = (window.PR && window.PR.store) || {get: () => null, set: () => {}};
 
   /* ---------------- strings (wording follows the glossary in i18n.js) ---------------- */
 
@@ -176,12 +177,12 @@
       "battle.restart": "Restart",
       "battle.round": "Round",
       "battle.rulesTitle": "Rules",
-      "battle.rule1": "3 pets each, picked in secret. <b style=\"color:var(--fire)\">Fire</b> beats <b style=\"color:var(--grass)\">grass</b> beats <b style=\"color:var(--water)\">water</b> beats <b style=\"color:var(--fire)\">fire</b>.",
-      "battle.rule2": "<b>Attack trial</b>: hold your key to keep the pointer in the band.",
-      "battle.rule3": "Score over 3 faster stages → <b>Normal</b>, <b>Strong</b> or <b>Full Power</b> strike.",
+      "battle.rule1": "Each player has 3 pets and secretly picks which goes out first. <b style=\"color:var(--fire)\">Fire</b> beats <b style=\"color:var(--grass)\">grass</b> beats <b style=\"color:var(--water)\">water</b> beats <b style=\"color:var(--fire)\">fire</b>.",
+      "battle.rule2": "<b>Attack trial</b>: hold the attack key to keep the pointer in the band.",
+      "battle.rule3": "3 stages, each faster than the last; the score decides a <b>Normal</b>, <b>Strong</b> or <b>Full Power</b> strike.",
       "battle.rule4": "<b>Defend</b>: press block while the cursor is in the green, 1–3 times.",
       "battle.rule5": "Instead of attacking, use a <b>skill</b> or <b>switch</b> pets.",
-      "battle.rule6": "A fainted pet is replaced; lose all 3 and you lose.",
+      "battle.rule6": "When a pet faints, send out the next; if all 3 faint, you lose.",
       "battle.paramsTitle": "Tuning",
       "battle.paramsSub": "Same names and defaults as game_config.h; the copied code can replace the whole file",
       "battle.copyC": "Copy C code",
@@ -261,11 +262,11 @@
       "battle.log.shielded": " (shield)",
       "battle.ev.defense": "Blocked {b}/{h} · {pet} -{n}",
       "battle.ev.shielded": "(shield)",
-      "battle.log.skillFire": "{pet} uses {skill}: {target} -<b>{n}</b> and burns{eff}",
+      "battle.log.skillFire": "{pet} uses {skill}: {target} -<b>{n}</b> and is burning{eff}",
       "battle.ev.skillFire": "{skill}: {target} -{n}{eff}",
       "battle.log.skillWater": "{pet} uses {skill}: +{n} HP and a shield",
       "battle.ev.skillWater": "{skill}: +{n} HP 🛡",
-      "battle.log.skillGrass": "{pet} uses {skill}: {target} -<b>{n}</b>, +{h} HP{eff}",
+      "battle.log.skillGrass": "{pet} uses {skill}: {target} -<b>{n}</b>, {pet} +{h} HP{eff}",
       "battle.ev.skillGrass": "{skill}: {target} -{n}, +{h} HP{eff}",
       "battle.log.switch": "🔄 {p}: {old} → {pet}",
       "battle.ev.switch": "🔄 {p} switches to <b>{pet}</b>",
@@ -280,8 +281,8 @@
       "battle.stage.n": "Stage {n}",
       "battle.seg": "Stage {n}",
       "battle.tier.info": "Score {score} · {dmg} damage{cap} · block ×{n}",
-      "battle.def.next": "Next hit {n}/{h}…",
-      "battle.def.hit": "Hit {n}/{h}",
+      "battle.def.next": "Next block {n}/{h}…",
+      "battle.def.hit": "Block {n}/{h}",
 
       "battle.role.win": "🏆 Winner",
       "battle.role.allOut": "All fainted",

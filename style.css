@@ -440,6 +440,7 @@ a.btn.primary { color: #fff; }
   html:lang(en) .tab { padding: 5px 10px; font-size: 14px; }
   html:lang(en) .who { gap: 4px; }
   html:lang(en) .who .chip { padding: 3px 8px; gap: 5px; }
+}
 
 /* ---------------- i18n: battle ---------------- */
 /* English pad labels are whole words ("Attack", "Shield") that can't break
@@ -452,3 +453,13 @@ a.btn.primary { color: #fff; }
   html[lang="en"] .pad { gap: 4px; }
   html[lang="en"] .pad button { font-size: 11px; padding: 8px 0; }
 }
+/* The roster part of the phone rules above the base rules never applied
+   either; pet names in the 3-pet row were cut off ("Emb…") in both languages */
+@media (max-width: 760px) {
+  .roster { gap: 3px; }
+  .mini { padding: 3px 1px 2px; }
+  .mname { font-size: 10px; }
+}
+
+/* Hide the page for the moment between parsing and translation in English */
+html.i18n-pending body { visibility: hidden; }

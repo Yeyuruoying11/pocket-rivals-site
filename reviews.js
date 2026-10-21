@@ -16,7 +16,8 @@
   const TITLE_RE = /^\[评价(?: Review)?\]/;   // also the older "[评价]"
   const CACHE_KEY = "pr.reviews";
   const CACHE_FRESH_MS = 2 * 60 * 1000;
-  const store = window.PR.store;
+  // app.js sets window.PR; don't let a failure there stop this module
+  const store = (window.PR && window.PR.store) || {get: () => null, set: () => {}};
   const {t} = window.I18N;
   const tn = (key, n) => t(key + (n === 1 ? ".one" : ".other"), {n});
 
@@ -84,6 +85,7 @@
       "reviews.reply": "回复 ↗",
       "reviews.toast.needText": "写几句评价再发布",
       "reviews.toast.needRating": "先点星星打分",
+      // fmtDate always passes m, d and mon, so each language can pick its own format
       "reviews.date": "{m}/{d}",
     },
     en: {
@@ -97,12 +99,12 @@
       "reviews.pet.Sprout": "Sprout (grass)",
       "reviews.pet.undecided": "No favorite yet",
       "reviews.form.name": "Name (optional)",
-      "reviews.form.namePh": "Default: GitHub ID",
+      "reviews.form.namePh": "Blank = GitHub username",
       "reviews.form.comment": "Review",
       "reviews.form.commentPh": "What was fun, what wasn't, what you'd add",
       "reviews.form.submit": "Post on GitHub ↗",
       "reviews.form.note": "Opens a GitHub page with your review filled in; click Create to post it (you need a GitHub account, but don't need to be a collaborator). Come back and click Refresh to see it.",
-      "reviews.rate.prompt": "Tap a star to rate",
+      "reviews.rate.prompt": "Click a star to rate",
       "reviews.rate.1": "Not great",
       "reviews.rate.2": "Okay",
       "reviews.rate.3": "Pretty good",
@@ -117,7 +119,7 @@
       "reviews.bar": "{n} ★",
       "reviews.stars.one": "{n} star",
       "reviews.stars.other": "{n} stars",
-      "reviews.petsHint": "Favorite pet (tap to filter)",
+      "reviews.petsHint": "Favorite pet (click to filter)",
       "reviews.loading": "Loading…",
       "reviews.loadFailed": "Couldn't load reviews: {msg}",
       "reviews.cached": "Showing the last saved copy. {msg}",
@@ -130,7 +132,7 @@
       "reviews.replies.other": "{n} replies",
       "reviews.reply": "Reply ↗",
       "reviews.toast.needText": "Write a few words before posting",
-      "reviews.toast.needRating": "Tap a star to rate first",
+      "reviews.toast.needRating": "Click a star to rate first",
       "reviews.date": "{mon} {d}",
     },
   });
@@ -349,6 +351,12 @@
     });
     $("#rv-refresh").addEventListener("click", () => load(true));
     renderPicker();
+    // Keep a half-written review when the language is switched (the page reloads)
+    const form = $("#rv-form");
+    I18N.keepDraft("review", () => ({...I18N.formValues(form), rating: draft.rating}), v => {
+      draft.rating = Number(v.rating) || 0;
+      I18N.fillForm(form, v);
+    });
     load(false);
   }
 

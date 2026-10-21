@@ -176,13 +176,13 @@
       "group": "里程碑",
       "week": 12,
       "span": 1,
-      "name": "Final presentation",
+      "name": "Final demo",
       "owner": "all",
       "status": "todo",
       "desc": "12 月 7 日最终展示。",
       "en": {
         "group": "Milestones",
-        "desc": "Final presentation on December 7."
+        "desc": "Final demo on Dec 7."
       }
     },
     {
@@ -279,7 +279,7 @@
       "en": {
         "group": "Module tasks",
         "name": "Pin assignment + power plan",
-        "desc": "Finalize the pin assignment of each player board (see the draft on the Hardware tab) and confirm the power supply gives enough current."
+        "desc": "Finalize the pin assignment of each player board (see the draft on the Hardware & pins tab) and confirm the power supply gives enough current."
       }
     },
     {
