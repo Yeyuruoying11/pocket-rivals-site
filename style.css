@@ -425,3 +425,14 @@ a.btn.primary { color: #fff; }
 @media (max-width: 560px) {
   .rv-summary { grid-template-columns: 1fr; }
 }
+
+/* ---------------- i18n: main site ---------------- */
+/* English tab labels are about 1.5x as wide as the Chinese ones; on narrow
+   screens wrap them onto a second row instead of hiding tabs off-screen,
+   and tighten the member chips so the sticky bar stays as tall as in Chinese */
+@media (max-width: 720px) {
+  html:lang(en) .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 2px; }
+  html:lang(en) .tab { padding: 5px 10px; font-size: 14px; }
+  html:lang(en) .who { gap: 4px; }
+  html:lang(en) .who .chip { padding: 3px 8px; gap: 5px; }
+}

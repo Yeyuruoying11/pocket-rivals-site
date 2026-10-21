@@ -1,5 +1,236 @@
 // Pocket Rivals progress site: tabs, member filter, timeline, hardware, updates
 
+/* ---------------- strings (中文 / English) ---------------- */
+
+// Keys ending in ".one" are the singular form, picked by trn() when n is 1
+I18N.add({
+  zh: {
+    "app.title": "Pocket Rivals 项目进展",
+    "app.description": "CE346 Pocket Rivals：基于 micro:bit V2 的无线双人对战游戏，项目进展与分工。",
+    "app.hero.tagline": "基于 micro:bit V2 的无线双人回合制对战游戏",
+    "app.cd.d": "天", "app.cd.h": "时", "app.cd.m": "分", "app.cd.s": "秒",
+    "app.cd.cap": "距离 Final demo（12 月 7 日）",
+    "app.tab.overview": "总览", "app.tab.timeline": "时间线", "app.tab.hardware": "硬件与 Pin",
+    "app.tab.battle": "玩法原型", "app.tab.updates": "进展", "app.tab.reviews": "留言",
+    "app.who.label": "按成员看：",
+    "app.all": "全部",
+    "app.everyone": "全员",
+    "app.owner": "负责人：{name}",
+    "app.copied": "已复制",
+    "app.loadFailed": "数据加载失败：{msg}",
+
+    "app.overview.arch": "系统架构",
+    "app.overview.archHint": "点击任意模块查看详情",
+    "app.overview.archIntro": "两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。",
+    "app.overview.team": "团队分工",
+    "app.overview.teamHint": "点击成员只看 TA 的任务",
+    "app.overview.latest": "最新进展",
+    "app.overview.seeAll": "查看全部进展 →",
+    "app.stats.current": "当前",
+    "app.stats.notStarted": "未开学",
+    "app.stats.ended": "已结束",
+    "app.stats.progress": "整体进度",
+    "app.stats.progressOf": "{who} 的整体进度",
+    "app.stats.active": "进行中的任务",
+    "app.stats.activeOf": "{who} 的进行中的任务",
+    "app.stats.total": "共 {n} 项任务", "app.stats.total.one": "共 {n} 项任务",
+    "app.stats.parts": "零件到手",
+    "app.stats.toBuy": "还有 {n} 项待购买",
+    "app.board.player": "玩家板",
+    "app.board.playerN": "玩家板 {n}",
+    "app.board.playerSub": "输入 · 显示 · 音效",
+    "app.board.central": "中央板",
+    "app.board.centralSub": "游戏状态的唯一来源",
+    "app.team.count": "{n} 项负责任务 · {doing} 项进行中 · 进度 {pct}%",
+    "app.team.count.one": "{n} 项负责任务 · {doing} 项进行中 · 进度 {pct}%",
+
+    "app.timeline.title": "时间线",
+    "app.timeline.hint": "点击任务看详情",
+    "app.timeline.milestones": "里程碑",
+    "app.timeline.modules": "模块任务",
+    "app.timeline.onlyNow": "只看本周进行中的",
+    "app.timeline.thisWeek": "当前周",
+    "app.timeline.clickTask": "点击上面的任意任务。",
+    "app.task.done": "已完成", "app.task.doing": "进行中", "app.task.todo": "计划中",
+    "app.task.week": "第 {w} 周",
+    "app.task.weeks": "第 {w}–{end} 周",
+    "app.task.meta": "{group} · {weeks}（{range}）· 负责人：{owner}",
+    "app.gantt.task": "任务",
+    "app.gantt.owner": "负责人",
+    "app.gantt.empty": "没有符合条件的任务。",
+
+    "app.hw.parts": "采购清单",
+    "app.hw.pinMap": "Pin 分配图",
+    "app.hw.pinHint": "点击 pin 查看详情",
+    "app.hw.noMatrix": "停用板载 LED 点阵",
+    "app.part.have": "已有", "app.part.arrived": "已到货", "app.part.ordered": "已下单",
+    "app.part.buy": "待购买", "app.part.choosing": "选型中", "app.part.later": "后期再买",
+    "app.partGroup.in": "已到手", "app.partGroup.order": "已下单", "app.partGroup.need": "待购买", "app.partGroup.later": "后期",
+    "app.parts.empty": "没有符合条件的零件。",
+    "app.pinPart.tft": "TFT 屏", "app.pinPart.audio": "DFPlayer", "app.pinPart.joy": "摇杆",
+    "app.pinPart.btn": "按钮", "app.pinPart.fsr": "压力传感器",
+    "app.pin.free": "空闲",
+    "app.pin.freeMatrixOff": "空闲（点阵已停用）",
+    "app.pin.freeI2c": "空闲（外部 I2C）",
+    "app.pin.onboardLed": "板载 {b}",
+    "app.pin.onboardBtn": "板载{b}",
+    "app.pin.power": "电源",
+    "app.pin.gnd": "地",
+    "app.pin.usable": "可用 pin",
+    "app.pin.assigned": "已分配",
+    "app.pin.left": "剩余空闲",
+    "app.pin.centralNote": "中央板不接外设，pin 全部空闲；板载 LED 点阵可以用来显示连接状态和当前回合。",
+    "app.pin.legendBusy": "板载占用",
+    "app.pin.clickAny": "点击任意 pin。",
+    "app.pin.now": "当前：{use}",
+    "app.pin.builtin": "板载功能：{b}",
+
+    "app.updates.all": "全部进展",
+    "app.updates.search": "搜索标题或内容…",
+    "app.updates.allAreas": "全部分类",
+    "app.updates.none": "还没有进展。",
+    "app.updates.noMatch": "没有找到相关进展。",
+    "app.composer.title": "写一条进展",
+    "app.composer.hint": "填好后复制，粘贴到 GitHub 上的 updates.json",
+    "app.composer.date": "日期",
+    "app.composer.author": "作者",
+    "app.composer.area": "分类",
+    "app.composer.areaPh": "例如：无线、显示、硬件",
+    "app.composer.titleLbl": "标题",
+    "app.composer.titlePh": "一句话说明做了什么",
+    "app.composer.bodyLbl": "内容",
+    "app.composer.bodyPh": "细节、遇到的问题、下一步计划",
+    "app.composer.titleEnLbl": "英文标题（可选）",
+    "app.composer.titleEnPh": "英文界面显示的标题，可以不填",
+    "app.composer.bodyEnLbl": "英文内容（可选）",
+    "app.composer.bodyEnPh": "不填的话，英文界面显示中文内容",
+    "app.composer.preview": "预览",
+    "app.composer.copy": "复制",
+    "app.composer.edit": "去 GitHub 编辑 updates.json ↗",
+    "app.composer.howto": "粘贴到文件第一行的 <code>[</code> 后面，然后点 Commit changes。大约一分钟后网站会更新。需要先被加为仓库的协作者。",
+    "app.composer.defaultArea": "其他",
+    "app.composer.phTitle": "（标题）",
+    "app.composer.phBody": "（内容）",
+    "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。 数据来自本仓库的 <code>status.json</code>、<code>updates.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。",
+  },
+  en: {
+    "app.title": "Pocket Rivals Project Progress",
+    "app.description": "CE346 Pocket Rivals: a wireless two-player battle game built on the micro:bit V2. Project progress and team roles.",
+    "app.hero.tagline": "A wireless two-player turn-based battle game built on the micro:bit V2",
+    "app.cd.d": "days", "app.cd.h": "hrs", "app.cd.m": "min", "app.cd.s": "sec",
+    "app.cd.cap": "until the final demo (Dec 7)",
+    "app.tab.overview": "Overview", "app.tab.timeline": "Timeline", "app.tab.hardware": "Hardware & Pins",
+    "app.tab.battle": "Game prototype", "app.tab.updates": "Updates", "app.tab.reviews": "Guestbook",
+    "app.who.label": "By member:",
+    "app.all": "All",
+    "app.everyone": "Everyone",
+    "app.owner": "Owner: {name}",
+    "app.copied": "Copied",
+    "app.loadFailed": "Couldn't load the data: {msg}",
+
+    "app.overview.arch": "System architecture",
+    "app.overview.archHint": "click any module for details",
+    "app.overview.archIntro": "The two player boards handle input and display, the central board runs the battle logic, and the three boards talk to each other over 802.15.4 radio.",
+    "app.overview.team": "Team roles",
+    "app.overview.teamHint": "click a member to see only their tasks",
+    "app.overview.latest": "Latest updates",
+    "app.overview.seeAll": "See all updates →",
+    "app.stats.current": "This week",
+    "app.stats.notStarted": "Not started",
+    "app.stats.ended": "Ended",
+    "app.stats.progress": "Overall progress",
+    "app.stats.progressOf": "{who}'s overall progress",
+    "app.stats.active": "Tasks in progress",
+    "app.stats.activeOf": "{who}'s tasks in progress",
+    "app.stats.total": "{n} tasks in total", "app.stats.total.one": "{n} task in total",
+    "app.stats.parts": "Parts in hand",
+    "app.stats.toBuy": "{n} still to buy",
+    "app.board.player": "Player board",
+    "app.board.playerN": "Player board {n}",
+    "app.board.playerSub": "Input · display · audio",
+    "app.board.central": "Central board",
+    "app.board.centralSub": "Single source of truth for the game state",
+    "app.team.count": "{n} tasks owned · {doing} in progress · {pct}% done",
+    "app.team.count.one": "{n} task owned · {doing} in progress · {pct}% done",
+
+    "app.timeline.title": "Timeline",
+    "app.timeline.hint": "click a task for details",
+    "app.timeline.milestones": "Milestones",
+    "app.timeline.modules": "Module tasks",
+    "app.timeline.onlyNow": "Only tasks in progress this week",
+    "app.timeline.thisWeek": "Current week",
+    "app.timeline.clickTask": "Click any task above.",
+    "app.task.done": "Done", "app.task.doing": "In progress", "app.task.todo": "Planned",
+    "app.task.week": "Week {w}",
+    "app.task.weeks": "Weeks {w}–{end}",
+    "app.task.meta": "{group} · {weeks} ({range}) · Owner: {owner}",
+    "app.gantt.task": "Task",
+    "app.gantt.owner": "Owner",
+    "app.gantt.empty": "No matching tasks.",
+
+    "app.hw.parts": "Parts list",
+    "app.hw.pinMap": "Pin map",
+    "app.hw.pinHint": "click a pin for details",
+    "app.hw.noMatrix": "Disable the on-board LED matrix",
+    "app.part.have": "Have", "app.part.arrived": "Arrived", "app.part.ordered": "Ordered",
+    "app.part.buy": "To buy", "app.part.choosing": "Choosing model", "app.part.later": "Buy later",
+    "app.partGroup.in": "In hand", "app.partGroup.order": "Ordered", "app.partGroup.need": "To buy", "app.partGroup.later": "Later",
+    "app.parts.empty": "No matching parts.",
+    "app.pinPart.tft": "TFT screen", "app.pinPart.audio": "DFPlayer", "app.pinPart.joy": "Joystick",
+    "app.pinPart.btn": "Buttons", "app.pinPart.fsr": "Pressure sensor",
+    "app.pin.free": "Free",
+    "app.pin.freeMatrixOff": "Free (matrix disabled)",
+    "app.pin.freeI2c": "Free (external I2C)",
+    "app.pin.onboardLed": "On-board {b}",
+    "app.pin.onboardBtn": "On-board {b}",
+    "app.pin.power": "Power",
+    "app.pin.gnd": "Ground",
+    "app.pin.usable": "usable pins",
+    "app.pin.assigned": "assigned",
+    "app.pin.left": "still free",
+    "app.pin.centralNote": "The central board has no peripherals, so all its pins are free; its on-board LED matrix can show the connection status and the current round.",
+    "app.pin.legendBusy": "Used on-board",
+    "app.pin.clickAny": "Click any pin.",
+    "app.pin.now": "Current use: {use}",
+    "app.pin.builtin": "On-board function: {b}",
+
+    "app.updates.all": "All updates",
+    "app.updates.search": "Search titles and text…",
+    "app.updates.allAreas": "All categories",
+    "app.updates.none": "No updates yet.",
+    "app.updates.noMatch": "No matching updates.",
+    "app.composer.title": "Write an update",
+    "app.composer.hint": "fill it in, copy it and paste it into updates.json on GitHub",
+    "app.composer.date": "Date",
+    "app.composer.author": "Author",
+    "app.composer.area": "Category",
+    "app.composer.areaPh": "e.g. Wireless, Audio",
+    "app.composer.titleLbl": "Title (Chinese)",
+    "app.composer.titlePh": "One sentence on what was done",
+    "app.composer.bodyLbl": "Details (Chinese)",
+    "app.composer.bodyPh": "Details, problems you ran into, next steps",
+    "app.composer.titleEnLbl": "Title in English (optional)",
+    "app.composer.titleEnPh": "Shown in the English interface",
+    "app.composer.bodyEnLbl": "Details in English (optional)",
+    "app.composer.bodyEnPh": "If left empty, the English interface shows the Chinese details",
+    "app.composer.preview": "Preview",
+    "app.composer.copy": "Copy",
+    "app.composer.edit": "Edit updates.json on GitHub ↗",
+    "app.composer.howto": "Paste it right after the <code>[</code> on the first line of the file, then click Commit changes. The site updates in about a minute. You need to be added as a collaborator on the repository first.",
+    "app.composer.defaultArea": "Other",
+    "app.composer.phTitle": "(title)",
+    "app.composer.phBody": "(details)",
+    "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu, Binqi Liu, Yihao Tao. Data comes from <code>status.json</code>, <code>updates.json</code> and <code>pins.json</code> in this repository; guestbook entries come from this repository's Issues.",
+  },
+});
+
+const tr = I18N.t;  // tr(key, vars): interface string in the current language
+const L = I18N.L;   // L(obj, field): data field, English from obj.en when there is one
+const trn = (key, n, vars) => tr(n === 1 ? key + ".one" : key, {n, ...vars});
+
+document.title = tr("app.title");
+document.querySelector('meta[name="description"]')?.setAttribute("content", tr("app.description"));
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
@@ -17,21 +248,32 @@ const DAY = 864e5;
 const WEEKS = [4, 5, 6, 7, 8, 9, 10, 11, 12];
 const currentWeek = Math.floor((Date.now() - WEEK1) / (7 * DAY)) + 1;
 
-const TASK_STATUS = {done: "已完成", doing: "进行中", todo: "计划中"};
-const PART_STATUS = {have: "已有", arrived: "已到货", ordered: "已下单", buy: "待购买", choosing: "选型中", later: "后期再买"};
+const taskStatus = s => tr("app.task." + s);
+const PART_STATUS = ["have", "arrived", "ordered", "buy", "choosing", "later"];
 const PART_GROUPS = [
-  {key: "in",    label: "已到手", color: "var(--done)",   match: ["have", "arrived"]},
-  {key: "order", label: "已下单", color: "var(--accent)", match: ["ordered"]},
-  {key: "need",  label: "待购买", color: "var(--doing)",  match: ["buy", "choosing"]},
-  {key: "later", label: "后期",   color: "var(--todo)",   match: ["later"]},
-];
+  {key: "in",    color: "var(--done)",   match: ["have", "arrived"]},
+  {key: "order", color: "var(--accent)", match: ["ordered"]},
+  {key: "need",  color: "var(--doing)",  match: ["buy", "choosing"]},
+  {key: "later", color: "var(--todo)",   match: ["later"]},
+].map(g => ({...g, label: tr("app.partGroup." + g.key)}));
 const PIN_PARTS = {
-  tft:   {name: "TFT 屏",    color: "var(--c-tft)"},
-  audio: {name: "DFPlayer",  color: "var(--c-audio)"},
-  joy:   {name: "摇杆",      color: "var(--c-joy)"},
-  btn:   {name: "按钮",      color: "var(--c-btn)"},
-  fsr:   {name: "压力传感器", color: "var(--c-fsr)"},
+  tft:   {color: "var(--c-tft)"},
+  audio: {color: "var(--c-audio)"},
+  joy:   {color: "var(--c-joy)"},
+  btn:   {color: "var(--c-btn)"},
+  fsr:   {color: "var(--c-fsr)"},
 };
+for (const [k, p] of Object.entries(PIN_PARTS)) p.name = tr("app.pinPart." + k);
+
+// Update categories: data keeps whatever was typed (usually Chinese); known
+// ones show in the current language whichever language they were typed in
+const AREAS = {"无线": "Wireless", "网站": "Website", "玩法": "Gameplay", "硬件": "Hardware",
+               "显示": "Display", "音效": "Audio", "规划": "Planning", "其他": "Other"};
+const AREA_BY_EN = Object.fromEntries(Object.entries(AREAS).map(([zh, en]) => [en.toLowerCase(), zh]));
+const areaKey = a => { const s = String(a ?? "").trim(); return AREA_BY_EN[s.toLowerCase()] || s; };
+const areaName = a => { const k = areaKey(a); return I18N.lang === "en" ? (AREAS[k] || String(a ?? "").trim()) : k; };
+const areaEn = a => AREAS[areaKey(a)] || String(a ?? "").trim();
+const updateArea = u => areaName(L(u, "area"));
 
 const state = {
   member: store.get("pr.member") || "",
@@ -47,7 +289,8 @@ const state = {
 let D = null;  // loaded data
 
 const memberColor = id => `var(--m-${id && id !== "all" ? id : "all"})`;
-const memberName = id => (id && D.status.members[id]) ? D.status.members[id].short : "全员";
+const memberName = id => (id && D.status.members[id]) ? D.status.members[id].short : tr("app.everyone");
+const ownerFull = id => id === "all" ? tr("app.everyone") : D.status.members[id].name;
 const ownerMatch = owner => !state.member || owner === state.member || owner === "all";
 
 function weekStart(w) { return new Date(WEEK1.getTime() + (w - 1) * 7 * DAY); }
@@ -72,7 +315,7 @@ async function copyText(text) {
     document.execCommand("copy");
     ta.remove();
   }
-  toast("已复制");
+  toast(tr("app.copied"));
 }
 
 /* ---------------- tabs ---------------- */
@@ -114,8 +357,8 @@ setInterval(tickCountdown, 1000);
 /* ---------------- member filter ---------------- */
 
 function renderWho() {
-  const opts = [["", "全部"], ...Object.entries(D.status.members).map(([id, m]) => [id, m.short])];
-  $("#who").innerHTML = "<span>按成员看：</span>" + opts.map(([id, label]) =>
+  const opts = [["", tr("app.all")], ...Object.entries(D.status.members).map(([id, m]) => [id, m.short])];
+  $("#who").innerHTML = `<span>${esc(tr("app.who.label"))}</span>` + opts.map(([id, label]) =>
     `<button class="chip" data-member="${id}" aria-pressed="${state.member === id}">` +
     (id ? `<span class="dot" style="--c:${memberColor(id)}"></span>` : "") + `${esc(label)}</button>`
   ).join("");
@@ -147,32 +390,34 @@ function renderStats() {
   const active = mine.filter(t => t.status === "doing").length;
   const parts = D.status.parts.filter(p => ownerMatch(p.owner));
   const inHand = parts.filter(p => ["have", "arrived"].includes(p.status)).length;
-  const who = state.member ? memberName(state.member) + " 的" : "";
-  const weekTxt = currentWeek < 1 ? "未开学" : currentWeek > 12 ? "已结束" : `Week ${currentWeek}`;
+  const who = state.member ? memberName(state.member) : "";
+  const label = key => who ? tr(key + "Of", {who}) : tr(key);
+  const weekTxt = currentWeek < 1 ? tr("app.stats.notStarted") : currentWeek > 12 ? tr("app.stats.ended") : `Week ${currentWeek}`;
   const ws = weekStart(Math.min(Math.max(currentWeek, 1), 12));
+  const toBuy = parts.filter(p => ["buy", "choosing"].includes(p.status)).length;
 
   $("#stats").innerHTML = `
-    <div class="card stat"><div class="k">当前</div><div class="v">${weekTxt}</div>
+    <div class="card stat"><div class="k">${esc(tr("app.stats.current"))}</div><div class="v">${esc(weekTxt)}</div>
       <div class="s">${md(ws)} – ${md(new Date(ws.getTime() + 6 * DAY))}</div></div>
-    <div class="card stat"><div class="k">${who}整体进度</div><div class="v">${pct}%</div>
+    <div class="card stat"><div class="k">${esc(label("app.stats.progress"))}</div><div class="v">${pct}%</div>
       <div class="meter"><i style="width:${pct}%;background:var(--done)"></i></div></div>
-    <div class="card stat"><div class="k">${who}进行中的任务</div><div class="v">${active}</div>
-      <div class="s">共 ${mine.length} 项任务</div></div>
-    <div class="card stat"><div class="k">零件到手</div><div class="v">${inHand}<span class="muted" style="font-size:16px"> / ${parts.length}</span></div>
-      <div class="s">还有 ${parts.filter(p => ["buy", "choosing"].includes(p.status)).length} 项待购买</div></div>`;
+    <div class="card stat"><div class="k">${esc(label("app.stats.active"))}</div><div class="v">${active}</div>
+      <div class="s">${esc(trn("app.stats.total", mine.length))}</div></div>
+    <div class="card stat"><div class="k">${esc(tr("app.stats.parts"))}</div><div class="v">${inHand}<span class="muted" style="font-size:16px"> / ${parts.length}</span></div>
+      <div class="s">${esc(tr("app.stats.toBuy", {n: toBuy}))}</div></div>`;
 }
 
 function renderArch() {
   const comp = (c, board) => {
     const dim = state.member && c.owner !== state.member && c.owner !== "all";
     return `<button class="comp${dim ? " dim" : ""}" data-comp="${board}:${c.id}">
-      <span class="dot" style="--c:${memberColor(c.owner)}"></span>${esc(c.name)}<span class="if">${esc(c.iface)}</span></button>`;
+      <span class="dot" style="--c:${memberColor(c.owner)}"></span>${esc(L(c, "name"))}<span class="if">${esc(c.iface)}</span></button>`;
   };
-  const player = n => `<div class="board"><h4>玩家板 ${n}</h4><div class="sub">输入 · 显示 · 音效</div>
+  const player = n => `<div class="board"><h4>${esc(tr("app.board.playerN", {n}))}</h4><div class="sub">${esc(tr("app.board.playerSub"))}</div>
     <div class="comps">${D.status.components.player.map(c => comp(c, "player")).join("")}</div></div>`;
   const link = `<div class="link"><span class="packet"></span><span class="packet back"></span></div>`;
   $("#arch").innerHTML = player(1) + link +
-    `<div class="board central"><h4>中央板</h4><div class="sub">游戏状态的唯一来源</div>
+    `<div class="board central"><h4>${esc(tr("app.board.central"))}</h4><div class="sub">${esc(tr("app.board.centralSub"))}</div>
       <div class="comps">${D.status.components.central.map(c => comp(c, "central")).join("")}</div></div>` +
     link + player(2);
 }
@@ -183,9 +428,9 @@ $("#arch").addEventListener("click", e => {
   const [board, id] = b.dataset.comp.split(":");
   const c = D.status.components[board].find(x => x.id === id);
   $$(".comp").forEach(x => x.classList.toggle("sel", x.dataset.comp === b.dataset.comp));
-  $("#arch-detail").innerHTML = `<b>${esc(c.name)}</b><span class="tag">${esc(c.iface)}</span>
-    <span class="muted" style="margin-left:8px">负责人：${esc(c.owner === "all" ? "全员" : D.status.members[c.owner].name)}</span>
-    <div style="margin-top:6px">${esc(c.detail)}</div>`;
+  $("#arch-detail").innerHTML = `<b>${esc(L(c, "name"))}</b><span class="tag">${esc(c.iface)}</span>
+    <span class="muted" style="margin-left:8px">${esc(tr("app.owner", {name: ownerFull(c.owner)}))}</span>
+    <div style="margin-top:6px">${esc(L(c, "detail"))}</div>`;
 });
 
 function renderTeam() {
@@ -194,17 +439,17 @@ function renderTeam() {
     const doing = ts.filter(t => t.status === "doing").length;
     return `<button class="card member${state.member === id ? " sel" : ""}" data-member="${id}" style="--c:${memberColor(id)}">
       <h3><span class="dot"></span>${esc(m.name)}</h3>
-      <div class="role">${esc(m.role)}</div>
-      <p>${esc(m.duties)}</p>
-      <div class="count">${ts.length} 项负责任务 · ${doing} 项进行中 · 进度 ${taskProgress(ts)}%</div>
+      <div class="role">${esc(L(m, "role"))}</div>
+      <p>${esc(L(m, "duties"))}</p>
+      <div class="count">${esc(trn("app.team.count", ts.length, {doing, pct: taskProgress(ts)}))}</div>
     </button>`;
   }).join("");
 }
 
 function updateCard(u) {
   return `<div class="update" style="--c:${memberColor(u.author)}">
-    <div class="meta"><span>${esc(u.date)}</span><span>·</span><span>${esc(memberName(u.author))}</span><span class="tag">${esc(u.area)}</span></div>
-    <h3>${esc(u.title)}</h3><p>${esc(u.body)}</p></div>`;
+    <div class="meta"><span>${esc(u.date)}</span><span>·</span><span>${esc(memberName(u.author))}</span><span class="tag">${esc(updateArea(u))}</span></div>
+    <h3>${esc(L(u, "title"))}</h3><p>${esc(L(u, "body"))}</p></div>`;
 }
 
 function memberUpdates() {
@@ -213,7 +458,7 @@ function memberUpdates() {
 
 function renderLatest() {
   const list = memberUpdates().slice(0, 3);
-  $("#latest").innerHTML = list.length ? list.map(updateCard).join("") : `<div class="empty">还没有进展。</div>`;
+  $("#latest").innerHTML = list.length ? list.map(updateCard).join("") : `<div class="empty">${esc(tr("app.updates.none"))}</div>`;
 }
 
 /* ---------------- timeline ---------------- */
@@ -227,23 +472,24 @@ function visibleTasks() {
 
 function renderGantt() {
   const nowCls = w => w === currentWeek ? "now" : "";
-  let html = `<tr><th class="task">任务</th><th>负责人</th>` + WEEKS.map(w => `<th class="${nowCls(w)}">W${w}</th>`).join("") + "</tr>";
+  let html = `<tr><th class="task">${esc(tr("app.gantt.task"))}</th><th>${esc(tr("app.gantt.owner"))}</th>` +
+    WEEKS.map(w => `<th class="${nowCls(w)}">W${w}</th>`).join("") + "</tr>";
   const tasks = visibleTasks();
   let lastGroup = null;
   tasks.forEach(t => {
     if (t.group !== lastGroup) {
-      html += `<tr class="grp"><td colspan="${WEEKS.length + 2}">${esc(t.group)}</td></tr>`;
+      html += `<tr class="grp"><td colspan="${WEEKS.length + 2}">${esc(L(t, "group"))}</td></tr>`;
       lastGroup = t.group;
     }
     const idx = D.status.tasks.indexOf(t);
-    html += `<tr class="t" data-task="${idx}"><td class="task">${esc(t.name)}</td>
+    html += `<tr class="t" data-task="${idx}"><td class="task">${esc(L(t, "name"))}</td>
       <td class="owner"><span class="dot" style="--c:${memberColor(t.owner)}"></span> ${esc(memberName(t.owner))}</td>` +
       WEEKS.map(w => {
         const on = w >= t.week && w < t.week + t.span;
-        return `<td class="${nowCls(w)}">${on ? `<div class="bar ${t.status}" title="${TASK_STATUS[t.status]}"></div>` : ""}</td>`;
+        return `<td class="${nowCls(w)}">${on ? `<div class="bar ${t.status}" title="${esc(taskStatus(t.status))}"></div>` : ""}</td>`;
       }).join("") + "</tr>";
   });
-  if (!tasks.length) html += `<tr><td colspan="${WEEKS.length + 2}" class="empty">没有符合条件的任务。</td></tr>`;
+  if (!tasks.length) html += `<tr><td colspan="${WEEKS.length + 2}" class="empty">${esc(tr("app.gantt.empty"))}</td></tr>`;
   $("#gantt").innerHTML = html;
 }
 
@@ -254,10 +500,11 @@ $("#gantt").addEventListener("click", e => {
   $$("#gantt tr.t").forEach(x => x.classList.toggle("sel", x === r));
   const end = t.week + t.span - 1;
   const range = `${md(weekStart(t.week))} – ${md(new Date(weekStart(end).getTime() + 6 * DAY))}`;
-  $("#task-detail").innerHTML = `<b>${esc(t.name)}</b><span class="tag">${TASK_STATUS[t.status]}</span>
+  const weeks = t.span > 1 ? tr("app.task.weeks", {w: t.week, end}) : tr("app.task.week", {w: t.week});
+  $("#task-detail").innerHTML = `<b>${esc(L(t, "name"))}</b><span class="tag">${esc(taskStatus(t.status))}</span>
     <div class="muted" style="font-size:13px;margin-top:4px">
-      ${esc(t.group)} · 第 ${t.week}${t.span > 1 ? "–" + end : ""} 周（${range}）· 负责人：${esc(t.owner === "all" ? "全员" : D.status.members[t.owner].name)}</div>
-    <div style="margin-top:6px">${esc(t.desc)}</div>`;
+      ${esc(tr("app.task.meta", {group: L(t, "group"), weeks, range, owner: ownerFull(t.owner)}))}</div>
+    <div style="margin-top:6px">${esc(L(t, "desc"))}</div>`;
 });
 
 $("#grp-seg").addEventListener("click", e => {
@@ -277,18 +524,18 @@ function renderParts() {
 
   $("#part-meter").innerHTML = PART_GROUPS.map((g, i) =>
     `<i style="width:${parts.length ? counts[i] / parts.length * 100 : 0}%;background:${g.color}"></i>`).join("");
-  $("#part-legend").innerHTML = PART_GROUPS.map((g, i) => `<span style="--c:${g.color}">${g.label} ${counts[i]}</span>`).join("");
-  $("#part-filter").innerHTML = [["", "全部"], ...PART_GROUPS.map(g => [g.key, g.label])].map(([k, l]) =>
-    `<button class="chip" data-pf="${k}" aria-pressed="${state.partFilter === k}">${l}</button>`).join("");
+  $("#part-legend").innerHTML = PART_GROUPS.map((g, i) => `<span style="--c:${g.color}">${esc(g.label)} ${counts[i]}</span>`).join("");
+  $("#part-filter").innerHTML = [["", tr("app.all")], ...PART_GROUPS.map(g => [g.key, g.label])].map(([k, l]) =>
+    `<button class="chip" data-pf="${k}" aria-pressed="${state.partFilter === k}">${esc(l)}</button>`).join("");
 
   const group = PART_GROUPS.find(g => g.key === state.partFilter);
   const shown = parts.filter(p => !group || group.match.includes(p.status));
   $("#parts").innerHTML = shown.length ? shown.map(p => `<li>
-      <span class="nm">${esc(p.name)} <span class="muted" style="font-weight:400">× ${p.qty}</span>
+      <span class="nm">${esc(L(p, "name"))} <span class="muted" style="font-weight:400">× ${p.qty}</span>
         ${p.iface !== "—" ? `<span class="tag">${esc(p.iface)}</span>` : ""}</span>
-      <span class="st ${p.status}">${PART_STATUS[p.status] || esc(p.status)}</span>
-      <span class="md">${esc(p.model)} · ${esc(p.use)} · <span class="dot" style="--c:${memberColor(p.owner)}"></span> ${esc(memberName(p.owner))}</span>
-    </li>`).join("") : `<li class="empty">没有符合条件的零件。</li>`;
+      <span class="st ${p.status}">${esc(PART_STATUS.includes(p.status) ? tr("app.part." + p.status) : p.status)}</span>
+      <span class="md">${esc(L(p, "model"))} · ${esc(L(p, "use"))} · <span class="dot" style="--c:${memberColor(p.owner)}"></span> ${esc(memberName(p.owner))}</span>
+    </li>`).join("") : `<li class="empty">${esc(tr("app.parts.empty"))}</li>`;
 }
 
 $("#part-filter").addEventListener("click", e => {
@@ -296,14 +543,16 @@ $("#part-filter").addEventListener("click", e => {
   if (b) { state.partFilter = b.dataset.pf; renderParts(); }
 });
 
+// kind/part come from the Chinese fields; the text shown is in the current language
 function pinInfo(p) {
   const a = state.board === "player" ? p.player : null;
-  if (a) return {kind: "used", use: a.use, part: a.part};
+  if (a) return {kind: "used", use: L(a, "use"), part: a.part};
   const b = p.builtin || "";
-  if (b.startsWith("LED")) return state.noMatrix ? {kind: "free", use: "空闲（点阵已停用）"} : {kind: "busy", use: "板载 " + b};
-  if (b.startsWith("按钮")) return {kind: "busy", use: "板载" + b};
-  if (b.startsWith("Qwiic")) return {kind: "free", use: "空闲（外部 I2C）"};
-  return {kind: "free", use: "空闲"};
+  const shown = L(p, "builtin") || b;
+  if (b.startsWith("LED")) return state.noMatrix ? {kind: "free", use: tr("app.pin.freeMatrixOff")} : {kind: "busy", use: tr("app.pin.onboardLed", {b: shown})};
+  if (b.startsWith("按钮")) return {kind: "busy", use: tr("app.pin.onboardBtn", {b: shown})};
+  if (b.startsWith("Qwiic")) return {kind: "free", use: tr("app.pin.freeI2c")};
+  return {kind: "free", use: tr("app.pin.free")};
 }
 
 function renderPins() {
@@ -315,32 +564,34 @@ function renderPins() {
     if (i.kind === "free") free++;
     const color = i.part ? PIN_PARTS[i.part].color : "";
     const dim = state.member && i.part && D.status.components.player.find(c => c.id === i.part)?.owner !== state.member;
+    const warn = L(p, "warn");
     return `<button class="pin ${i.kind}${state.selPin === p.pin ? " sel" : ""}" data-pin="${p.pin}"
         style="${color ? `--c:${color};` : ""}${dim ? "opacity:.35" : ""}">
-      ${p.warn && i.kind !== "busy" ? `<span class="warn" title="${esc(p.warn)}">⚠</span>` : ""}
+      ${warn && i.kind !== "busy" ? `<span class="warn" title="${esc(warn)}">⚠</span>` : ""}
       <div class="p">${p.pin}</div><div class="u">${esc(i.use)}</div></button>`;
   }).join("") +
-    `<div class="pin power"><div class="p">3V</div><div class="u">电源</div></div>` +
-    `<div class="pin power"><div class="p">GND</div><div class="u">地</div></div>`;
+    `<div class="pin power"><div class="p">3V</div><div class="u">${esc(tr("app.pin.power"))}</div></div>` +
+    `<div class="pin power"><div class="p">GND</div><div class="u">${esc(tr("app.pin.gnd"))}</div></div>`;
 
-  $("#pin-summary").innerHTML = `<span><b>${used + free}</b>可用 pin</span><span><b style="color:var(--accent)">${used}</b>已分配</span>
-    <span><b style="color:${free ? "var(--done)" : "var(--danger)"}">${free}</b>剩余空闲</span>`;
-  $("#pin-note").textContent = state.board === "player" ? D.pins.note : "中央板不接外设，pin 全部空闲；板载 LED 点阵可以用来显示连接状态和当前回合。";
-  $("#pin-legend").innerHTML = Object.values(PIN_PARTS).map(p => `<span style="--c:${p.color}">${p.name}</span>`).join("") +
-    `<span style="--c:var(--surface-2)">板载占用</span><span style="--c:transparent;outline:1px dashed var(--muted)">空闲</span>`;
-  $("#pin-extra").innerHTML = state.board === "player" ? D.pins.extra.map(x => `<li>${esc(x)}</li>`).join("") : "";
+  $("#pin-summary").innerHTML = `<span><b>${used + free}</b>${esc(tr("app.pin.usable"))}</span><span><b style="color:var(--accent)">${used}</b>${esc(tr("app.pin.assigned"))}</span>
+    <span><b style="color:${free ? "var(--done)" : "var(--danger)"}">${free}</b>${esc(tr("app.pin.left"))}</span>`;
+  $("#pin-note").textContent = state.board === "player" ? L(D.pins, "note") : tr("app.pin.centralNote");
+  $("#pin-legend").innerHTML = Object.values(PIN_PARTS).map(p => `<span style="--c:${p.color}">${esc(p.name)}</span>`).join("") +
+    `<span style="--c:var(--surface-2)">${esc(tr("app.pin.legendBusy"))}</span><span style="--c:transparent;outline:1px dashed var(--muted)">${esc(tr("app.pin.free"))}</span>`;
+  $("#pin-extra").innerHTML = state.board === "player" ? L(D.pins, "extra").map(x => `<li>${esc(x)}</li>`).join("") : "";
   renderPinDetail();
 }
 
 function renderPinDetail() {
   const p = D.pins.pins.find(x => x.pin === state.selPin);
-  if (!p) { $("#pin-detail").innerHTML = `<span class="muted">点击任意 pin。</span>`; return; }
+  if (!p) { $("#pin-detail").innerHTML = `<span class="muted">${esc(tr("app.pin.clickAny"))}</span>`; return; }
   const i = pinInfo(p);
+  const warn = L(p, "warn");
   $("#pin-detail").innerHTML = `<b>${p.pin}</b><span class="muted mono">${p.nrf}</span>
     <div style="margin-top:6px">${p.caps.map(c => `<span class="tag" style="margin-right:4px">${esc(c)}</span>`).join("")}</div>
-    <div style="margin-top:6px">当前：${esc(i.use)}</div>
-    ${p.builtin ? `<div class="muted" style="font-size:13px">板载功能：${esc(p.builtin)}</div>` : ""}
-    ${p.warn ? `<div style="font-size:13px;color:var(--doing);margin-top:4px">⚠ ${esc(p.warn)}</div>` : ""}`;
+    <div style="margin-top:6px">${esc(tr("app.pin.now", {use: i.use}))}</div>
+    ${p.builtin ? `<div class="muted" style="font-size:13px">${esc(tr("app.pin.builtin", {b: L(p, "builtin")}))}</div>` : ""}
+    ${warn ? `<div style="font-size:13px;color:var(--doing);margin-top:4px">⚠ ${esc(warn)}</div>` : ""}`;
 }
 
 $("#pins").addEventListener("click", e => {
@@ -360,17 +611,27 @@ $("#no-matrix").addEventListener("change", e => { state.noMatrix = e.target.chec
 
 /* ---------------- updates ---------------- */
 
-function renderUpdates() {
-  const areas = [...new Set(D.updates.map(u => u.area))];
-  $("#area-filter").innerHTML = [["", "全部分类"], ...areas.map(a => [a, a])].map(([k, l]) =>
-    `<button class="chip" data-area="${esc(k)}" aria-pressed="${state.area === k}">${esc(l)}</button>`).join("");
-  $("#areas").innerHTML = areas.map(a => `<option value="${esc(a)}">`).join("");
+// category key -> label, in order of first appearance, plus the known categories
+function areaLabels() {
+  const labels = new Map();
+  D.updates.forEach(u => { const k = areaKey(u.area); if (!labels.has(k)) labels.set(k, updateArea(u)); });
+  return labels;
+}
 
+function renderUpdates() {
+  const labels = areaLabels();
+  $("#area-filter").innerHTML = [["", tr("app.updates.allAreas")], ...labels].map(([k, l]) =>
+    `<button class="chip" data-area="${esc(k)}" aria-pressed="${state.area === k}">${esc(l)}</button>`).join("");
+  const suggest = new Set(labels.values());
+  Object.keys(AREAS).forEach(k => suggest.add(areaName(k)));
+  $("#areas").innerHTML = [...suggest].map(a => `<option value="${esc(a)}">`).join("");
+
+  // search the text shown plus the Chinese original, so either language finds it
   const q = state.query.trim().toLowerCase();
   const list = memberUpdates().filter(u =>
-    (!state.area || u.area === state.area) &&
-    (!q || (u.title + u.body + u.area).toLowerCase().includes(q)));
-  $("#update-list").innerHTML = list.length ? list.map(updateCard).join("") : `<div class="empty">没有找到相关进展。</div>`;
+    (!state.area || areaKey(u.area) === state.area) &&
+    (!q || [u.title, u.body, u.area, L(u, "title"), L(u, "body"), updateArea(u)].join(" ").toLowerCase().includes(q)));
+  $("#update-list").innerHTML = list.length ? list.map(updateCard).join("") : `<div class="empty">${esc(tr("app.updates.noMatch"))}</div>`;
 }
 
 $("#area-filter").addEventListener("click", e => {
@@ -384,13 +645,23 @@ function initComposer() {
   const today = new Date();
   f.date.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   f.author.innerHTML = Object.entries(D.status.members).map(([id, m]) => `<option value="${id}">${esc(m.name)}</option>`).join("") +
-    `<option value="all">全员</option>`;
+    `<option value="all">${esc(tr("app.everyone"))}</option>`;
   const saved = store.get("pr.author");
   if (saved) f.author.value = saved;
 
+  // Chinese goes in the main fields; "en" is added only when an English title
+  // or body is filled in. If only English is given it also fills the main field.
   const update = () => {
-    const u = {date: f.date.value, author: f.author.value, area: f.area.value.trim() || "其他",
-               title: f.title.value.trim() || "（标题）", body: f.body.value.trim() || "（内容）"};
+    const titleEn = f.titleEn.value.trim(), bodyEn = f.bodyEn.value.trim();
+    const area = f.area.value.trim() || tr("app.composer.defaultArea");
+    const u = {date: f.date.value, author: f.author.value, area,
+               title: f.title.value.trim() || titleEn || tr("app.composer.phTitle"),
+               body: f.body.value.trim() || bodyEn || tr("app.composer.phBody")};
+    if (titleEn || bodyEn) {
+      u.en = {area: areaEn(area)};
+      if (titleEn) u.en.title = titleEn;
+      if (bodyEn) u.en.body = bodyEn;
+    }
     store.set("pr.author", u.author);
     $("#compose-preview").innerHTML = updateCard(u);
     const json = JSON.stringify(u, null, 2).split("\n").map(l => "  " + l).join("\n") + ",";
@@ -424,7 +695,7 @@ Promise.all([load("status.json"), load("updates.json"), load("pins.json")])
     initComposer();
   })
   .catch(err => {
-    $("main").insertAdjacentHTML("afterbegin", `<div class="card" style="border-color:var(--danger)">数据加载失败：${esc(err.message)}</div>`);
+    $("main").insertAdjacentHTML("afterbegin", `<div class="card" style="border-color:var(--danger)">${esc(tr("app.loadFailed", {msg: err.message}))}</div>`);
   });
 
 window.PR = {toast, copyText, store};

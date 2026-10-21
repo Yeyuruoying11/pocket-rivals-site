@@ -4,62 +4,107 @@
     "author": "yihao",
     "area": "玩法",
     "title": "攻击测试分三层逐层加速；最高一档改为「全力一击」并加伤害上限",
-    "body": "光带对人太快，改成三层：第 1 层 35% 速度、第 2 层 65%、第 3 层原速，每层 1.5 秒，总分 = 三层合计在光带内的比例，结束时显示每层成绩。最高一档从「必杀一击」改叫「全力一击」，一次攻击最多 30 点（半管血），不会一击秒杀。固件、终端版和网页原型规则一致。"
+    "body": "光带对人太快，改成三层：第 1 层 35% 速度、第 2 层 65%、第 3 层原速，每层 1.5 秒，总分 = 三层合计在光带内的比例，结束时显示每层成绩。最高一档从「必杀一击」改叫「全力一击」，一次攻击最多 30 点（半管血），不会一击秒杀。固件、终端版和网页原型规则一致。",
+    "en": {
+      "area": "Gameplay",
+      "title": "Attack trial now has three stages that speed up; the top tier is renamed “Full Power strike” and damage is capped",
+      "body": "The band was too fast for people, so the trial now has three stages: stage 1 at 35% speed, stage 2 at 65% and stage 3 at full speed, 1.5 s each. The score is the share of time the pointer spends inside the band over all three stages, and each stage's result is shown at the end. The top tier is renamed from “Finishing strike” to “Full Power strike”, and one attack deals at most 30 damage (half an HP bar), so nothing is a one-hit KO. The firmware, the terminal version and the web prototype follow the same rules."
+    }
   },
   {
     "date": "2026-10-21",
     "author": "yihao",
     "area": "玩法",
     "title": "新玩法：追踪光带攻击测试 + 连续格挡",
-    "body": "攻击方不再按住蓄力，而是做 2 秒的追踪测试：用压力垫（或按住 A）让指针跟住移动的光带，在带内的比例就是分数。<50 普通一击（防守格挡 1 次），50–79 强力一击（2 次，更快更窄），≥80 必杀一击（3 次）。每次格挡挡住对应那一份伤害。固件（协议 v5）、终端版和网页原型规则完全一致，规格见代码仓库 docs/attack-trial.md。还没上板实测；必杀可能偏容易，欢迎在「玩法原型」里调参数。"
+    "body": "攻击方不再按住蓄力，而是做 2 秒的追踪测试：用压力垫（或按住 A）让指针跟住移动的光带，在带内的比例就是分数。<50 普通一击（防守格挡 1 次），50–79 强力一击（2 次，更快更窄），≥80 必杀一击（3 次）。每次格挡挡住对应那一份伤害。固件（协议 v5）、终端版和网页原型规则完全一致，规格见代码仓库 docs/attack-trial.md。还没上板实测；必杀可能偏容易，欢迎在「玩法原型」里调参数。",
+    "en": {
+      "area": "Gameplay",
+      "title": "New gameplay: band-tracking attack trial + chained blocks",
+      "body": "The attacker no longer holds a button to charge. Instead they take a 2-second tracking trial: use the pressure pad (or hold A) to keep the pointer on the moving band, and the share of time inside the band is the score. Below 50 is a Normal strike (the defender blocks once), 50–79 a Strong strike (2 blocks, faster and narrower), 80 and up a Finishing strike (3 blocks). Each block stops its own share of the damage. The firmware (protocol v5), the terminal version and the web prototype follow exactly the same rules; the spec is docs/attack-trial.md in the code repository. Not yet tested on the boards; the Finishing strike may be a bit too easy, so feel free to tune the parameters in the “Game prototype” tab."
+    }
   },
   {
     "date": "2026-10-21",
     "author": "yihao",
     "area": "玩法",
     "title": "代码模块化；新增中途换宠物、摇杆选宠物、压力垫蓄力、终端版游戏",
-    "body": "固件拆成独立模块（rules / skills / pets / game / controls / player_core），改一处不影响别处，见代码仓库 docs/modules.md。新玩法：进攻方可以花一回合换宠物（网页原型的 F / ; 键）。摇杆左右选宠物，捏压力垫蓄力（没有传感器时仍按住 A）。新增约 2400 项单元测试，修了完美格挡判定偏一格的 bug；回合改成两人各出手一次算一回合。software/test 里 make play 可以在电脑终端里两人对打真实的固件逻辑。都还没上板实测。"
+    "body": "固件拆成独立模块（rules / skills / pets / game / controls / player_core），改一处不影响别处，见代码仓库 docs/modules.md。新玩法：进攻方可以花一回合换宠物（网页原型的 F / ; 键）。摇杆左右选宠物，捏压力垫蓄力（没有传感器时仍按住 A）。新增约 2400 项单元测试，修了完美格挡判定偏一格的 bug；回合改成两人各出手一次算一回合。software/test 里 make play 可以在电脑终端里两人对打真实的固件逻辑。都还没上板实测。",
+    "en": {
+      "area": "Gameplay",
+      "title": "Modular code; new: switching pets mid-battle, picking pets with the joystick, pressure-pad charging, a terminal version of the game",
+      "body": "The firmware is split into independent modules (rules / skills / pets / game / controls / player_core), so a change in one place doesn't affect the others; see docs/modules.md in the code repository. New gameplay: the attacker can spend their turn to switch pets (the F / ; keys in the web prototype). Move the joystick left/right to pick a pet and squeeze the pressure pad to charge (without the sensor, hold A as before). Added about 2,400 unit tests and fixed an off-by-one bug in the Perfect block check; a round now means each player acting once. Running make play in software/test lets two people battle on the real firmware logic in a computer terminal. None of this has been tested on the boards yet."
+    }
   },
   {
     "date": "2026-10-20",
     "author": "yihao",
     "area": "无线",
     "title": "输入 driver、无线测试固件、网页原型改成 3 宠物规则",
-    "body": "玩家板加了 Qwiic 摇杆、外接按钮、压力传感器的 driver（全部可选，光板子也能玩）；新的 radio_test 固件每秒报告丢包、延迟和 RSSI，配一份上板测试清单 docs/hardware-test.md。网页玩法原型改成和固件一样的规则：每人 3 只宠物、暗选出场、火克草克水克火，导出的 #define 可以直接替换 game_config.h。都还没上板实测。"
+    "body": "玩家板加了 Qwiic 摇杆、外接按钮、压力传感器的 driver（全部可选，光板子也能玩）；新的 radio_test 固件每秒报告丢包、延迟和 RSSI，配一份上板测试清单 docs/hardware-test.md。网页玩法原型改成和固件一样的规则：每人 3 只宠物、暗选出场、火克草克水克火，导出的 #define 可以直接替换 game_config.h。都还没上板实测。",
+    "en": {
+      "area": "Wireless",
+      "title": "Input drivers, radio test firmware, and the web prototype switched to the 3-pet rules",
+      "body": "The player board now has drivers for the Qwiic joystick, external buttons and the pressure sensor (all optional, so a bare board is still playable). The new radio_test firmware reports packet loss, latency and RSSI every second, with a hardware test checklist in docs/hardware-test.md. The web gameplay prototype now uses the same rules as the firmware: 3 pets per player, a secret pick of who to send out, fire beats grass beats water beats fire, and the exported #defines can directly replace game_config.h. None of this has been tested on the boards yet."
+    }
   },
   {
     "date": "2026-10-20",
     "author": "yihao",
     "area": "网站",
     "title": "新增留言板",
-    "body": "网站多了「留言」页：可以打分、选最喜欢的宠物、写评价，也可以回复别人的评价。留言存在本仓库的 GitHub Issues 里，有 GitHub 账号就能发。"
+    "body": "网站多了「留言」页：可以打分、选最喜欢的宠物、写评价，也可以回复别人的评价。留言存在本仓库的 GitHub Issues 里，有 GitHub 账号就能发。",
+    "en": {
+      "area": "Website",
+      "title": "New guestbook",
+      "body": "The site has a new “Guestbook” tab: give a rating, pick your favorite pet and write a review, or reply to other people's reviews. Entries are stored in this repository's GitHub Issues, so anyone with a GitHub account can post."
+    }
   },
   {
     "date": "2026-10-20",
     "author": "yihao",
     "area": "无线",
     "title": "定下互联方案：中央板做中转，加入派出宠物对战",
-    "body": "三块板用 star topology，中央板保存唯一的 game state 并每 100 ms 广播完整快照；玩家板的每个操作带 step_id，重发直到收到 ACK。蓄力和格挡时机在玩家板本地计时，不受无线延迟影响。每人 3 只宠物（火 / 水 / 草，属性相克），暗中同时选择出场。电脑上的模拟器在 60% 丢包、中途断线和重启板子的情况下都能把整局打完。还没上板实测。详见代码仓库的 docs/protocol.md。"
+    "body": "三块板用 star topology，中央板保存唯一的 game state 并每 100 ms 广播完整快照；玩家板的每个操作带 step_id，重发直到收到 ACK。蓄力和格挡时机在玩家板本地计时，不受无线延迟影响。每人 3 只宠物（火 / 水 / 草，属性相克），暗中同时选择出场。电脑上的模拟器在 60% 丢包、中途断线和重启板子的情况下都能把整局打完。还没上板实测。详见代码仓库的 docs/protocol.md。",
+    "en": {
+      "area": "Wireless",
+      "title": "Networking plan settled: the central board relays, and battles now send out pets",
+      "body": "The three boards use a star topology: the central board holds the single game state and broadcasts a full snapshot every 100 ms; every action from a player board carries a step_id and is resent until it is ACKed. Charging and block timing are measured locally on the player boards, so radio latency doesn't affect them. Each player has 3 pets (fire / water / grass, with type matchups), and both players secretly pick who to send out at the same time. The PC simulator finishes whole games even with 60% packet loss, disconnects mid-game and board restarts. Not yet tested on the boards. Details in docs/protocol.md in the code repository."
+    }
   },
   {
     "date": "2026-10-20",
     "author": "yihao",
     "area": "网站",
     "title": "进展网站改成中文版，并增加互动内容",
-    "body": "新增：可点击的系统架构图、按成员筛选、甘特图任务详情、micro:bit pin 分配图（草案）、战斗玩法原型（可以直接在网页上两个人对打并调参数），以及“写一条进展”生成器。"
+    "body": "新增：可点击的系统架构图、按成员筛选、甘特图任务详情、micro:bit pin 分配图（草案）、战斗玩法原型（可以直接在网页上两个人对打并调参数），以及“写一条进展”生成器。",
+    "en": {
+      "area": "Website",
+      "title": "Progress site switched to Chinese, with interactive content added",
+      "body": "New: a clickable system architecture diagram, filtering by member, task details in the Gantt chart, a micro:bit pin map (draft), a battle gameplay prototype (two people can battle right in the browser and tune the parameters), and a “Write an update” generator."
+    }
   },
   {
     "date": "2026-10-20",
     "author": "yihao",
     "area": "无线",
     "title": "代码仓库和固件骨架搭好",
-    "body": "基于 nu-microbit-base 建了共享仓库（私有）。写好了 central 和 player 两个固件，以及共享的无线协议 software/lib/protocol.h：消息带序号，关键动作要 ACK，超过 1 s 没收到消息就判定玩家掉线。两个固件都能编译，下一步在两块板上实测。"
+    "body": "基于 nu-microbit-base 建了共享仓库（私有）。写好了 central 和 player 两个固件，以及共享的无线协议 software/lib/protocol.h：消息带序号，关键动作要 ACK，超过 1 s 没收到消息就判定玩家掉线。两个固件都能编译，下一步在两块板上实测。",
+    "en": {
+      "area": "Wireless",
+      "title": "Code repository and firmware skeleton set up",
+      "body": "Created a shared (private) repository based on nu-microbit-base. Wrote the central and player firmware plus the shared radio protocol in software/lib/protocol.h: messages carry sequence numbers, key actions need an ACK, and a player is considered disconnected after 1 s without a message. Both firmware builds compile; next step is testing on two boards."
+    }
   },
   {
     "date": "2026-10-13",
     "author": "all",
     "area": "规划",
     "title": "Project proposal 提交",
-    "body": "确定 Pocket Rivals：两块玩家板 + 一块中央板，TFT 屏、摇杆、压力传感器、DFPlayer 音效。"
+    "body": "确定 Pocket Rivals：两块玩家板 + 一块中央板，TFT 屏、摇杆、压力传感器、DFPlayer 音效。",
+    "en": {
+      "area": "Planning",
+      "title": "Project proposal submitted",
+      "body": "Settled on Pocket Rivals: two player boards + one central board, with TFT screens, joysticks, pressure sensors and DFPlayer sound effects."
+    }
   }
 ]

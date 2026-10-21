@@ -15,16 +15,16 @@
     <div>
       <div class="eyebrow">CE346 · Fall 2026 · Northwestern <button class="lang-toggle" id="lang-toggle" type="button">EN</button></div>
       <h1>Pocket Rivals</h1>
-      <p>基于 micro:bit V2 的无线双人回合制对战游戏</p>
+      <p data-i18n="app.hero.tagline">基于 micro:bit V2 的无线双人回合制对战游戏</p>
     </div>
     <div>
       <div class="countdown" id="countdown" aria-live="off">
-        <div class="unit"><div class="num" id="cd-d">–</div><div class="lbl">天</div></div>
-        <div class="unit"><div class="num" id="cd-h">–</div><div class="lbl">时</div></div>
-        <div class="unit"><div class="num" id="cd-m">–</div><div class="lbl">分</div></div>
-        <div class="unit"><div class="num" id="cd-s">–</div><div class="lbl">秒</div></div>
+        <div class="unit"><div class="num" id="cd-d">–</div><div class="lbl" data-i18n="app.cd.d">天</div></div>
+        <div class="unit"><div class="num" id="cd-h">–</div><div class="lbl" data-i18n="app.cd.h">时</div></div>
+        <div class="unit"><div class="num" id="cd-m">–</div><div class="lbl" data-i18n="app.cd.m">分</div></div>
+        <div class="unit"><div class="num" id="cd-s">–</div><div class="lbl" data-i18n="app.cd.s">秒</div></div>
       </div>
-      <div class="countdown-cap">距离 Final demo（12 月 7 日）</div>
+      <div class="countdown-cap" data-i18n="app.cd.cap">距离 Final demo（12 月 7 日）</div>
     </div>
   </header>
 </div>
@@ -32,14 +32,14 @@
 <nav class="nav">
   <div class="wrap">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="overview">总览</button>
-      <button class="tab" role="tab" data-tab="timeline">时间线</button>
-      <button class="tab" role="tab" data-tab="hardware">硬件与 Pin</button>
-      <button class="tab" role="tab" data-tab="battle">玩法原型</button>
-      <button class="tab" role="tab" data-tab="updates">进展</button>
-      <button class="tab" role="tab" data-tab="reviews">留言</button>
+      <button class="tab" role="tab" data-tab="overview" data-i18n="app.tab.overview">总览</button>
+      <button class="tab" role="tab" data-tab="timeline" data-i18n="app.tab.timeline">时间线</button>
+      <button class="tab" role="tab" data-tab="hardware" data-i18n="app.tab.hardware">硬件与 Pin</button>
+      <button class="tab" role="tab" data-tab="battle" data-i18n="app.tab.battle">玩法原型</button>
+      <button class="tab" role="tab" data-tab="updates" data-i18n="app.tab.updates">进展</button>
+      <button class="tab" role="tab" data-tab="reviews" data-i18n="app.tab.reviews">留言</button>
     </div>
-    <div class="who" id="who"><span>按成员看：</span></div>
+    <div class="who" id="who"><span data-i18n="app.who.label">按成员看：</span></div>
   </div>
 </nav>
 
@@ -49,46 +49,46 @@
   <section class="panel" data-panel="overview">
     <div class="stats" id="stats"></div>
 
-    <h2>系统架构 <small>点击任意模块查看详情</small></h2>
+    <h2><span data-i18n="app.overview.arch">系统架构</span> <small data-i18n="app.overview.archHint">点击任意模块查看详情</small></h2>
     <div class="card">
       <div class="arch" id="arch"></div>
-      <div class="detail" id="arch-detail"><span class="muted">两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。</span></div>
+      <div class="detail" id="arch-detail"><span class="muted" data-i18n="app.overview.archIntro">两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。</span></div>
     </div>
 
-    <h2>团队分工 <small>点击成员只看 TA 的任务</small></h2>
+    <h2><span data-i18n="app.overview.team">团队分工</span> <small data-i18n="app.overview.teamHint">点击成员只看 TA 的任务</small></h2>
     <div class="team" id="team"></div>
 
-    <h2>最新进展</h2>
+    <h2 data-i18n="app.overview.latest">最新进展</h2>
     <div id="latest"></div>
-    <a href="#updates" data-goto="updates">查看全部进展 →</a>
+    <a href="#updates" data-goto="updates" data-i18n="app.overview.seeAll">查看全部进展 →</a>
   </section>
 
   <!-- ================= 时间线 ================= -->
   <section class="panel" data-panel="timeline" hidden>
-    <h2>时间线 <small>点击任务看详情</small></h2>
+    <h2><span data-i18n="app.timeline.title">时间线</span> <small data-i18n="app.timeline.hint">点击任务看详情</small></h2>
     <div class="card">
       <div class="toolbar">
         <div class="seg" id="grp-seg">
-          <button data-g="" aria-pressed="true">全部</button>
-          <button data-g="里程碑">里程碑</button>
-          <button data-g="模块任务">模块任务</button>
+          <button data-g="" aria-pressed="true" data-i18n="app.all">全部</button>
+          <button data-g="里程碑" data-i18n="app.timeline.milestones">里程碑</button>
+          <button data-g="模块任务" data-i18n="app.timeline.modules">模块任务</button>
         </div>
-        <label><input type="checkbox" id="only-now"> 只看本周进行中的</label>
+        <label><input type="checkbox" id="only-now"> <span data-i18n="app.timeline.onlyNow">只看本周进行中的</span></label>
       </div>
       <div class="scroll"><table class="gantt" id="gantt"></table></div>
       <div class="legend">
-        <span style="--c: var(--done)">已完成</span>
-        <span style="--c: var(--doing)">进行中</span>
-        <span style="--c: var(--todo)">计划中</span>
-        <span style="--c: var(--accent-soft)">当前周</span>
+        <span style="--c: var(--done)" data-i18n="app.task.done">已完成</span>
+        <span style="--c: var(--doing)" data-i18n="app.task.doing">进行中</span>
+        <span style="--c: var(--todo)" data-i18n="app.task.todo">计划中</span>
+        <span style="--c: var(--accent-soft)" data-i18n="app.timeline.thisWeek">当前周</span>
       </div>
-      <div class="detail" id="task-detail"><span class="muted">点击上面的任意任务。</span></div>
+      <div class="detail" id="task-detail"><span class="muted" data-i18n="app.timeline.clickTask">点击上面的任意任务。</span></div>
     </div>
   </section>
 
   <!-- ================= 硬件 ================= -->
   <section class="panel" data-panel="hardware" hidden>
-    <h2>采购清单</h2>
+    <h2 data-i18n="app.hw.parts">采购清单</h2>
     <div class="card">
       <div class="toolbar" id="part-filter"></div>
       <div class="meter" id="part-meter" style="height:8px;margin:0 0 6px"></div>
@@ -96,20 +96,20 @@
       <ul class="parts" id="parts"></ul>
     </div>
 
-    <h2>Pin 分配图 <small>点击 pin 查看详情</small></h2>
+    <h2><span data-i18n="app.hw.pinMap">Pin 分配图</span> <small data-i18n="app.hw.pinHint">点击 pin 查看详情</small></h2>
     <div class="card">
       <div class="toolbar">
         <div class="seg" id="board-seg">
-          <button data-b="player" aria-pressed="true">玩家板</button>
-          <button data-b="central">中央板</button>
+          <button data-b="player" aria-pressed="true" data-i18n="app.board.player">玩家板</button>
+          <button data-b="central" data-i18n="app.board.central">中央板</button>
         </div>
-        <label class="switch"><input type="checkbox" id="no-matrix"> 停用板载 LED 点阵</label>
+        <label class="switch"><input type="checkbox" id="no-matrix"> <span data-i18n="app.hw.noMatrix">停用板载 LED 点阵</span></label>
       </div>
       <p class="muted" id="pin-note" style="margin:0 0 6px;font-size:13px"></p>
       <div class="pin-summary" id="pin-summary"></div>
       <div class="pins" id="pins"></div>
       <div class="legend" id="pin-legend"></div>
-      <div class="detail" id="pin-detail"><span class="muted">点击任意 pin。</span></div>
+      <div class="detail" id="pin-detail"><span class="muted" data-i18n="app.pin.clickAny">点击任意 pin。</span></div>
       <ul class="notes" id="pin-extra"></ul>
     </div>
   </section>
@@ -164,30 +164,32 @@
 
   <!-- ================= 进展 ================= -->
   <section class="panel" data-panel="updates" hidden>
-    <h2>全部进展</h2>
+    <h2 data-i18n="app.updates.all">全部进展</h2>
     <div class="toolbar">
-      <input class="search" id="search" type="search" placeholder="搜索标题或内容…">
+      <input class="search" id="search" type="search" placeholder="搜索标题或内容…" data-i18n-attr="placeholder:app.updates.search;aria-label:app.updates.search">
     </div>
     <div class="toolbar" id="area-filter"></div>
     <div id="update-list"></div>
 
-    <h2>写一条进展 <small>填好后复制，粘贴到 GitHub 上的 updates.json</small></h2>
+    <h2><span data-i18n="app.composer.title">写一条进展</span> <small data-i18n="app.composer.hint">填好后复制，粘贴到 GitHub 上的 updates.json</small></h2>
     <div class="card">
       <form class="composer" id="composer" onsubmit="return false">
-        <label>日期<input type="date" name="date" required></label>
-        <label>作者<select name="author"></select></label>
-        <label>分类<input name="area" list="areas" placeholder="例如：无线、显示、硬件"><datalist id="areas"></datalist></label>
-        <label class="full">标题<input name="title" placeholder="一句话说明做了什么"></label>
-        <label class="full">内容<textarea name="body" rows="3" placeholder="细节、遇到的问题、下一步计划"></textarea></label>
+        <label><span data-i18n="app.composer.date">日期</span><input type="date" name="date" required></label>
+        <label><span data-i18n="app.composer.author">作者</span><select name="author"></select></label>
+        <label><span data-i18n="app.composer.area">分类</span><input name="area" list="areas" placeholder="例如：无线、显示、硬件" data-i18n-attr="placeholder:app.composer.areaPh"><datalist id="areas"></datalist></label>
+        <label class="full"><span data-i18n="app.composer.titleLbl">标题</span><input name="title" placeholder="一句话说明做了什么" data-i18n-attr="placeholder:app.composer.titlePh"></label>
+        <label class="full"><span data-i18n="app.composer.bodyLbl">内容</span><textarea name="body" rows="3" placeholder="细节、遇到的问题、下一步计划" data-i18n-attr="placeholder:app.composer.bodyPh"></textarea></label>
+        <label class="full"><span data-i18n="app.composer.titleEnLbl">英文标题（可选）</span><input name="titleEn" lang="en" placeholder="英文界面显示的标题，可以不填" data-i18n-attr="placeholder:app.composer.titleEnPh"></label>
+        <label class="full"><span data-i18n="app.composer.bodyEnLbl">英文内容（可选）</span><textarea name="bodyEn" lang="en" rows="3" placeholder="不填的话，英文界面显示中文内容" data-i18n-attr="placeholder:app.composer.bodyEnPh"></textarea></label>
       </form>
-      <div class="muted" style="font-size:12px;margin-top:12px">预览</div>
+      <div class="muted" style="font-size:12px;margin-top:12px" data-i18n="app.composer.preview">预览</div>
       <div id="compose-preview" style="margin-top:8px"></div>
       <pre class="snippet mono" id="compose-json"></pre>
       <div class="row">
-        <button class="btn primary" id="copy-json">复制</button>
-        <a class="btn" href="https://github.com/Yeyuruoying11/pocket-rivals-site/edit/main/updates.json" target="_blank" rel="noopener">去 GitHub 编辑 updates.json ↗</a>
+        <button class="btn primary" id="copy-json" data-i18n="app.composer.copy">复制</button>
+        <a class="btn" href="https://github.com/Yeyuruoying11/pocket-rivals-site/edit/main/updates.json" target="_blank" rel="noopener" data-i18n="app.composer.edit">去 GitHub 编辑 updates.json ↗</a>
       </div>
-      <p class="muted" style="font-size:12px;margin:10px 0 0">粘贴到文件第一行的 <code>[</code> 后面，然后点 Commit changes。大约一分钟后网站会更新。需要先被加为仓库的协作者。</p>
+      <p class="muted" style="font-size:12px;margin:10px 0 0" data-i18n-html="app.composer.howto">粘贴到文件第一行的 <code>[</code> 后面，然后点 Commit changes。大约一分钟后网站会更新。需要先被加为仓库的协作者。</p>
     </div>
   </section>
 
@@ -227,7 +229,7 @@
 </main>
 
 <div class="wrap">
-  <footer>
+  <footer data-i18n-html="app.footer">
     Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。
     数据来自本仓库的 <code>status.json</code>、<code>updates.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。
   </footer>

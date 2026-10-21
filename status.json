@@ -4,19 +4,31 @@
       "name": "Harvey Lu",
       "short": "Harvey",
       "role": "显示与音效",
-      "duties": "TFT 显示 driver、绘图函数、角色 sprite、技能动画、UI、简单音效"
+      "duties": "TFT 显示 driver、绘图函数、角色 sprite、技能动画、UI、简单音效",
+      "en": {
+        "role": "Display & audio",
+        "duties": "TFT display driver, drawing functions, character sprites, skill animations, UI, simple sound effects"
+      }
     },
     "yihao": {
       "name": "Yihao Tao",
       "short": "Yihao",
       "role": "玩法、输入与无线",
-      "duties": "玩法设计、摇杆和按钮接口、无线通信、消息处理、按键映射"
+      "duties": "玩法设计、摇杆和按钮接口、无线通信、消息处理、按键映射",
+      "en": {
+        "role": "Gameplay, input & wireless",
+        "duties": "Gameplay design, joystick and button interfaces, wireless communication, message handling, button mapping"
+      }
     },
     "binqi": {
       "name": "Binqi Liu",
       "short": "Binqi",
       "role": "战斗逻辑与硬件",
-      "duties": "战斗逻辑和技能、接线和供电、元件布局、外壳 3D 建模和组装"
+      "duties": "战斗逻辑和技能、接线和供电、元件布局、外壳 3D 建模和组装",
+      "en": {
+        "role": "Battle logic & hardware",
+        "duties": "Battle logic and skills, wiring and power, component layout, 3D modeling and assembly of the enclosure"
+      }
     }
   },
   "tasks": [
@@ -27,7 +39,12 @@
       "name": "完成项目 proposal",
       "owner": "all",
       "status": "done",
-      "desc": "确定 Pocket Rivals 的玩法、硬件清单、分工和时间表。"
+      "desc": "确定 Pocket Rivals 的玩法、硬件清单、分工和时间表。",
+      "en": {
+        "group": "Milestones",
+        "name": "Finish the project proposal",
+        "desc": "Settle the gameplay, hardware list, division of work and schedule for Pocket Rivals."
+      }
     },
     {
       "group": "里程碑",
@@ -36,7 +53,12 @@
       "name": "验证可行性并选定元件",
       "owner": "all",
       "status": "doing",
-      "desc": "确定 TFT、压力传感器、按钮的具体型号，核对 3.3V 兼容性和 pin 数量。"
+      "desc": "确定 TFT、压力传感器、按钮的具体型号，核对 3.3V 兼容性和 pin 数量。",
+      "en": {
+        "group": "Milestones",
+        "name": "Check feasibility and choose components",
+        "desc": "Pick the exact TFT, pressure sensor and button models; check 3.3 V compatibility and the pin count."
+      }
     },
     {
       "group": "里程碑",
@@ -45,7 +67,12 @@
       "name": "采购硬件并研究接口",
       "owner": "all",
       "status": "doing",
-      "desc": "下单 TFT、Qwiic 摇杆、DFPlayer、扩展板等；阅读各模块的 datasheet。"
+      "desc": "下单 TFT、Qwiic 摇杆、DFPlayer、扩展板等；阅读各模块的 datasheet。",
+      "en": {
+        "group": "Milestones",
+        "name": "Order hardware and study the interfaces",
+        "desc": "Order the TFT, Qwiic joystick, DFPlayer, breakout boards, etc.; read each module's datasheet."
+      }
     },
     {
       "group": "里程碑",
@@ -54,7 +81,12 @@
       "name": "组装硬件原型",
       "owner": "binqi",
       "status": "todo",
-      "desc": "在面包板上接好一块玩家板的全部外设。"
+      "desc": "在面包板上接好一块玩家板的全部外设。",
+      "en": {
+        "group": "Milestones",
+        "name": "Assemble a hardware prototype",
+        "desc": "Wire up all the peripherals of one player board on a breadboard."
+      }
     },
     {
       "group": "里程碑",
@@ -63,7 +95,12 @@
       "name": "做出简单可玩的 demo",
       "owner": "all",
       "status": "todo",
-      "desc": "单块板上能显示角色、读输入、播放音效。"
+      "desc": "单块板上能显示角色、读输入、播放音效。",
+      "en": {
+        "group": "Milestones",
+        "name": "Build a simple playable demo",
+        "desc": "A single board can show a character, read input and play sound effects."
+      }
     },
     {
       "group": "里程碑",
@@ -72,7 +109,12 @@
       "name": "验证单人模式",
       "owner": "all",
       "status": "todo",
-      "desc": "单个玩家板 + 中央板跑通一整轮战斗流程。"
+      "desc": "单个玩家板 + 中央板跑通一整轮战斗流程。",
+      "en": {
+        "group": "Milestones",
+        "name": "Verify single-player mode",
+        "desc": "One player board + the central board run through a complete battle."
+      }
     },
     {
       "group": "里程碑",
@@ -81,7 +123,12 @@
       "name": "完成硬件组装",
       "owner": "binqi",
       "status": "todo",
-      "desc": "两块玩家板全部焊接/固定，供电稳定。"
+      "desc": "两块玩家板全部焊接/固定，供电稳定。",
+      "en": {
+        "group": "Milestones",
+        "name": "Finish hardware assembly",
+        "desc": "Both player boards fully soldered/mounted, with stable power."
+      }
     },
     {
       "group": "里程碑",
@@ -90,7 +137,12 @@
       "name": "实现可靠的无线通信",
       "owner": "yihao",
       "status": "doing",
-      "desc": "协议、ACK、超时重发、掉线暂停已完成，电脑模拟器在 60% 丢包下通过；等上板实测（docs/hardware-test.md）。"
+      "desc": "协议、ACK、超时重发、掉线暂停已完成，电脑模拟器在 60% 丢包下通过；等上板实测（docs/hardware-test.md）。",
+      "en": {
+        "group": "Milestones",
+        "name": "Reliable wireless communication",
+        "desc": "Protocol, ACKs, timeout retransmission and pause-on-disconnect are done, and the PC simulator passes at 60% packet loss; waiting for on-board testing (docs/hardware-test.md)."
+      }
     },
     {
       "group": "里程碑",
@@ -99,7 +151,12 @@
       "name": "设计并打印外壳",
       "owner": "binqi",
       "status": "todo",
-      "desc": "3D 建模、打印、安装屏幕/按钮/喇叭。"
+      "desc": "3D 建模、打印、安装屏幕/按钮/喇叭。",
+      "en": {
+        "group": "Milestones",
+        "name": "Design and print the enclosure",
+        "desc": "3D modeling, printing, and mounting the screen/buttons/speaker."
+      }
     },
     {
       "group": "里程碑",
@@ -108,7 +165,12 @@
       "name": "集成并测试双人对战",
       "owner": "all",
       "status": "todo",
-      "desc": "两块玩家板 + 中央板完整对战，测试延迟和丢包。"
+      "desc": "两块玩家板 + 中央板完整对战，测试延迟和丢包。",
+      "en": {
+        "group": "Milestones",
+        "name": "Integrate and test two-player battles",
+        "desc": "Full battles with two player boards + the central board; measure latency and packet loss."
+      }
     },
     {
       "group": "里程碑",
@@ -117,7 +179,11 @@
       "name": "Final presentation",
       "owner": "all",
       "status": "todo",
-      "desc": "12 月 7 日最终展示。"
+      "desc": "12 月 7 日最终展示。",
+      "en": {
+        "group": "Milestones",
+        "desc": "Final presentation on December 7."
+      }
     },
     {
       "group": "模块任务",
@@ -126,7 +192,12 @@
       "name": "无线协议 + ACK / 超时",
       "owner": "yihao",
       "status": "doing",
-      "desc": "中央板中转 + step_id 去重已完成，radio_test 固件可测丢包 / 延迟 / RSSI；下一步按 docs/hardware-test.md 在三块板上实测。"
+      "desc": "中央板中转 + step_id 去重已完成，radio_test 固件可测丢包 / 延迟 / RSSI；下一步按 docs/hardware-test.md 在三块板上实测。",
+      "en": {
+        "group": "Module tasks",
+        "name": "Wireless protocol + ACK / timeout",
+        "desc": "Relaying through the central board + step_id de-duplication are done, and the radio_test firmware measures packet loss / latency / RSSI; next, test on all three boards following docs/hardware-test.md."
+      }
     },
     {
       "group": "模块任务",
@@ -135,7 +206,12 @@
       "name": "Qwiic 摇杆 I2C driver",
       "owner": "yihao",
       "status": "doing",
-      "desc": "joystick.c 已写好（TWIM1，带超时，可热插拔，死区 + 归一化有单元测试）；等摇杆到货上板验证方向和 pull-up。"
+      "desc": "joystick.c 已写好（TWIM1，带超时，可热插拔，死区 + 归一化有单元测试）；等摇杆到货上板验证方向和 pull-up。",
+      "en": {
+        "group": "Module tasks",
+        "name": "Qwiic joystick I2C driver",
+        "desc": "joystick.c is written (TWIM1, with timeouts, hot-pluggable, unit tests for the dead zone + normalization); once the joystick arrives, check directions and pull-ups on the board."
+      }
     },
     {
       "group": "模块任务",
@@ -144,7 +220,12 @@
       "name": "按钮 + 压力传感器 (ADC)",
       "owner": "yihao",
       "status": "doing",
-      "desc": "按钮去抖和 FSR SAADC 读取已写好，pin 按草案；等确认 pin 分配和接线后上板校准。"
+      "desc": "按钮去抖和 FSR SAADC 读取已写好，pin 按草案；等确认 pin 分配和接线后上板校准。",
+      "en": {
+        "group": "Module tasks",
+        "name": "Buttons + pressure sensor (ADC)",
+        "desc": "Button debouncing and FSR reading via the SAADC are written, using the draft pin map; calibrate on the board once the pin assignment and wiring are confirmed."
+      }
     },
     {
       "group": "模块任务",
@@ -153,7 +234,11 @@
       "name": "ST7735S TFT driver (SPI)",
       "owner": "harvey",
       "status": "todo",
-      "desc": "初始化、画点/矩形/位图、局部刷新；尽早测帧率。"
+      "desc": "初始化、画点/矩形/位图、局部刷新；尽早测帧率。",
+      "en": {
+        "group": "Module tasks",
+        "desc": "Init, drawing pixels/rectangles/bitmaps, partial refresh; measure the frame rate early."
+      }
     },
     {
       "group": "模块任务",
@@ -162,7 +247,12 @@
       "name": "角色 sprite 与技能动画",
       "owner": "harvey",
       "status": "todo",
-      "desc": "像素风小尺寸素材，控制 Flash/RAM 占用。"
+      "desc": "像素风小尺寸素材，控制 Flash/RAM 占用。",
+      "en": {
+        "group": "Module tasks",
+        "name": "Character sprites and skill animations",
+        "desc": "Small pixel-art assets; keep Flash/RAM usage in check."
+      }
     },
     {
       "group": "模块任务",
@@ -171,7 +261,12 @@
       "name": "DFPlayer 音效 (UART)",
       "owner": "harvey",
       "status": "todo",
-      "desc": "通过 UART 指令播放 microSD 上的音效。"
+      "desc": "通过 UART 指令播放 microSD 上的音效。",
+      "en": {
+        "group": "Module tasks",
+        "name": "DFPlayer sound effects (UART)",
+        "desc": "Play sound effects from the microSD card via UART commands."
+      }
     },
     {
       "group": "模块任务",
@@ -180,7 +275,12 @@
       "name": "Pin 分配 + 供电方案",
       "owner": "binqi",
       "status": "todo",
-      "desc": "定稿每块玩家板的 pin 分配（见“硬件”页草案），确认供电电流够用。"
+      "desc": "定稿每块玩家板的 pin 分配（见“硬件”页草案），确认供电电流够用。",
+      "en": {
+        "group": "Module tasks",
+        "name": "Pin assignment + power plan",
+        "desc": "Finalize the pin assignment of each player board (see the draft on the Hardware tab) and confirm the power supply gives enough current."
+      }
     },
     {
       "group": "模块任务",
@@ -189,7 +289,12 @@
       "name": "战斗逻辑状态机",
       "owner": "binqi",
       "status": "todo",
-      "desc": "回合、蓄力、防御判定、血量、胜负和重开；跑在中央板上。"
+      "desc": "回合、蓄力、防御判定、血量、胜负和重开；跑在中央板上。",
+      "en": {
+        "group": "Module tasks",
+        "name": "Battle logic state machine",
+        "desc": "Rounds, charging, block checks, HP, win/loss and restart; runs on the central board."
+      }
     }
   ],
   "parts": [
@@ -200,7 +305,11 @@
       "status": "have",
       "iface": "—",
       "owner": "all",
-      "use": "两块玩家板 + 一块中央板"
+      "use": "两块玩家板 + 一块中央板",
+      "en": {
+        "model": "Already have",
+        "use": "Two player boards + one central board"
+      }
     },
     {
       "name": "彩色 TFT 屏",
@@ -209,7 +318,11 @@
       "status": "buy",
       "iface": "SPI",
       "owner": "harvey",
-      "use": "每个玩家独立的游戏画面"
+      "use": "每个玩家独立的游戏画面",
+      "en": {
+        "name": "Color TFT screen",
+        "use": "Each player's own game screen"
+      }
     },
     {
       "name": "Edge connector 扩展板",
@@ -218,7 +331,11 @@
       "status": "buy",
       "iface": "—",
       "owner": "binqi",
-      "use": "引出 micro:bit 的 pin"
+      "use": "引出 micro:bit 的 pin",
+      "en": {
+        "name": "Edge connector breakout",
+        "use": "Breaks out the micro:bit pins"
+      }
     },
     {
       "name": "摇杆",
@@ -227,7 +344,11 @@
       "status": "buy",
       "iface": "I2C",
       "owner": "yihao",
-      "use": "移动和方向控制"
+      "use": "移动和方向控制",
+      "en": {
+        "name": "Joystick",
+        "use": "Movement and direction control"
+      }
     },
     {
       "name": "Qwiic 转排针线",
@@ -236,7 +357,11 @@
       "status": "buy",
       "iface": "I2C",
       "owner": "yihao",
-      "use": "连接摇杆"
+      "use": "连接摇杆",
+      "en": {
+        "name": "Qwiic-to-header cable",
+        "use": "Connects the joystick"
+      }
     },
     {
       "name": "按钮",
@@ -245,7 +370,12 @@
       "status": "buy",
       "iface": "GPIO",
       "owner": "yihao",
-      "use": "每人 4 个：技能、攻击、防御、菜单"
+      "use": "每人 4 个：技能、攻击、防御、菜单",
+      "en": {
+        "name": "Buttons",
+        "model": "16 mm panel-mount button (model TBD)",
+        "use": "4 per player: skill, attack, defend, menu"
+      }
     },
     {
       "name": "压力传感器",
@@ -254,7 +384,12 @@
       "status": "choosing",
       "iface": "ADC",
       "owner": "yihao",
-      "use": "攻击蓄力"
+      "use": "攻击蓄力",
+      "en": {
+        "name": "Pressure sensor",
+        "model": "FSR (model TBD)",
+        "use": "Charging attacks"
+      }
     },
     {
       "name": "音频模块",
@@ -263,7 +398,11 @@
       "status": "buy",
       "iface": "UART",
       "owner": "harvey",
-      "use": "播放 MP3/WAV 音效"
+      "use": "播放 MP3/WAV 音效",
+      "en": {
+        "name": "Audio module",
+        "use": "Plays MP3/WAV sound effects"
+      }
     },
     {
       "name": "喇叭",
@@ -272,7 +411,11 @@
       "status": "buy",
       "iface": "—",
       "owner": "harvey",
-      "use": "每块玩家板的音频输出"
+      "use": "每块玩家板的音频输出",
+      "en": {
+        "name": "Speaker",
+        "use": "Audio output for each player board"
+      }
     },
     {
       "name": "microSD 卡",
@@ -281,7 +424,12 @@
       "status": "buy",
       "iface": "—",
       "owner": "harvey",
-      "use": "存放音效文件"
+      "use": "存放音效文件",
+      "en": {
+        "name": "microSD card",
+        "model": "DFPlayer-compatible",
+        "use": "Stores the sound files"
+      }
     },
     {
       "name": "外壳与固定件",
@@ -290,7 +438,12 @@
       "status": "later",
       "iface": "—",
       "owner": "binqi",
-      "use": "玩家手柄外壳"
+      "use": "玩家手柄外壳",
+      "en": {
+        "name": "Enclosure and fasteners",
+        "model": "3D-printed + screws",
+        "use": "Player controller enclosure"
+      }
     },
     {
       "name": "震动马达（可选）",
@@ -299,7 +452,12 @@
       "status": "later",
       "iface": "GPIO",
       "owner": "binqi",
-      "use": "震动反馈"
+      "use": "震动反馈",
+      "en": {
+        "name": "Vibration motor (optional)",
+        "model": "TBD",
+        "use": "Haptic feedback"
+      }
     }
   ],
   "components": {
@@ -309,42 +467,66 @@
         "name": "TFT 屏",
         "iface": "SPI",
         "owner": "harvey",
-        "detail": "1.8\" ST7735S，128×160。需要自己写 driver（课程硬性目标），注意局部刷新和帧率。"
+        "detail": "1.8\" ST7735S，128×160。需要自己写 driver（课程硬性目标），注意局部刷新和帧率。",
+        "en": {
+          "name": "TFT screen",
+          "detail": "1.8\" ST7735S, 128×160. We write our own driver (a hard requirement of the course); watch partial refresh and the frame rate."
+        }
       },
       {
         "id": "joy",
         "name": "摇杆",
         "iface": "I2C",
         "owner": "yihao",
-        "detail": "Qwiic Joystick，走 P19/P20 的外部 I2C，不额外占 pin。"
+        "detail": "Qwiic Joystick，走 P19/P20 的外部 I2C，不额外占 pin。",
+        "en": {
+          "name": "Joystick",
+          "detail": "Qwiic Joystick on the external I2C bus (P19/P20), so it takes no extra pins."
+        }
       },
       {
         "id": "btn",
         "name": "按钮 ×4",
         "iface": "GPIO",
         "owner": "yihao",
-        "detail": "技能 / 攻击 / 防御 / 菜单。板载 A/B 键可以当确认和返回。"
+        "detail": "技能 / 攻击 / 防御 / 菜单。板载 A/B 键可以当确认和返回。",
+        "en": {
+          "name": "Buttons ×4",
+          "detail": "Skill / attack / defend / menu. The on-board A/B buttons can act as confirm and back."
+        }
       },
       {
         "id": "fsr",
         "name": "压力传感器",
         "iface": "ADC",
         "owner": "yihao",
-        "detail": "按得越用力蓄力越快，需要校准两块板之间的读数差异。"
+        "detail": "按得越用力蓄力越快，需要校准两块板之间的读数差异。",
+        "en": {
+          "name": "Pressure sensor",
+          "detail": "The harder you press, the faster it charges; the readings of the two boards need to be calibrated against each other."
+        }
       },
       {
         "id": "audio",
         "name": "DFPlayer + 喇叭",
         "iface": "UART",
         "owner": "harvey",
-        "detail": "通过 UART 发指令，播放 microSD 卡里的音效。"
+        "detail": "通过 UART 发指令，播放 microSD 卡里的音效。",
+        "en": {
+          "name": "DFPlayer + speaker",
+          "detail": "Sends commands over UART to play sound effects from the microSD card."
+        }
       },
       {
         "id": "case",
         "name": "外壳",
         "iface": "—",
         "owner": "binqi",
-        "detail": "3D 打印，固定屏幕、按钮、摇杆和喇叭。"
+        "detail": "3D 打印，固定屏幕、按钮、摇杆和喇叭。",
+        "en": {
+          "name": "Enclosure",
+          "detail": "3D-printed; holds the screen, buttons, joystick and speaker."
+        }
       }
     ],
     "central": [
@@ -353,21 +535,33 @@
         "name": "战斗逻辑",
         "iface": "—",
         "owner": "binqi",
-        "detail": "中央板持有唯一可信的游戏状态（回合、血量、胜负）。"
+        "detail": "中央板持有唯一可信的游戏状态（回合、血量、胜负）。",
+        "en": {
+          "name": "Battle logic",
+          "detail": "The central board holds the single authoritative game state (round, HP, win/loss)."
+        }
       },
       {
         "id": "radio",
         "name": "无线协议",
         "iface": "802.15.4",
         "owner": "yihao",
-        "detail": "消息带序号；关键动作需要 ACK；超过 1 s 没收到玩家消息就判定掉线。"
+        "detail": "消息带序号；关键动作需要 ACK；超过 1 s 没收到玩家消息就判定掉线。",
+        "en": {
+          "name": "Wireless protocol",
+          "detail": "Messages carry sequence numbers; key actions need an ACK; a player who sends nothing for more than 1 s is considered disconnected."
+        }
       },
       {
         "id": "matrix",
         "name": "LED 点阵",
         "iface": "GPIO",
         "owner": "all",
-        "detail": "中央板没有屏幕，可以用板载点阵显示连接状态和当前回合。"
+        "detail": "中央板没有屏幕，可以用板载点阵显示连接状态和当前回合。",
+        "en": {
+          "name": "LED matrix",
+          "detail": "The central board has no screen, so its on-board LED matrix can show the connection status and the current round."
+        }
       }
     ]
   }
