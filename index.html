@@ -116,49 +116,47 @@
 
   <!-- ================= 玩法原型 ================= -->
   <section class="panel" data-panel="battle" hidden>
-    <h2>战斗玩法原型 <small>两个人用同一台电脑或手机对打，边玩边调参数；规则和固件一致（docs/attack-trial.md）</small></h2>
+    <h2><span data-i18n="battle.title">战斗玩法原型</span> <small data-i18n="battle.titleSub">两人同屏对战，边玩边调参数；规则与固件一致（docs/attack-trial.md）</small></h2>
     <div class="card">
       <div class="arena">
         <div class="fighter" id="f0"></div>
         <div class="mid">
           <div class="prompt" id="prompt">加载中…</div>
           <div>
-            <div class="gauge-lbl"><span>攻击测试<span class="stage-tag" id="trial-stage"></span><span class="trial-cue" id="trial-cue" aria-live="polite"></span></span><span id="trial-val">—</span></div>
+            <div class="gauge-lbl"><span><span data-i18n="battle.trialLbl">攻击测试</span><span class="stage-tag" id="trial-stage"></span><span class="trial-cue" id="trial-cue" aria-live="polite"></span></span><span id="trial-val">—</span></div>
             <div class="gauge trial-gauge" id="trial-gauge"><div class="band" id="trial-band"></div><div class="ptr" id="trial-ptr"></div></div>
             <div class="trial-track" id="trial-track" aria-hidden="true"><span class="seg ready"><i></i></span><span class="seg"><i></i><b>第1层</b></span><span class="seg"><i></i><b>第2层</b></span><span class="seg"><i></i><b>第3层</b></span></div>
             <div class="tier" id="tier"></div>
           </div>
           <div>
-            <div class="gauge-lbl"><span>连续格挡</span><span id="def-val">—</span></div>
+            <div class="gauge-lbl"><span data-i18n="battle.blockLbl">连续格挡</span><span id="def-val">—</span></div>
             <div class="gauge" id="def-gauge"><div class="zone" id="def-zone"><i id="def-perfect"></i></div><div class="cursor" id="def-cursor" style="left:0"></div></div>
             <div class="hits" id="hits"></div>
           </div>
-          <div class="row"><button class="btn" id="restart">重新开始</button><span class="spacer"></span><span class="muted" style="font-size:12px">回合 <b id="round">1</b></span></div>
+          <div class="row"><button class="btn" id="restart" data-i18n="battle.restart">重新开始</button><span class="spacer"></span><span class="muted" style="font-size:12px"><span data-i18n="battle.round">回合</span> <b id="round">1</b></span></div>
           <ul class="log" id="log"></ul>
         </div>
         <div class="fighter" id="f1"></div>
       </div>
     </div>
 
-    <h2>规则</h2>
+    <h2 data-i18n="battle.rulesTitle">规则</h2>
     <div class="card" style="font-size:14px">
       <ol style="margin:0;padding-left:20px">
-        <li>每人 3 只宠物：焰灵 Ember（火）、潮影 Tide（水）、叶芽 Sprout（草），每只 60 HP。开局双方<b>暗中</b>选择出场宠物（玩家 1 用 A / S / D，玩家 2 用 J / K / L，也可以直接点宠物），都选好后一起亮出。先手随机。</li>
-        <li>属性相克：<b style="color:var(--fire)">火</b> 克 <b style="color:var(--grass)">草</b>，<b style="color:var(--grass)">草</b> 克 <b style="color:var(--water)">水</b>，<b style="color:var(--water)">水</b> 克 <b style="color:var(--fire)">火</b>。克制时伤害 ×150%（效果拔群），被克制时 ×70%（效果一般），对攻击和技能伤害都有效。</li>
-        <li>双方轮流进攻。进攻方按攻击键（玩家 1 用 A，玩家 2 用 J）开始<b>攻击测试</b>：一条光带在刻度上来回移动，先有 0.6 秒准备（不计分），然后是<b>三层</b>，每层 1.5 秒，光带一层比一层快（第 1 层慢、第 2 层中、第 3 层最快），尽量让指针一直待在光带里。网页没有压力传感器，<b>按住</b>攻击键指针右移，松开左移（实机上是捏压力垫）。分数 = 三层合计指针在光带内的时间比例（0–100），结束时也会显示每一层各自的成绩。</li>
-        <li>分数决定等级：50 分以下<b>普通一击</b>，50–79 分<b>强力一击</b>，80 分以上<b>全力一击</b>。伤害 = 10 + 20 × 分数 / 100（再乘属性相克），但一次攻击最多 30 点：一次攻击最多打掉半管血，不会一击秒杀。</li>
-        <li>防守方要<b>连续格挡</b>：普通一击 1 次、强力一击 2 次、全力一击 3 次（玩家 1 用 S，玩家 2 用 K），每次之间停 0.35 秒。等级越高判定区越窄（24 / 19 / 14），每多一次光标也扫得更快。伤害平均分成几份，每份单独结算：光标在<b>绿色区域</b>时按下（挡住）这份只受 50%，按在深绿色正中（完美）只受 20%，没按或按偏了受全额。护盾作用在加起来的总伤害上。</li>
-        <li>进攻方也可以在开始攻击测试<b>之前</b>改用技能，冷却按玩家算（换宠物不重置）。Ember「灼烧」：8 点伤害，并让对方之后 2 个回合开始时各掉 5 HP。Tide「潮汐护盾」：回复 12 HP，下次受到的伤害减半。Sprout「汲取」：造成 6 点伤害，并回复同样多的 HP。</li>
-        <li>进攻方也可以在开始攻击测试之前<b>换宠物</b>：按换宠物键（玩家 1 用 F，玩家 2 用 ;），再选一只还活着的宠物（按它的键或直接点它），再按一次换宠物键取消。换宠物用掉这一回合，换上的宠物马上亮出。灼烧和护盾跟着场上的宠物走，换下去就消失；技能冷却照常减少。</li>
-        <li>宠物倒下后，它的主人选下一只出场（灼烧和护盾随之消失）。3 只都倒下就输了。再来一局时输家先手。</li>
+        <li data-i18n-html="battle.rule1">每人 3 只宠物，开局暗中选出场：<b style="color:var(--fire)">火</b> 克 <b style="color:var(--grass)">草</b> 克 <b style="color:var(--water)">水</b> 克 <b style="color:var(--fire)">火</b>。</li>
+        <li data-i18n-html="battle.rule2"><b>攻击测试</b>：按住攻击键，让指针跟住移动的光带。</li>
+        <li data-i18n-html="battle.rule3">共 3 层，一层比一层快；得分决定<b>普通</b> / <b>强力</b> / <b>全力一击</b>。</li>
+        <li data-i18n-html="battle.rule4"><b>防守</b>：光标进入绿区时按格挡，连挡 1–3 次。</li>
+        <li data-i18n-html="battle.rule5">也可以不攻击，改用<b>技能</b>或<b>换宠物</b>。</li>
+        <li data-i18n-html="battle.rule6">宠物倒下就派下一只，3 只全倒下就输了。</li>
       </ol>
     </div>
 
-    <h2>参数调节 <small>名字和默认值与 game_config.h 相同，复制后可以直接替换整个文件</small></h2>
+    <h2><span data-i18n="battle.paramsTitle">参数调节</span> <small data-i18n="battle.paramsSub">名字和默认值与 game_config.h 相同，复制后可以直接替换整个文件</small></h2>
     <div class="card">
       <div class="params" id="params"></div>
       <pre class="snippet mono" id="param-c"></pre>
-      <div class="row"><button class="btn" id="copy-c">复制 C 代码</button><button class="btn" id="reset-params">恢复默认</button></div>
+      <div class="row"><button class="btn" id="copy-c" data-i18n="battle.copyC">复制 C 代码</button><button class="btn" id="reset-params" data-i18n="battle.resetParams">恢复默认</button></div>
     </div>
   </section>
 

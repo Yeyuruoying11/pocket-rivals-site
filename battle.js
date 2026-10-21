@@ -8,65 +8,377 @@
   const $ = s => document.querySelector(s);
   const store = window.PR.store;
 
+  /* ---------------- strings (wording follows the glossary in i18n.js) ---------------- */
+
+  // Values passed in are already HTML-escaped where the result goes into
+  // innerHTML; the strings themselves are ours
+  I18N.add({
+    zh: {
+      // index.html, battle section
+      "battle.title": "战斗玩法原型",
+      "battle.titleSub": "两人同屏对战，边玩边调参数；规则与固件一致（docs/attack-trial.md）",
+      "battle.trialLbl": "攻击测试",
+      "battle.blockLbl": "连续格挡",
+      "battle.restart": "重新开始",
+      "battle.round": "回合",
+      "battle.rulesTitle": "规则",
+      "battle.rule1": "每人 3 只宠物，开局暗中选出场：<b style=\"color:var(--fire)\">火</b> 克 <b style=\"color:var(--grass)\">草</b> 克 <b style=\"color:var(--water)\">水</b> 克 <b style=\"color:var(--fire)\">火</b>。",
+      "battle.rule2": "<b>攻击测试</b>：按住攻击键，让指针跟住移动的光带。",
+      "battle.rule3": "共 3 层，一层比一层快；得分决定<b>普通</b> / <b>强力</b> / <b>全力一击</b>。",
+      "battle.rule4": "<b>防守</b>：光标进入绿区时按格挡，连挡 1–3 次。",
+      "battle.rule5": "也可以不攻击，改用<b>技能</b>或<b>换宠物</b>。",
+      "battle.rule6": "宠物倒下就派下一只，3 只全倒下就输了。",
+      "battle.paramsTitle": "参数调节",
+      "battle.paramsSub": "名字和默认值与 game_config.h 相同，复制后可以直接替换整个文件",
+      "battle.copyC": "复制 C 代码",
+      "battle.resetParams": "恢复默认",
+
+      // Sliders: group titles, labels (by param key), units
+      "battle.group.trial": "攻击测试",
+      "battle.group.tier": "等级",
+      "battle.group.block": "连续格挡",
+      "battle.group.skill": "技能",
+      "battle.group.type": "属性",
+      "battle.group.pace": "节奏",
+      "battle.param.base": "基础伤害（测试 0 分）",
+      "battle.param.windowPct": "判定区宽度（普通一击）",
+      "battle.param.sweepMs": "扫过时间（普通一击）",
+      "battle.param.hp": "每只宠物 HP（下一局生效）",
+      "battle.param.skillCd": "技能冷却（自己的回合数）",
+      "battle.param.burnDmg": "Ember 灼烧每回合伤害",
+      "battle.param.burnTurns": "灼烧持续回合",
+      "battle.param.emberDmg": "Ember 技能直接伤害",
+      "battle.param.tideHeal": "Tide 回复量",
+      "battle.param.drain": "Sprout 汲取（伤害 = 回复）",
+      "battle.param.perfectPct": "完美格挡后承受伤害",
+      "battle.param.goodPct": "普通格挡后承受伤害",
+      "battle.param.shieldPct": "护盾后承受伤害",
+      "battle.param.strongPct": "属性克制伤害（效果拔群）",
+      "battle.param.weakPct": "被克制伤害（效果一般）",
+      "battle.param.trialBonus": "测试满分额外伤害",
+      "battle.param.maxDmg": "一次攻击伤害上限（属性克制之后）",
+      "battle.param.stageMs": "每层计分时长（共 3 层）",
+      "battle.param.speed1": "第 1 层光带速度（含准备）",
+      "battle.param.speed2": "第 2 层光带速度",
+      "battle.param.speed3": "第 3 层光带速度",
+      "battle.param.readyMs": "准备时间（光带先动，不计分）",
+      "battle.param.bandPct": "光带宽度",
+      "battle.param.risePerS": "按住时指针每秒上升",
+      "battle.param.fallPerS": "松开时指针每秒下降",
+      "battle.param.tierStrong": "强力一击所需分数（2 次格挡）",
+      "battle.param.tierUlt": "全力一击所需分数（3 次格挡）",
+      "battle.param.narrowPct": "每升一级判定区变窄",
+      "battle.param.speedupPct": "每升一级 / 每多一击扫描变快",
+      "battle.param.gapMs": "两次格挡之间的间隔",
+      "battle.param.resolveMs": "每个事件停留时间",
+      "battle.unit.score": " 分",
+      "battle.toast.reset": "已恢复默认参数",
+
+      // Pets, players, results, tiers
+      "battle.pet.fire": "焰灵 Ember",
+      "battle.pet.water": "潮影 Tide",
+      "battle.pet.grass": "叶芽 Sprout",
+      "battle.skill.fire": "灼烧",
+      "battle.skill.water": "潮汐护盾",
+      "battle.skill.grass": "汲取",
+      "battle.player": "玩家 {n}",
+      "battle.result.miss": "没挡住",
+      "battle.result.good": "挡住",
+      "battle.result.perfect": "完美",
+      "battle.tier.0": "普通一击",
+      "battle.tier.1": "强力一击",
+      "battle.tier.2": "全力一击",
+      "battle.eff.strong": "效果拔群！",
+      "battle.eff.weak": "效果一般…",
+      "battle.edge": "{a} 克制 {b}",
+      "battle.blocked": "挡住 {b}/{h}",
+      "battle.cap": "（上限）",
+
+      // Log lines and events (the box over the gauges while an event resolves)
+      "battle.log.newMatch": "新的一局，{p} 先手",
+      "battle.log.burn": "{pet} 受到 <b>{n}</b> 点灼烧伤害",
+      "battle.ev.burn": "🔥 {pet} -{n}",
+      "battle.log.faint": "💫 {p} 的 {pet} 倒下了",
+      "battle.ev.faint": "💫 {pet} 倒下了",
+      "battle.log.win": "🏆 {p} 获胜！",
+      "battle.log.picked": "{p} 已选好",
+      "battle.log.sendout": "{p} 派出 {pet}",
+      "battle.ev.sendout": "{p} 派出 <b>{pet}</b>",
+      "battle.ev.vs": "<b>{a}</b> 对战 <b>{b}</b>",
+      "battle.log.trial": "{pet} 得分 <b>{score}</b>（{stages}）→ {tier}，伤害 <b>{dmg}</b>{cap}{eff}",
+      "battle.log.defense": "{pet} 挡住 {b}/{h}，受到 <b>{n}</b> 点伤害{shield}{eff}",
+      "battle.log.shielded": "（护盾）",
+      "battle.ev.defense": "挡住 {b}/{h} · {pet} -{n}",
+      "battle.ev.shielded": "（护盾）",
+      "battle.log.skillFire": "{pet} 使用「{skill}」：{target} -<b>{n}</b>，开始灼烧{eff}",
+      "battle.ev.skillFire": "「{skill}」{target} -{n}{eff}",
+      "battle.log.skillWater": "{pet} 使用「{skill}」：+{n} HP，加护盾",
+      "battle.ev.skillWater": "「{skill}」+{n} HP 🛡",
+      "battle.log.skillGrass": "{pet} 使用「{skill}」：{target} -<b>{n}</b>，自己 +{h} HP{eff}",
+      "battle.ev.skillGrass": "「{skill}」{target} -{n}，+{h} HP{eff}",
+      "battle.log.switch": "🔄 {p}：{old} → {pet}",
+      "battle.ev.switch": "🔄 {p} 换上 <b>{pet}</b>",
+
+      // Gauges
+      "battle.trial.total": "总分 {n}",
+      "battle.trial.ready": "准备 {s} s",
+      "battle.trial.inBand": "光带内 {n}%",
+      "battle.trial.pressStart": "按攻击键开始",
+      "battle.cue.start": "开始计分！",
+      "battle.cue.faster": "加速！",
+      "battle.stage.ready": "准备",
+      "battle.stage.n": "第 {n} 层",
+      "battle.seg": "第{n}层",
+      "battle.tier.info": "{score} 分 · 伤害 {dmg}{cap} · 格挡 ×{n}",
+      "battle.def.next": "下一击 {n}/{h}…",
+      "battle.def.hit": "第 {n}/{h} 击",
+
+      // Fighter cards and pad buttons
+      "battle.role.win": "🏆 胜利",
+      "battle.role.allOut": "全部倒下",
+      "battle.role.picking": "选宠物…",
+      "battle.picked": "✓ 已选好",
+      "battle.role.waitOther": "等对方…",
+      "battle.role.switching": "换上哪只？",
+      "battle.role.att": "进攻方",
+      "battle.role.def": "防守方",
+      "battle.hpLeft": "剩余 {n} / {total} 只",
+      "battle.badge.burn": "🔥 灼烧 ×{n}",
+      "battle.badge.shield": "🛡 护盾",
+      "battle.badge.cd": "技能冷却 {n}",
+      "battle.badge.ready": "技能就绪",
+      "battle.mini.fainted": "倒下",
+      "battle.pad.attack": "攻击",
+      "battle.pad.hold": "按住",
+      "battle.pad.block": "格挡",
+      "battle.pad.skill": "技能",
+      "battle.pad.switch": "换宠物",
+      "battle.pad.cancel": "取消",
+      "battle.pad.again": "再来一局",
+
+      // Prompt: one short line per phase
+      "battle.prompt.firstPick": "暗中选出场宠物 · {p} 先手",
+      "battle.prompt.nextPick": "宠物倒下了，选下一只",
+      "battle.prompt.ready": "{p}：{opts}",
+      "battle.opt.attack": "{k} 攻击",
+      "battle.opt.skill": "{k} {skill}",
+      "battle.opt.switch": "{k} 换宠物",
+      "battle.prompt.switch": "{p} 换上哪只？{keys} · {k} 取消",
+      "battle.prompt.trial": "按住 {k} 跟住光带",
+      "battle.prompt.defend": "按 {k} 格挡 ×{n}",
+      "battle.prompt.over": "🏆 {p} 获胜！按 {k0} 或 {k1} 再来一局",
+    },
+    en: {
+      "battle.title": "Battle prototype",
+      "battle.titleSub": "Two players on one screen, tuning as they play; same rules as the firmware (docs/attack-trial.md)",
+      "battle.trialLbl": "Attack trial",
+      "battle.blockLbl": "Chained blocks",
+      "battle.restart": "Restart",
+      "battle.round": "Round",
+      "battle.rulesTitle": "Rules",
+      "battle.rule1": "3 pets each, picked in secret. <b style=\"color:var(--fire)\">Fire</b> beats <b style=\"color:var(--grass)\">grass</b> beats <b style=\"color:var(--water)\">water</b> beats <b style=\"color:var(--fire)\">fire</b>.",
+      "battle.rule2": "<b>Attack trial</b>: hold your key to keep the pointer in the band.",
+      "battle.rule3": "Score over 3 faster stages → <b>Normal</b>, <b>Strong</b> or <b>Full Power</b> strike.",
+      "battle.rule4": "<b>Defend</b>: press block while the cursor is in the green, 1–3 times.",
+      "battle.rule5": "Instead of attacking, use a <b>skill</b> or <b>switch</b> pets.",
+      "battle.rule6": "A fainted pet is replaced; lose all 3 and you lose.",
+      "battle.paramsTitle": "Tuning",
+      "battle.paramsSub": "Same names and defaults as game_config.h; the copied code can replace the whole file",
+      "battle.copyC": "Copy C code",
+      "battle.resetParams": "Reset defaults",
+
+      "battle.group.trial": "Attack trial",
+      "battle.group.tier": "Tiers",
+      "battle.group.block": "Chained blocks",
+      "battle.group.skill": "Skills",
+      "battle.group.type": "Types",
+      "battle.group.pace": "Pace",
+      "battle.param.base": "Base damage (trial score 0)",
+      "battle.param.windowPct": "Block zone width (Normal strike)",
+      "battle.param.sweepMs": "Sweep time (Normal strike)",
+      "battle.param.hp": "HP per pet (from the next match)",
+      "battle.param.skillCd": "Skill cooldown (own turns)",
+      "battle.param.burnDmg": "Ember Burn damage per turn",
+      "battle.param.burnTurns": "Burn duration (turns)",
+      "battle.param.emberDmg": "Ember skill direct damage",
+      "battle.param.tideHeal": "Tide heal amount",
+      "battle.param.drain": "Sprout Drain (damage = heal)",
+      "battle.param.perfectPct": "Damage taken after a Perfect block",
+      "battle.param.goodPct": "Damage taken after a normal block",
+      "battle.param.shieldPct": "Damage taken with a shield",
+      "battle.param.strongPct": "Damage with type advantage (super effective)",
+      "battle.param.weakPct": "Damage with type disadvantage (not very effective)",
+      "battle.param.trialBonus": "Extra damage at trial score 100",
+      "battle.param.maxDmg": "Max damage per attack (after the type bonus)",
+      "battle.param.stageMs": "Scored time per stage (3 stages)",
+      "battle.param.speed1": "Stage 1 band speed (also while getting ready)",
+      "battle.param.speed2": "Stage 2 band speed",
+      "battle.param.speed3": "Stage 3 band speed",
+      "battle.param.readyMs": "Get-ready time (band moves, not scored)",
+      "battle.param.bandPct": "Band width",
+      "battle.param.risePerS": "Pointer rise per second while held",
+      "battle.param.fallPerS": "Pointer fall per second when released",
+      "battle.param.tierStrong": "Score for a Strong strike (2 blocks)",
+      "battle.param.tierUlt": "Score for a Full Power strike (3 blocks)",
+      "battle.param.narrowPct": "Block zone narrower per tier",
+      "battle.param.speedupPct": "Sweep faster per tier / per extra block",
+      "battle.param.gapMs": "Pause between two blocks",
+      "battle.param.resolveMs": "Time each event stays on screen",
+      "battle.unit.score": " pts",
+      "battle.toast.reset": "Default settings restored",
+
+      "battle.pet.fire": "Ember",
+      "battle.pet.water": "Tide",
+      "battle.pet.grass": "Sprout",
+      "battle.skill.fire": "Burn",
+      "battle.skill.water": "Tide Shield",
+      "battle.skill.grass": "Drain",
+      "battle.player": "Player {n}",
+      "battle.result.miss": "Missed",
+      "battle.result.good": "Blocked",
+      "battle.result.perfect": "Perfect",
+      "battle.tier.0": "Normal strike",
+      "battle.tier.1": "Strong strike",
+      "battle.tier.2": "Full Power strike",
+      "battle.eff.strong": "Super effective!",
+      "battle.eff.weak": "Not very effective…",
+      "battle.edge": "{a} beats {b}",
+      "battle.blocked": "Blocked {b}/{h}",
+      "battle.cap": " (max)",
+
+      "battle.log.newMatch": "New match, {p} goes first",
+      "battle.log.burn": "{pet} takes <b>{n}</b> Burn damage",
+      "battle.ev.burn": "🔥 {pet} -{n}",
+      "battle.log.faint": "💫 {p}'s {pet} fainted",
+      "battle.ev.faint": "💫 {pet} fainted",
+      "battle.log.win": "🏆 {p} wins!",
+      "battle.log.picked": "{p} has picked",
+      "battle.log.sendout": "{p} sends out {pet}",
+      "battle.ev.sendout": "{p} sends out <b>{pet}</b>",
+      "battle.ev.vs": "<b>{a}</b> vs <b>{b}</b>",
+      "battle.log.trial": "{pet} scores <b>{score}</b> ({stages}) → {tier}, <b>{dmg}</b> damage{cap}{eff}",
+      "battle.log.defense": "{pet} blocks {b}/{h}, takes <b>{n}</b> damage{shield}{eff}",
+      "battle.log.shielded": " (shield)",
+      "battle.ev.defense": "Blocked {b}/{h} · {pet} -{n}",
+      "battle.ev.shielded": "(shield)",
+      "battle.log.skillFire": "{pet} uses {skill}: {target} -<b>{n}</b> and burns{eff}",
+      "battle.ev.skillFire": "{skill}: {target} -{n}{eff}",
+      "battle.log.skillWater": "{pet} uses {skill}: +{n} HP and a shield",
+      "battle.ev.skillWater": "{skill}: +{n} HP 🛡",
+      "battle.log.skillGrass": "{pet} uses {skill}: {target} -<b>{n}</b>, +{h} HP{eff}",
+      "battle.ev.skillGrass": "{skill}: {target} -{n}, +{h} HP{eff}",
+      "battle.log.switch": "🔄 {p}: {old} → {pet}",
+      "battle.ev.switch": "🔄 {p} switches to <b>{pet}</b>",
+
+      "battle.trial.total": "Score {n}",
+      "battle.trial.ready": "Get ready {s} s",
+      "battle.trial.inBand": "In band {n}%",
+      "battle.trial.pressStart": "Press attack",
+      "battle.cue.start": "Go!",
+      "battle.cue.faster": "Faster!",
+      "battle.stage.ready": "Get ready",
+      "battle.stage.n": "Stage {n}",
+      "battle.seg": "Stage {n}",
+      "battle.tier.info": "Score {score} · {dmg} damage{cap} · block ×{n}",
+      "battle.def.next": "Next hit {n}/{h}…",
+      "battle.def.hit": "Hit {n}/{h}",
+
+      "battle.role.win": "🏆 Winner",
+      "battle.role.allOut": "All fainted",
+      "battle.role.picking": "Picking…",
+      "battle.picked": "✓ Picked",
+      "battle.role.waitOther": "Waiting…",
+      "battle.role.switching": "Who comes in?",
+      "battle.role.att": "Attacker",
+      "battle.role.def": "Defender",
+      "battle.hpLeft": "{n} / {total} left",
+      "battle.badge.burn": "🔥 Burn ×{n}",
+      "battle.badge.shield": "🛡 Shield",
+      "battle.badge.cd": "Skill cooldown {n}",
+      "battle.badge.ready": "Skill ready",
+      "battle.mini.fainted": "Fainted",
+      "battle.pad.attack": "Attack",
+      "battle.pad.hold": "Hold",
+      "battle.pad.block": "Block",
+      "battle.pad.skill": "Skill",
+      "battle.pad.switch": "Switch",
+      "battle.pad.cancel": "Cancel",
+      "battle.pad.again": "Again",
+
+      "battle.prompt.firstPick": "Pick a pet in secret · {p} goes first",
+      "battle.prompt.nextPick": "A pet fainted: pick the next one",
+      "battle.prompt.ready": "{p}: {opts}",
+      "battle.opt.attack": "{k} attack",
+      "battle.opt.skill": "{k} {skill}",
+      "battle.opt.switch": "{k} switch",
+      "battle.prompt.switch": "{p}: who comes in? {keys} · {k} cancel",
+      "battle.prompt.trial": "Hold {k} to follow the band",
+      "battle.prompt.defend": "Press {k} to block ×{n}",
+      "battle.prompt.over": "🏆 {p} wins! Press {k0} or {k1} for a rematch",
+    },
+  });
+  const tr = I18N.t;
+
   // Same names, defaults, order and comments as software/lib/game_config.h, so
   // the exported block can replace that file. Entries without min/max are
-  // exported but not tuned here.
+  // exported but not tuned here. g is the slider group; the slider label is
+  // the string "battle.param.<key>".
+  const PTS = tr("battle.unit.score");
   const PARAMS = [
-    {key: "base",       c: "BASE_DAMAGE",        g: "攻击测试", label: "基础伤害（测试 0 分）",        min: 4,   max: 20,   step: 1,   def: 10,   unit: "",    note: "attack damage at trial score 0"},
-    {key: "windowPct",  c: "DEFEND_WINDOW_PCT",  g: "连续格挡", label: "判定区宽度（普通一击）",       min: 8,   max: 50,   step: 1,   def: 24,   unit: "%",   note: "width of the block zone at tier 0, % of the sweep"},
-    {key: "sweepMs",    c: "DEFEND_SWEEP_MS",    g: "连续格挡", label: "扫过时间（普通一击）",         min: 500, max: 2500, step: 100, def: 1100, unit: " ms", note: "time for the cursor to cross the bar at tier 0"},
-    {key: "hp",         c: "START_HP",           g: "节奏", label: "每只宠物 HP（下一局生效）",     min: 20,  max: 200,  step: 5,   def: 60,   unit: "",    note: "HP of each pet (TEAM_SIZE pets per player)"},
-    {key: "skillCd",    c: "SKILL_COOLDOWN",     g: "技能", label: "技能冷却（自己的回合数）",      min: 1,   max: 5,    step: 1,   def: 3,    unit: "",    note: "own turns before the skill is ready again"},
-    {key: "burnDmg",    c: "BURN_DAMAGE",        g: "技能", label: "Ember 灼烧每回合伤害",          min: 0,   max: 15,   step: 1,   def: 5,    unit: "",    note: "Ember skill: damage per turn while burning", before: [""]},
-    {key: "burnTurns",  c: "BURN_TURNS",         g: "技能", label: "灼烧持续回合",                  min: 0,   max: 5,    step: 1,   def: 2,    unit: ""},
-    {key: "emberDmg",   c: "EMBER_SKILL_DAMAGE", g: "技能", label: "Ember 技能直接伤害",            min: 0,   max: 25,   step: 1,   def: 8,    unit: ""},
-    {key: "tideHeal",   c: "TIDE_HEAL",          g: "技能", label: "Tide 回复量",                   min: 0,   max: 40,   step: 1,   def: 12,   unit: "",    note: "Tide skill: heal and shield the next hit"},
-    {key: "drain",      c: "SPROUT_DRAIN",       g: "技能", label: "Sprout 汲取（伤害 = 回复）",    min: 0,   max: 25,   step: 1,   def: 6,    unit: "",    note: "Sprout skill: deal this much, heal as much"},
-    {key: "perfectPct", c: "BLOCK_PERFECT_PCT",  g: "连续格挡", label: "完美格挡后承受伤害",           min: 0,   max: 100,  step: 5,   def: 20,   unit: "%",   note: "damage taken on a perfect block", before: [""]},
-    {key: "goodPct",    c: "BLOCK_GOOD_PCT",     g: "连续格挡", label: "普通格挡后承受伤害",           min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
-    {key: "shieldPct",  c: "SHIELD_PCT",         g: "技能", label: "护盾后承受伤害",                min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
-    {key: "strongPct",  c: "TYPE_STRONG_PCT",    g: "属性", label: "属性克制伤害（效果拔群）",      min: 100, max: 250,  step: 10,  def: 150,  unit: "%",   note: "fire > grass > water > fire"},
-    {key: "weakPct",    c: "TYPE_WEAK_PCT",      g: "属性", label: "被克制伤害（效果一般）",        min: 30,  max: 100,  step: 5,   def: 70,   unit: "%"},
+    {key: "base",       c: "BASE_DAMAGE",        g: "trial", min: 4,   max: 20,   step: 1,   def: 10,   unit: "",    note: "attack damage at trial score 0"},
+    {key: "windowPct",  c: "DEFEND_WINDOW_PCT",  g: "block", min: 8,   max: 50,   step: 1,   def: 24,   unit: "%",   note: "width of the block zone at tier 0, % of the sweep"},
+    {key: "sweepMs",    c: "DEFEND_SWEEP_MS",    g: "block", min: 500, max: 2500, step: 100, def: 1100, unit: " ms", note: "time for the cursor to cross the bar at tier 0"},
+    {key: "hp",         c: "START_HP",           g: "pace",  min: 20,  max: 200,  step: 5,   def: 60,   unit: "",    note: "HP of each pet (TEAM_SIZE pets per player)"},
+    {key: "skillCd",    c: "SKILL_COOLDOWN",     g: "skill", min: 1,   max: 5,    step: 1,   def: 3,    unit: "",    note: "own turns before the skill is ready again"},
+    {key: "burnDmg",    c: "BURN_DAMAGE",        g: "skill", min: 0,   max: 15,   step: 1,   def: 5,    unit: "",    note: "Ember skill: damage per turn while burning", before: [""]},
+    {key: "burnTurns",  c: "BURN_TURNS",         g: "skill", min: 0,   max: 5,    step: 1,   def: 2,    unit: ""},
+    {key: "emberDmg",   c: "EMBER_SKILL_DAMAGE", g: "skill", min: 0,   max: 25,   step: 1,   def: 8,    unit: ""},
+    {key: "tideHeal",   c: "TIDE_HEAL",          g: "skill", min: 0,   max: 40,   step: 1,   def: 12,   unit: "",    note: "Tide skill: heal and shield the next hit"},
+    {key: "drain",      c: "SPROUT_DRAIN",       g: "skill", min: 0,   max: 25,   step: 1,   def: 6,    unit: "",    note: "Sprout skill: deal this much, heal as much"},
+    {key: "perfectPct", c: "BLOCK_PERFECT_PCT",  g: "block", min: 0,   max: 100,  step: 5,   def: 20,   unit: "%",   note: "damage taken on a perfect block", before: [""]},
+    {key: "goodPct",    c: "BLOCK_GOOD_PCT",     g: "block", min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
+    {key: "shieldPct",  c: "SHIELD_PCT",         g: "skill", min: 0,   max: 100,  step: 5,   def: 50,   unit: "%"},
+    {key: "strongPct",  c: "TYPE_STRONG_PCT",    g: "type",  min: 100, max: 250,  step: 10,  def: 150,  unit: "%",   note: "fire > grass > water > fire"},
+    {key: "weakPct",    c: "TYPE_WEAK_PCT",      g: "type",  min: 30,  max: 100,  step: 5,   def: 70,   unit: "%"},
     // The new block uses a wider name column, like the file
-    {key: "trialBonus", c: "TRIAL_BONUS",         w: 20, g: "攻击测试", label: "测试满分额外伤害",       min: 0,   max: 40,   step: 1,   def: 20,   unit: "",    note: "extra damage at trial score 100", before: ["", "// Attack trial + chained blocks (docs/attack-trial.md)"]},
-    {key: "maxDmg",     c: "ATTACK_MAX_DAMAGE",   w: 20, g: "攻击测试", label: "一次攻击伤害上限（属性克制之后）", min: 10, max: 60, step: 1, def: 30, unit: "",    note: "cap on one attack after the type bonus (half a pet's HP)"},
-    {key: "stageMs",    c: "TRIAL_STAGE_MS",      w: 20, g: "攻击测试", label: "每层计分时长（共 3 层）", min: 500, max: 3000, step: 100, def: 1500, unit: " ms", note: "scored time of each of the 3 stages"},
-    {key: "speed1",     c: "TRIAL_STAGE1_SPEED_PCT", w: 20, g: "攻击测试", label: "第 1 层光带速度（含准备）", min: 10, max: 200, step: 5, def: 35, unit: "%",   note: "band speed in the ready phase and stage 1, % of full"},
-    {key: "speed2",     c: "TRIAL_STAGE2_SPEED_PCT", w: 20, g: "攻击测试", label: "第 2 层光带速度",      min: 10, max: 200, step: 5,   def: 65,   unit: "%",   note: "band speed in stage 2"},
-    {key: "speed3",     c: "TRIAL_STAGE3_SPEED_PCT", w: 20, g: "攻击测试", label: "第 3 层光带速度",      min: 10, max: 200, step: 5,   def: 100,  unit: "%",   note: "band speed in stage 3"},
-    {key: "readyMs",    c: "TRIAL_READY_MS",      w: 20, g: "攻击测试", label: "准备时间（光带先动，不计分）", min: 0, max: 1500, step: 100, def: 600, unit: " ms", note: "band moves this long before scoring starts"},
-    {key: "bandPct",    c: "TRIAL_BAND_PCT",      w: 20, g: "攻击测试", label: "光带宽度",               min: 8,   max: 50,   step: 1,   def: 24,   unit: "",    note: "band width on the 0..100 level scale"},
-    {key: "risePerS",   c: "TRIAL_RISE_PER_S",    w: 20, g: "攻击测试", label: "按住时指针每秒上升",     min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "no pressure pad: level rise per second holding A"},
-    {key: "fallPerS",   c: "TRIAL_FALL_PER_S",    w: 20, g: "攻击测试", label: "松开时指针每秒下降",     min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "                 level fall per second released"},
-    {key: "tierStrong", c: "TIER_STRONG_SCORE",   w: 20, g: "等级", label: "强力一击所需分数（2 次格挡）", min: 10, max: 95,  step: 5,   def: 50,   unit: " 分", note: "score for a strong attack (2 blocks)"},
-    {key: "tierUlt",    c: "TIER_ULTIMATE_SCORE", w: 20, g: "等级", label: "全力一击所需分数（3 次格挡）", min: 15, max: 100, step: 5,   def: 80,   unit: " 分", note: "score for a full-power attack (3 blocks)"},
-    {key: "narrowPct",  c: "DEFEND_NARROW_PCT",   w: 20, g: "连续格挡", label: "每升一级判定区变窄",     min: 0,   max: 30,   step: 5,   def: 20,   unit: "%",   note: "block zone narrower per tier, %"},
-    {key: "speedupPct", c: "DEFEND_SPEEDUP_PCT",  w: 20, g: "连续格挡", label: "每升一级 / 每多一击扫描变快", min: 0, max: 20,  step: 1,   def: 12,   unit: "%",   note: "sweep faster per tier and per extra block, %"},
-    {key: "gapMs",      c: "DEFEND_GAP_MS",       w: 20, g: "连续格挡", label: "两次格挡之间的间隔",     min: 100, max: 1000, step: 50,  def: 350,  unit: " ms", note: "pause between chained blocks"},
-    {key: "resolveMs",  c: "RESOLVE_MS",         g: "节奏", label: "每个事件停留时间",              min: 300, max: 2000, step: 100, def: 900,  unit: " ms", note: "how long each event stays on screen", before: [""]},
-    {key: "graceMs",    c: "DEFEND_GRACE_MS",                                                                                         def: 1500, note: "central treats a silent defender as missing",
+    {key: "trialBonus", c: "TRIAL_BONUS",         w: 20, g: "trial", min: 0,   max: 40,   step: 1,   def: 20,   unit: "",    note: "extra damage at trial score 100", before: ["", "// Attack trial + chained blocks (docs/attack-trial.md)"]},
+    {key: "maxDmg",     c: "ATTACK_MAX_DAMAGE",   w: 20, g: "trial", min: 10,  max: 60,   step: 1,   def: 30,   unit: "",    note: "cap on one attack after the type bonus (half a pet's HP)"},
+    {key: "stageMs",    c: "TRIAL_STAGE_MS",      w: 20, g: "trial", min: 500, max: 3000, step: 100, def: 1500, unit: " ms", note: "scored time of each of the 3 stages"},
+    {key: "speed1",     c: "TRIAL_STAGE1_SPEED_PCT", w: 20, g: "trial", min: 10, max: 200, step: 5,  def: 35,   unit: "%",   note: "band speed in the ready phase and stage 1, % of full"},
+    {key: "speed2",     c: "TRIAL_STAGE2_SPEED_PCT", w: 20, g: "trial", min: 10, max: 200, step: 5,  def: 65,   unit: "%",   note: "band speed in stage 2"},
+    {key: "speed3",     c: "TRIAL_STAGE3_SPEED_PCT", w: 20, g: "trial", min: 10, max: 200, step: 5,  def: 100,  unit: "%",   note: "band speed in stage 3"},
+    {key: "readyMs",    c: "TRIAL_READY_MS",      w: 20, g: "trial", min: 0,   max: 1500, step: 100, def: 600,  unit: " ms", note: "band moves this long before scoring starts"},
+    {key: "bandPct",    c: "TRIAL_BAND_PCT",      w: 20, g: "trial", min: 8,   max: 50,   step: 1,   def: 24,   unit: "",    note: "band width on the 0..100 level scale"},
+    {key: "risePerS",   c: "TRIAL_RISE_PER_S",    w: 20, g: "trial", min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "no pressure pad: level rise per second holding A"},
+    {key: "fallPerS",   c: "TRIAL_FALL_PER_S",    w: 20, g: "trial", min: 40,  max: 400,  step: 10,  def: 140,  unit: "",    note: "                 level fall per second released"},
+    {key: "tierStrong", c: "TIER_STRONG_SCORE",   w: 20, g: "tier",  min: 10,  max: 95,   step: 5,   def: 50,   unit: PTS,   note: "score for a strong attack (2 blocks)"},
+    {key: "tierUlt",    c: "TIER_ULTIMATE_SCORE", w: 20, g: "tier",  min: 15,  max: 100,  step: 5,   def: 80,   unit: PTS,   note: "score for a full-power attack (3 blocks)"},
+    {key: "narrowPct",  c: "DEFEND_NARROW_PCT",   w: 20, g: "block", min: 0,   max: 30,   step: 5,   def: 20,   unit: "%",   note: "block zone narrower per tier, %"},
+    {key: "speedupPct", c: "DEFEND_SPEEDUP_PCT",  w: 20, g: "block", min: 0,   max: 20,   step: 1,   def: 12,   unit: "%",   note: "sweep faster per tier and per extra block, %"},
+    {key: "gapMs",      c: "DEFEND_GAP_MS",       w: 20, g: "block", min: 100, max: 1000, step: 50,  def: 350,  unit: " ms", note: "pause between chained blocks"},
+    {key: "resolveMs",  c: "RESOLVE_MS",         g: "pace",  min: 300, max: 2000, step: 100, def: 900,  unit: " ms", note: "how long each event stays on screen", before: [""]},
+    {key: "graceMs",    c: "DEFEND_GRACE_MS",                                                               def: 1500, note: "central treats a silent defender as missing",
       note2: ["every block after the whole chain (all", "sweeps + gaps) + this"]},
   ];
-  const GROUPS = ["攻击测试", "等级", "连续格挡", "技能", "属性", "节奏"];
+  const GROUPS = ["trial", "tier", "block", "skill", "type", "pace"];
   const TUNABLE = PARAMS.filter(p => p.min !== undefined);
 
   const TEAM_SIZE = 3;
-  const PETS = [
-    {name: "焰灵 Ember",  short: "Ember",  el: "fire",  type: "火", skill: "灼烧"},
-    {name: "潮影 Tide",   short: "Tide",   el: "water", type: "水", skill: "潮汐护盾"},
-    {name: "叶芽 Sprout", short: "Sprout", el: "grass", type: "草", skill: "汲取"},
-  ];
+  // name: shown on the fighter card; short: the English name, also used in Chinese
+  const PETS = ["fire", "water", "grass"].map((el, k) => ({
+    name: tr("battle.pet." + el), short: ["Ember", "Tide", "Sprout"][k], el, skill: tr("battle.skill." + el),
+  }));
   const PLAYERS = [
     // keys: 蓄力 / 第 1 只，防御 / 第 2 只，技能 / 第 3 只，换宠物 / 取消
-    {name: "玩家 1", keys: ["A", "S", "D", "F"]},
-    {name: "玩家 2", keys: ["J", "K", "L", ";"]},
+    {name: tr("battle.player", {n: 1}), keys: ["A", "S", "D", "F"]},
+    {name: tr("battle.player", {n: 2}), keys: ["J", "K", "L", ";"]},
   ];
   const BEATS = {fire: "grass", grass: "water", water: "fire"};
   // block_result_t order in protocol.h
   const MISS = 0, GOOD = 1, PERFECT = 2;
-  const RESULT_TXT = ["没挡住", "挡住", "完美"];
   const RESULT_CLS = ["miss", "good", "perfect"];
-  const TIER_NAMES = ["普通一击", "强力一击", "全力一击"];
+  const RESULT_TXT = RESULT_CLS.map(c => tr("battle.result." + c));
+  const TIER_NAMES = [0, 1, 2].map(k => tr("battle.tier." + k));
   const DEFEND_MAX_HITS = 3;
   // Sprites: 10x10 pixel art, each row is a 5-pixel left half mirrored to the right
   const SPRITES = {
@@ -101,9 +413,9 @@
   });
 
   function renderParams() {
-    $("#params").innerHTML = GROUPS.map(g => `<div class="pgroup">${esc(g)}</div>` +
+    $("#params").innerHTML = GROUPS.map(g => `<div class="pgroup">${esc(tr("battle.group." + g))}</div>` +
       TUNABLE.filter(p => p.g === g).map(p => `<label>
-        <span>${esc(p.label)}<b id="pv-${p.key}">${P[p.key]}${p.unit}</b></span>
+        <span>${esc(tr("battle.param." + p.key))}<b id="pv-${p.key}">${P[p.key]}${p.unit}</b></span>
         <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${P[p.key]}" data-p="${p.key}">
         <code class="cname">${p.c}</code>
       </label>`).join("")).join("");
@@ -156,7 +468,7 @@
     store.set(PARAM_KEY, JSON.stringify(P));
     renderParams();
     if (S) render();
-    window.PR.toast("已恢复默认参数");
+    window.PR.toast(tr("battle.toast.reset"));
   });
 
   /* ---------------- formulas (docs/attack-trial.md, rules.c) ---------------- */
@@ -254,7 +566,7 @@
     if (BEATS[d] === a) return P.weakPct;
     return 100;
   }
-  const effectTxt = pct => pct > 100 ? "效果拔群！" : pct < 100 ? "效果一般…" : "";
+  const effectTxt = pct => pct > 100 ? tr("battle.eff.strong") : pct < 100 ? tr("battle.eff.weak") : "";
   const effectHtml = pct => pct === 100 ? "" :
     ` <span class="eff ${pct > 100 ? "strong" : "weak"}">${effectTxt(pct)}</span>`;
   const tierHtml = t => `<span class="tier-tag t${t}">${TIER_NAMES[t]}</span>`;
@@ -295,12 +607,13 @@
     }
   }
 
-  // Clamps to the target pet's HP; returns the damage actually dealt
+  // Clamps to the target pet's HP; returns the damage actually dealt. The
+  // popup's small line is the block count, or else the type effect
   function damage(i, amount, pct = 100, sub) {
     const p = pl(i);
     amount = Math.min(amount, p.hp[p.active]);
     p.hp[p.active] -= amount;
-    popup(i, "-" + amount, "", [sub, effectTxt(pct)].filter(Boolean).join(" · "));
+    popup(i, "-" + amount, "", sub || effectTxt(pct));
     return amount;
   }
 
@@ -331,7 +644,7 @@
       switching: null,  // attacker choosing a pet to switch to (local, like player_core)
     };
     log.length = 0;
-    addLog(`新的一局：${pName(first)} 先手。双方暗中选择出场宠物。`);
+    addLog(tr("battle.log.newMatch", {p: pName(first)}));
     enter("sendout", [0, 1]);
     render();
   }
@@ -341,8 +654,8 @@
     if (p.burn > 0) {
       p.burn--;
       const n = damage(a, P.burnDmg);
-      addLog(`${petName(a)}（${pName(a)}）被灼烧，受到 <b>${n}</b> 点伤害`);
-      showEvent("ready", `🔥 ${petName(a)} 被灼烧 -${n}`);
+      addLog(tr("battle.log.burn", {pet: petName(a), n}));
+      showEvent("ready", tr("battle.ev.burn", {pet: petName(a), n}));
       return;
     }
     toReady();
@@ -376,8 +689,8 @@
         p.active = null;
         p.burn = 0;
         p.shield = false;
-        addLog(`💫 ${pName(i)} 的 ${name} 倒下了`);
-        showEvent(S.next, `💫 ${name} 倒下了`);
+        addLog(tr("battle.log.faint", {p: pName(i), pet: name}));
+        showEvent(S.next, tr("battle.ev.faint", {pet: name}));
         return;
       }
     }
@@ -387,7 +700,7 @@
       if (pl(i).active !== null) continue;
       if (!anyAlive(i)) {
         S.winner = 1 - i;
-        addLog(`🏆 ${pName(S.winner)} 获胜！`);
+        addLog(tr("battle.log.win", {p: pName(S.winner)}));
         enter("over", [0, 1]);
         render();
         return;
@@ -411,7 +724,7 @@
     S.pending[i] = k;
     S.waiting = S.waiting.filter(w => w !== i);
     if (S.waiting.length) {
-      addLog(`${pName(i)} 已选好`);
+      addLog(tr("battle.log.picked", {p: pName(i)}));
       render();
       return;
     }
@@ -421,15 +734,19 @@
       pl(j).active = S.pending[j];
       S.pending[j] = null;
       shown.push(j);
-      addLog(`${pName(j)} 派出 ${petName(j)}`);
+      addLog(tr("battle.log.sendout", {p: pName(j), pet: petName(j)}));
     }
-    let html = shown.map(j => `${esc(PLAYERS[j].name)} 派出 <b>${petName(j)}</b>`).join("<br>");
+    const html = shown.length === 2 ? tr("battle.ev.vs", {a: petName(0), b: petName(1)}) :
+      tr("battle.ev.sendout", {p: esc(PLAYERS[shown[0]].name), pet: petName(shown[0])});
+    showEvent(S.next, html + edgeHtml());
+  }
+
+  // "Ember beats Sprout" under a send-out or switch when the types matter
+  function edgeHtml() {
     const pct = typePct(activePet(0).el, activePet(1).el);
-    if (pct !== 100) {
-      const w = pct > 100 ? 0 : 1;
-      html += `<br><span class="muted">${esc(activePet(w).short)} 克制 ${esc(activePet(1 - w).short)}</span>`;
-    }
-    showEvent(S.next, html);
+    if (pct === 100) return "";
+    const w = pct > 100 ? 0 : 1;
+    return `<br><span class="muted">${tr("battle.edge", {a: esc(activePet(w).short), b: esc(activePet(1 - w).short)})}</span>`;
   }
 
   /* ---------------- attack trial (trial.c, no pressure pad) ---------------- */
@@ -519,16 +836,14 @@
       cursors: Array(hits).fill(null), results: Array(hits).fill(null),
       t0: 0, idx: 0, cursor: 0, inGap: false,
     };
-    addLog(`${petName(a)} 攻击测试 ${stagesTxt(T.stageScores)} → 总分 <b>${T.score}</b> → ${tierHtml(tier)}，来袭 <b>${S.atk.damage}</b> 点${S.atk.capped ? "（上限）" : ""}${effectHtml(typeP)}，` +
-      `要连续格挡 ${hits} 次`);
+    addLog(tr("battle.log.trial", {pet: petName(a), stages: T.stageScores.join("/"), score: T.score, tier: tierHtml(tier),
+      dmg: S.atk.damage, cap: S.atk.capped ? tr("battle.cap") : "", eff: effectHtml(typeP)}));
     if (tier > 0) flare(a, tier);
     S.atk.t0 = performance.now();
     enter("defending", [d]);
     loop();
     render();
   }
-
-  const stagesTxt = sc => sc.map((v, k) => `第${k + 1}层 ${v}%`).join(" · ");
 
   function flare(i, tier) {
     const f = $("#f" + i);
@@ -587,13 +902,13 @@
     A.results = A.cursors.map((c, i) => blockResult(c, A.zones[i], A.width));
     const raw = chainDamage(A.damage, A.results);
     const hadShield = pl(d).shield;
-    const n = damage(d, shielded(d, raw), A.typePct, `挡住 ${blocked(A.results)}/${A.hits}`);
+    const b = blocked(A.results), h = A.hits;
+    const n = damage(d, shielded(d, raw), A.typePct, tr("battle.blocked", {b, h}));
     A.dealt = n;
-    const list = A.results.map(r => RESULT_TXT[r]).join("、");
-    addLog(`${petName(d)} 挡住 ${blocked(A.results)}/${A.hits}（${list}）${hadShield ? "，护盾抵消一部分" : ""}，` +
-      `受到 <b>${n}</b> 点伤害${effectHtml(A.typePct)}`);
-    showEvent("end", `${tierHtml(A.tier)} 挡住 ${blocked(A.results)}/${A.hits}<br>${petName(d)} -${n}` +
-      (hadShield ? ` <span class="muted">（护盾）</span>` : "") + effectHtml(A.typePct));
+    addLog(tr("battle.log.defense", {pet: petName(d), b, h, shield: hadShield ? tr("battle.log.shielded") : "", n,
+      eff: effectHtml(A.typePct)}));
+    showEvent("end", tr("battle.ev.defense", {b, h, pet: petName(d), n}) +
+      (hadShield ? ` <span class="muted">${tr("battle.ev.shielded")}</span>` : "") + effectHtml(A.typePct));
   }
 
   function useSkill() {
@@ -602,24 +917,25 @@
     S.justUsed = true;
     const pet = activePet(a);
     const pct = typePct(pet.el, activePet(d).el);
+    const v = {pet: petName(a), target: petName(d), skill: esc(pet.skill), eff: effectHtml(pct)};
     let html;
     if (pet.el === "fire") {
       pl(d).burn = P.burnTurns;
       const n = damage(d, shielded(d, rulesScale(P.emberDmg, pct)), pct);
-      addLog(`${petName(a)} 使用「灼烧」！${petName(d)} 受到 <b>${n}</b> 点伤害并开始灼烧${effectHtml(pct)}`);
-      html = `「灼烧」${petName(d)} -${n}${effectHtml(pct)}`;
+      addLog(tr("battle.log.skillFire", {...v, n}));
+      html = tr("battle.ev.skillFire", {...v, n});
     } else if (pet.el === "water") {
       const n = heal(a, P.tideHeal);
       me.shield = true;
       popup(a, "+" + n, "heal");
-      addLog(`${petName(a)} 使用「潮汐护盾」，回复 ${n} HP，获得护盾`);
-      html = `「潮汐护盾」+${n} HP，获得护盾`;
+      addLog(tr("battle.log.skillWater", {...v, n}));
+      html = tr("battle.ev.skillWater", {...v, n});
     } else {
       const n = damage(d, shielded(d, rulesScale(P.drain, pct)), pct);
       const h = heal(a, n);
       if (h) popup(a, "+" + h, "heal");
-      addLog(`${petName(a)} 使用「汲取」，${petName(d)} 受到 <b>${n}</b> 点伤害，自己回复 ${h} HP${effectHtml(pct)}`);
-      html = `「汲取」${petName(d)} -${n}，回复 ${h}${effectHtml(pct)}`;
+      addLog(tr("battle.log.skillGrass", {...v, n, h}));
+      html = tr("battle.ev.skillGrass", {...v, n, h});
     }
     showEvent("end", html);
   }
@@ -636,14 +952,8 @@
     p.active = k;
     p.burn = 0;
     p.shield = false;
-    addLog(`🔄 ${pName(i)} 收回 ${old}，换上 ${petName(i)}`);
-    let html = `🔄 ${esc(PLAYERS[i].name)} 换上 <b>${petName(i)}</b>`;
-    const pct = typePct(activePet(0).el, activePet(1).el);
-    if (pct !== 100) {
-      const w = pct > 100 ? 0 : 1;
-      html += `<br><span class="muted">${esc(activePet(w).short)} 克制 ${esc(activePet(1 - w).short)}</span>`;
-    }
-    showEvent("end", html);
+    addLog(tr("battle.log.switch", {p: pName(i), old, pet: petName(i)}));
+    showEvent("end", tr("battle.ev.switch", {p: esc(PLAYERS[i].name), pet: petName(i)}) + edgeHtml());
   }
 
   // slot = 0/1/2/3: the player's four keys / pad buttons
@@ -737,22 +1047,22 @@
       // Segment 0 is the ready phase, 1..3 the stages
       fills = [P.readyMs ? Math.min(1, t / P.readyMs) : 1,
         ...[0, 1, 2].map(k => Math.min(1, Math.max(0, (t - P.readyMs - k * P.stageMs) / P.stageMs)))];
-      if (done) val = `总分 ${T.score}`;
-      else if (!scoring) val = `准备 ${((P.readyMs - t) / 1000).toFixed(1)} s`;
-      else val = `本层光带内 ${stageScore(T, stage)}%`;
+      if (done) val = tr("battle.trial.total", {n: T.score});
+      else if (!scoring) val = tr("battle.trial.ready", {s: ((P.readyMs - t) / 1000).toFixed(1)});
+      else val = tr("battle.trial.inBand", {n: stageScore(T, stage)});
       // Cue once per stage start
       if (ph === "trial" && scoring && !done && T.cueStage !== stage) {
         T.cueStage = stage;
-        cue(stage === 0 ? "开始计分！" : "加速！", stage);
+        cue(tr(stage === 0 ? "battle.cue.start" : "battle.cue.faster"), stage);
       }
     } else if (ph === "ready") {
-      val = "按攻击键开始";
+      val = tr("battle.trial.pressStart");
     }
     tg.classList.toggle("scoring", scoring && ph === "trial");
     tg.classList.toggle("readying", trialOn && !scoring && ph === "trial");
     $("#trial-val").textContent = val;
     const stEl = $("#trial-stage");
-    stEl.textContent = stage === -1 ? "准备" : stage >= 0 && stage < 3 ? `第 ${stage + 1} 层` : "";
+    stEl.textContent = stage === -1 ? tr("battle.stage.ready") : stage >= 0 && stage < 3 ? tr("battle.stage.n", {n: stage + 1}) : "";
     stEl.className = "stage-tag" + (stage >= 0 && stage < 3 ? " s" + stage : "");
     const segs = document.querySelectorAll("#trial-track .seg");
     segs.forEach((seg, j) => {
@@ -761,7 +1071,7 @@
       if (j === 0) seg.style.flexGrow = P.readyMs / P.stageMs;
       else {
         const b = seg.querySelector("b");
-        const txt = T && T.stageScores ? `${T.stageScores[j - 1]}%` : `第${j}层`;
+        const txt = T && T.stageScores ? `${T.stageScores[j - 1]}%` : tr("battle.seg", {n: j});
         if (b.textContent !== txt) b.textContent = txt;
       }
     });
@@ -771,8 +1081,8 @@
     if (tierEl.dataset.k !== tierKey) {
       tierEl.dataset.k = tierKey;
       tierEl.className = "tier" + (A ? " t" + A.tier : "");
-      tierEl.innerHTML = A ? `<b>${TIER_NAMES[A.tier]}</b><span class="stages">${stagesTxt(A.stageScores)} → 总分 ${A.score}</span>` +
-        `<span>来袭 ${A.damage} 点${A.capped ? "（上限）" : ""} · 格挡 ${A.hits} 次</span>` : "";
+      tierEl.innerHTML = A ? `<b>${TIER_NAMES[A.tier]}</b>` +
+        `<span>${tr("battle.tier.info", {score: A.score, dmg: A.damage, cap: A.capped ? tr("battle.cap") : "", n: A.hits})}</span>` : "";
     }
 
     const showDef = A && (ph === "defending" || ph === "resolve");
@@ -790,8 +1100,8 @@
       const c = A.cursors[i] !== null ? A.cursors[i] : A.cursor;
       cur.style.left = `calc(${c}% - 1.5px)`;
       cur.classList.toggle("locked", A.cursors[i] !== null);
-      dv = ph === "resolve" ? `挡住 ${blocked(A.results)}/${A.hits}` :
-        A.inGap ? `下一击 ${A.idx + 2}/${A.hits}…` : `第 ${i + 1}/${A.hits} 击`;
+      dv = ph === "resolve" ? tr("battle.blocked", {b: blocked(A.results), h: A.hits}) :
+        A.inGap ? tr("battle.def.next", {n: A.idx + 2, h: A.hits}) : tr("battle.def.hit", {n: i + 1, h: A.hits});
     }
     $("#def-val").textContent = dv;
   }
@@ -811,16 +1121,16 @@
     $("#hits").innerHTML = !show ? "" : A.results.map((r, i) =>
       `<span class="hit-chip ${r === null ? (i === A.idx && ph === "defending" ? "now" : "") : RESULT_CLS[r]}">` +
       `${i + 1} · ${r === null ? "…" : RESULT_TXT[r]}</span>`).join("") +
-      (ph === "resolve" ? `<span class="hit-sum">挡住 ${blocked(A.results)}/${A.hits}</span>` : "");
+      (ph === "resolve" ? `<span class="hit-sum">${tr("battle.blocked", {b: blocked(A.results), h: A.hits})}</span>` : "");
   }
 
   function padLabels(i) {
     const kb = PLAYERS[i].keys, p = pl(i), ph = S.phase;
     const isAtt = i === att();
-    const switchBtn = {t: "换宠物", k: kb[3], on: isAtt && ph === "ready" && canSwitch(i)};
+    const switchBtn = {t: tr("battle.pad.switch"), k: kb[3], on: isAtt && ph === "ready" && canSwitch(i)};
     if (S.switching === i) {
       return [...PETS.map((pet, k) => ({t: pet.short, k: kb[k], on: canSwitchTo(i, k)})),
-        {t: "取消换宠物", k: kb[3], on: true}];
+        {t: tr("battle.pad.cancel"), k: kb[3], on: true}];
     }
     if (ph === "sendout") {
       const choosing = S.waiting.includes(i);
@@ -829,14 +1139,14 @@
       })), {...switchBtn, on: false}];
     }
     if (ph === "over") {
-      return [{t: "再来一局", k: kb[0], on: true}, {t: "格挡", k: kb[1], on: false}, {t: "技能", k: kb[2], on: false},
-        {...switchBtn, on: false}];
+      return [{t: tr("battle.pad.again"), k: kb[0], on: true}, {t: tr("battle.pad.block"), k: kb[1], on: false},
+        {t: tr("battle.pad.skill"), k: kb[2], on: false}, {...switchBtn, on: false}];
     }
-    const skill = p.active !== null ? PETS[p.active].skill : "技能";
+    const skill = p.active !== null ? PETS[p.active].skill : tr("battle.pad.skill");
+    const holding = isAtt && ph === "trial";
     return [
-      {t: isAtt && ph === "trial" ? "按住上升" : "攻击", k: isAtt && ph === "trial" ? "按住 " + kb[0] : kb[0],
-        on: isAtt && (ph === "ready" || ph === "trial")},
-      {t: "格挡", k: kb[1], on: !isAtt && ph === "defending"},
+      {t: tr(holding ? "battle.pad.hold" : "battle.pad.attack"), k: kb[0], on: isAtt && (ph === "ready" || ph === "trial")},
+      {t: tr("battle.pad.block"), k: kb[1], on: !isAtt && ph === "defending"},
       {t: skill, k: kb[2], on: isAtt && ph === "ready" && p.cd === 0},
       switchBtn,
     ];
@@ -854,10 +1164,10 @@
       el.classList.toggle("ko", ph === "over" && S.winner !== i);
 
       el.querySelector(".pname").textContent = pet ? " · " + pet.name : "";
-      el.querySelector(".role-lbl").textContent =
-        ph === "over" ? (S.winner === i ? "🏆 胜利" : "全部倒下") :
-        ph === "sendout" ? (S.waiting.includes(i) ? "选择出场宠物…" : S.pending[i] !== null ? "✓ 已选好" : "等待对方选择") :
-        S.switching === i ? "选择换上的宠物…" : isAtt ? "进攻方" : "防守方";
+      el.querySelector(".role-lbl").textContent = tr(
+        ph === "over" ? (S.winner === i ? "battle.role.win" : "battle.role.allOut") :
+        ph === "sendout" ? (S.waiting.includes(i) ? "battle.role.picking" : S.pending[i] !== null ? "battle.picked" : "battle.role.waitOther") :
+        S.switching === i ? "battle.role.switching" : isAtt ? "battle.role.att" : "battle.role.def");
 
       const stage = el.querySelector(".stage");
       const key = pet ? pet.el : ph === "over" ? "out" : "none";
@@ -867,12 +1177,13 @@
       }
       const hp = pet ? p.hp[p.active] : 0;
       el.querySelector(".hp i").style.width = (pet ? hp / S.hpMax * 100 : 0) + "%";
-      el.querySelector(".hpnum").textContent = pet ? `HP ${hp} / ${S.hpMax}` : `剩余 ${p.hp.filter(h => h > 0).length} / ${TEAM_SIZE} 只`;
+      el.querySelector(".hpnum").textContent = pet ? `HP ${hp} / ${S.hpMax}` :
+        tr("battle.hpLeft", {n: p.hp.filter(h => h > 0).length, total: TEAM_SIZE});
 
       const badges = [];
-      if (p.burn) badges.push(`🔥 灼烧 ×${p.burn}`);
-      if (p.shield) badges.push("🛡 护盾");
-      badges.push(p.cd ? `技能冷却 ${p.cd}` : "技能就绪");
+      if (p.burn) badges.push(tr("battle.badge.burn", {n: p.burn}));
+      if (p.shield) badges.push(tr("battle.badge.shield"));
+      badges.push(p.cd ? tr("battle.badge.cd", {n: p.cd}) : tr("battle.badge.ready"));
       el.querySelector(".badges").innerHTML = badges.map(b => `<span class="badge">${esc(b)}</span>`).join("");
 
       el.querySelectorAll(".mini").forEach(m => {
@@ -882,7 +1193,7 @@
         m.classList.toggle("pickable", S.switching === i ? canSwitchTo(i, k) :
           ph === "sendout" && S.waiting.includes(i) && h > 0);
         m.querySelector(".mhp i").style.width = (h / S.hpMax * 100) + "%";
-        m.querySelector(".mnum").textContent = h === 0 ? "倒下" : h;
+        m.querySelector(".mnum").textContent = h === 0 ? tr("battle.mini.fainted") : h;
       });
 
       const labels = padLabels(i);
@@ -896,32 +1207,28 @@
 
     const a = att(), d = dfn();
     const kbd = k => `<kbd class="mono">${esc(k)}</kbd>`;
-    const keyList = i => PLAYERS[i].keys.map(kbd).join("/");
     let prompt = "";
     if (ph === "sendout") {
-      const status = [0, 1].filter(i => S.waiting.includes(i) || S.pending[i] !== null)
-        .map(i => `${pName(i)}：${S.waiting.includes(i) ? `按 ${keyList(i)} 选择` : "✓ 已选好"}`).join("<br>");
+      // Who still has to pick shows on the fighter cards
       const first = S.round === 1 && pl(0).active === null && pl(1).active === null;
-      prompt = `<span>${first ? `暗中选择出场宠物（先手：${pName(S.turn)}）` : "宠物倒下了，选择下一只"}<br>${status}</span>`;
+      prompt = `<span>${first ? tr("battle.prompt.firstPick", {p: pName(S.turn)}) : tr("battle.prompt.nextPick")}</span>`;
     } else if (ph === "resolve") {
       prompt = `<span>${S.event}</span>`;
     } else if (ph === "ready" && S.switching === a) {
       const keys = PETS.map((_, k) => k).filter(k => canSwitchTo(a, k)).map(k => kbd(PLAYERS[a].keys[k])).join("/");
-      prompt = `<span>${pName(a)} 换宠物：按 ${keys} 或点宠物选择换上谁（用掉这一回合，灼烧和护盾随旧宠物消失）<br>` +
-        `<span class="muted">按 ${kbd(PLAYERS[a].keys[3])} 取消</span></span>`;
+      prompt = `<span>${tr("battle.prompt.switch", {p: pName(a), keys, k: kbd(PLAYERS[a].keys[3])})}</span>`;
     } else if (ph === "ready") {
-      prompt = `<span>${pName(a)} 的 ${petName(a)} 进攻：按 ${kbd(PLAYERS[a].keys[0])} 开始攻击测试` +
-        (pl(a).cd ? `（技能冷却中）` : `；或按 ${kbd(PLAYERS[a].keys[2])} 使用「${esc(activePet(a).skill)}」`) +
-        (canSwitch(a) ? `；按 ${kbd(PLAYERS[a].keys[3])} 换宠物` : "") + `</span>`;
+      const k = PLAYERS[a].keys.map(kbd);
+      const opts = [tr("battle.opt.attack", {k: k[0]})];
+      if (!pl(a).cd) opts.push(tr("battle.opt.skill", {k: k[2], skill: esc(activePet(a).skill)}));
+      if (canSwitch(a)) opts.push(tr("battle.opt.switch", {k: k[3]}));
+      prompt = `<span>${tr("battle.prompt.ready", {p: pName(a), opts: opts.join(" · ")})}</span>`;
     } else if (ph === "trial") {
-      prompt = `<span>按住 ${kbd(PLAYERS[a].keys[0])} 指针右移，松开左移，让它一直待在光带里（共 3 层，一层比一层快）<br>` +
-        `<span class="muted">≥${P.tierStrong} 分强力一击，≥${P.tierUlt} 分全力一击</span></span>`;
+      prompt = `<span>${tr("battle.prompt.trial", {k: kbd(PLAYERS[a].keys[0])})}</span>`;
     } else if (ph === "defending") {
-      const A = S.atk;
-      prompt = `<span>${pName(d)} 连续格挡 ${A.hits} 次！光标到绿色区域按 ${kbd(PLAYERS[d].keys[1])}<br>` +
-        `<span class="muted">${TIER_NAMES[A.tier]} · 来袭 ${A.damage} 点</span>${effectHtml(A.typePct)}</span>`;
+      prompt = `<span>${tr("battle.prompt.defend", {k: kbd(PLAYERS[d].keys[1]), n: S.atk.hits})}</span>`;
     } else if (ph === "over") {
-      prompt = `<span>🏆 ${pName(S.winner)} 获胜！按 ${kbd(PLAYERS[0].keys[0])} 或 ${kbd(PLAYERS[1].keys[0])} 再来一局（${esc(PLAYERS[1 - S.winner].name)} 先手）</span>`;
+      prompt = `<span>${tr("battle.prompt.over", {p: pName(S.winner), k0: kbd(PLAYERS[0].keys[0]), k1: kbd(PLAYERS[1].keys[0])})}</span>`;
     }
     $("#prompt").innerHTML = prompt;
     $("#round").textContent = S.round;

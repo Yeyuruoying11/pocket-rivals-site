@@ -425,3 +425,15 @@ a.btn.primary { color: #fff; }
 @media (max-width: 560px) {
   .rv-summary { grid-template-columns: 1fr; }
 }
+
+/* ---------------- i18n: battle ---------------- */
+/* English pad labels are whole words ("Attack", "Shield") that can't break
+   between characters like Chinese ones, so on phones the pad grid would
+   overflow the fighter card. Give the pad the room the phone rules above
+   intend (they come before the base .fighter / .pad rules, so they don't
+   apply) and a slightly smaller label. */
+@media (max-width: 760px) {
+  html[lang="en"] .fighter { padding: 10px 6px; }
+  html[lang="en"] .pad { gap: 4px; }
+  html[lang="en"] .pad button { font-size: 11px; padding: 8px 0; }
+}
