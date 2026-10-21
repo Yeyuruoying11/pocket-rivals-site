@@ -452,7 +452,10 @@
     const top = topSpeed(c, P, t, kind, env, tn);
     const target = trunc(top * 256 * u / 100);
     const st = k => trunc(k * 256 * dt / 1000);   // px/s^2 -> 1/256 px/s per step
-    if (c.v < 0 && !ctl.brake) c.v = min(0, c.v + st(P.brake));
+    // brake held at a standstill or backwards = reversing (below); without
+    // this check "v < target -> accelerate" cancelled every reverse step
+    if (ctl.brake && c.v <= 0) { /* reversing */ }
+    else if (c.v < 0) c.v = min(0, c.v + st(P.brake));
     else if (c.v < target) c.v = min(target, c.v + st(P.accel));
     else if (c.v > target) {
       const over = grass && c.v > P.grassSpeed * 256;
