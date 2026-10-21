@@ -36,6 +36,11 @@ I18N.add({
     "app.stats.total": "共 {n} 项任务", "app.stats.total.one": "共 {n} 项任务",
     "app.stats.parts": "零件到手",
     "app.stats.toBuy": "还有 {n} 项待购买",
+    "app.arch.hw": "硬件", "app.arch.sw": "软件",
+    "app.arch.introSw": "软件按模块拆分，改一个功能只动一个文件（docs/modules.md）。点模块看文件、负责人和进度。",
+    "app.board.playerFw": "玩家板固件", "app.board.playerFwSub": "两块玩家板运行同一份固件",
+    "app.board.centralFw": "中央板固件", "app.board.centralFwSub": "规则和状态都在这里",
+    "app.board.shared": "共用模块与工具", "app.board.sharedSub": "两边共用的代码、测试和网页工具",
     "app.board.player": "玩家板",
     "app.board.playerN": "玩家板 {n}",
     "app.board.playerSub": "输入 · 显示 · 音效",
@@ -145,6 +150,11 @@ I18N.add({
     "app.stats.total": "{n} tasks in total", "app.stats.total.one": "{n} task in total",
     "app.stats.parts": "Parts in hand",
     "app.stats.toBuy": "{n} still to buy",
+    "app.arch.hw": "Hardware", "app.arch.sw": "Software",
+    "app.arch.introSw": "The software is split into modules so each feature lives in one file (docs/modules.md). Click a module for its file, owner and status.",
+    "app.board.playerFw": "Player firmware", "app.board.playerFwSub": "Both player boards run the same firmware",
+    "app.board.centralFw": "Central firmware", "app.board.centralFwSub": "Rules and game state live here",
+    "app.board.shared": "Shared modules & tools", "app.board.sharedSub": "Code both sides use, tests and web tools",
     "app.board.player": "Player board",
     "app.board.playerN": "Player board {n}",
     "app.board.playerSub": "Input · display · audio",
@@ -277,6 +287,7 @@ const updateArea = u => areaName(L(u, "area"));
 
 const state = {
   member: store.get("pr.member") || "",
+  archView: store.get("pr.archView") === "sw" ? "sw" : "hw",
   group: "",
   onlyNow: false,
   partFilter: "",
@@ -407,7 +418,28 @@ function renderStats() {
       <div class="s">${esc(tr("app.stats.toBuy", {n: toBuy}))}</div></div>`;
 }
 
+const STATUS_MARK = {done: "✓", doing: "…", todo: "○"};
+
+function renderArchSoftware() {
+  const sw = D.status.software;
+  const comp = (c, sec) => {
+    const dim = state.member && c.owner !== state.member && c.owner !== "all";
+    return `<button class="comp st-${c.status}${dim ? " dim" : ""}" data-comp="sw-${sec}:${c.id}">
+      <span class="dot" style="--c:${memberColor(c.owner)}"></span>${esc(L(c, "name"))}<span class="if">${STATUS_MARK[c.status] || ""}</span></button>`;
+  };
+  const board = (sec, title, sub, cls = "") => `<div class="board ${cls}"><h4>${esc(tr(title))}</h4><div class="sub">${esc(tr(sub))}</div>
+    <div class="comps">${sw[sec].map(c => comp(c, sec)).join("")}</div></div>`;
+  const link = `<div class="link"><span class="packet"></span><span class="packet back"></span></div>`;
+  $("#arch").innerHTML = board("player", "app.board.playerFw", "app.board.playerFwSub") + link +
+    board("central", "app.board.centralFw", "app.board.centralFwSub", "central") +
+    board("shared", "app.board.shared", "app.board.sharedSub", "shared");
+}
+
 function renderArch() {
+  $$("#arch-view [data-view]").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === state.archView));
+  $("#arch").classList.toggle("sw", state.archView === "sw");
+  $("#arch-detail").innerHTML = `<span class="muted">${esc(tr(state.archView === "sw" ? "app.arch.introSw" : "app.overview.archIntro"))}</span>`;
+  if (state.archView === "sw") return renderArchSoftware();
   const comp = (c, board) => {
     const dim = state.member && c.owner !== state.member && c.owner !== "all";
     return `<button class="comp${dim ? " dim" : ""}" data-comp="${board}:${c.id}">
@@ -426,11 +458,21 @@ $("#arch").addEventListener("click", e => {
   const b = e.target.closest("[data-comp]");
   if (!b) return;
   const [board, id] = b.dataset.comp.split(":");
-  const c = D.status.components[board].find(x => x.id === id);
+  const sw = board.startsWith("sw-");
+  const c = sw ? D.status.software[board.slice(3)].find(x => x.id === id) : D.status.components[board].find(x => x.id === id);
   $$(".comp").forEach(x => x.classList.toggle("sel", x.dataset.comp === b.dataset.comp));
-  $("#arch-detail").innerHTML = `<b>${esc(L(c, "name"))}</b><span class="tag">${esc(c.iface)}</span>
+  const tag = sw ? `<span class="tag mono">${esc(c.file)}</span><span class="tag">${esc(tr("app.task." + c.status))}</span>` : `<span class="tag">${esc(c.iface)}</span>`;
+  $("#arch-detail").innerHTML = `<b>${esc(L(c, "name"))}</b>${tag}
     <span class="muted" style="margin-left:8px">${esc(tr("app.owner", {name: ownerFull(c.owner)}))}</span>
     <div style="margin-top:6px">${esc(L(c, "detail"))}</div>`;
+});
+
+$("#arch-view").addEventListener("click", e => {
+  const b = e.target.closest("[data-view]");
+  if (!b || b.dataset.view === state.archView) return;
+  state.archView = b.dataset.view;
+  store.set("pr.archView", state.archView);
+  renderArch();
 });
 
 function renderTeam() {

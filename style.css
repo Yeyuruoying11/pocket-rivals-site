@@ -160,6 +160,12 @@ h2 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 
 .comp .if { font-size: 11px; color: var(--muted); }
 .comp:hover, .comp.sel { border-color: var(--ink); }
 .comp.dim { opacity: .3; }
+.arch-view { margin-bottom: 12px; }
+.arch.sw { grid-template-columns: 1fr 70px 1fr; row-gap: 12px; }
+.arch.sw .board.shared { grid-column: 1 / -1; }
+.comp.st-done .if { color: var(--done); }
+.comp.st-doing .if { color: var(--doing); }
+.comp.st-todo { border-style: dashed; }
 .link { position: relative; height: 2px; background: repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 11px); margin: 0 6px; }
 .link::after { content: "802.15.4"; position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
 .packet { position: absolute; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: fly 1.8s linear infinite; }
@@ -171,6 +177,7 @@ h2 small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 
 
 @media (max-width: 760px) {
   .arch { grid-template-columns: 1fr; }
+  .arch.sw { grid-template-columns: 1fr; }
   .link { height: 44px; width: 2px; margin: 6px auto; background: repeating-linear-gradient(180deg, var(--muted) 0 6px, transparent 6px 11px); }
   .link::after { top: 50%; left: 10px; transform: translateY(-50%); }
   .packet { left: -4px !important; animation-name: flyv; }

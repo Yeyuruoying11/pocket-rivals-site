@@ -564,5 +564,181 @@
         }
       }
     ]
+  },
+  "software": {
+    "player": [
+      {
+        "id": "input",
+        "name": "输入 driver",
+        "file": "lib/input.c · joystick.c · buttons.c · fsr.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "读摇杆（I2C）、按钮（去抖）、压力垫（ADC），合成一份输入快照；外设都可选，光板子也能玩。还没上板实测。",
+        "en": {
+          "name": "Input driver",
+          "detail": "Reads the joystick (I2C), buttons (debounced) and pressure pad (ADC), and assembles an input snapshot. Every peripheral is optional, so the bare board is still playable. Not yet tested on hardware."
+        }
+      },
+      {
+        "id": "controls",
+        "name": "按键含义",
+        "file": "lib/controls.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "唯一知道“哪个键做什么”的模块：把输入变成意图（确认、下一只、攻击、格挡、换宠物），摇杆选宠物，压力垫或按住 A 控制指针。",
+        "en": {
+          "name": "Controls",
+          "detail": "The only module that knows which button does what: turns input into intents (confirm, next pet, attack, block, switch pet), with the joystick selecting pets and the pressure pad or holding A steering the pointer."
+        }
+      },
+      {
+        "id": "trial",
+        "name": "攻击测试",
+        "file": "lib/trial.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "三层越来越快的追踪光带：光带位置只由种子和时间决定，和网页原型逐点一致；按在带内的时间比例给分。",
+        "en": {
+          "name": "Attack trial",
+          "detail": "Three tracking stages, each faster than the last: the band's position depends only on the seed and time, matching the web prototype point for point; the score is the share of time the pointer stays inside the band."
+        }
+      },
+      {
+        "id": "pcore",
+        "name": "玩家协议",
+        "file": "lib/player_core.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "把意图变成带 step_id 的动作，重发直到收到 ACK；防守时在本机计时连续格挡，不受无线延迟影响。",
+        "en": {
+          "name": "Player protocol",
+          "detail": "Turns intents into actions tagged with a step_id and resends until an ACK arrives; while defending it counts chained blocks locally, so wireless latency has no effect."
+        }
+      },
+      {
+        "id": "screen",
+        "name": "屏幕与界面",
+        "file": "TFT driver · UI（规划中）",
+        "owner": "harvey",
+        "status": "todo",
+        "detail": "ST7735S driver、16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；界面按 docs/ui-design.md 分 T0–T3 逐步实现。",
+        "en": {
+          "name": "Screen and UI",
+          "detail": "ST7735S driver, 16-color 4 bpp double buffering, refreshing only the 8×8 blocks that changed; the UI follows docs/ui-design.md, implemented stage by stage from T0 to T3."
+        }
+      },
+      {
+        "id": "sound",
+        "name": "音效",
+        "file": "DFPlayer（规划中）",
+        "owner": "harvey",
+        "status": "todo",
+        "detail": "DFPlayer 放音效；板载喇叭放界面音和节奏音。",
+        "en": {
+          "name": "Sound effects",
+          "detail": "DFPlayer plays the sound effects; the onboard speaker handles UI sounds and rhythm beats."
+        }
+      }
+    ],
+    "central": [
+      {
+        "id": "ccore",
+        "name": "中央协议",
+        "file": "lib/central_core.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "管理两块玩家板的连接，回 ACK，每 100 ms 广播一次完整状态；1 s 收不到玩家消息就暂停。",
+        "en": {
+          "name": "Central protocol",
+          "detail": "Manages the connection to both player boards, sends ACKs, and broadcasts the full state every 100 ms; pauses if no player message arrives for 1 s."
+        }
+      },
+      {
+        "id": "game",
+        "name": "回合状态机",
+        "file": "lib/game.c",
+        "owner": "binqi",
+        "status": "done",
+        "detail": "唯一可信的游戏状态：派出、回合、防守、结算、倒下、胜负、暂停、再来一局。",
+        "en": {
+          "name": "Round state machine",
+          "detail": "The single source of truth for game state: send out, round, defense, resolution, fainted, win or lose, pause, rematch."
+        }
+      },
+      {
+        "id": "rules",
+        "name": "规则与宠物",
+        "file": "lib/rules.c · skills.c · pets.c",
+        "owner": "binqi",
+        "status": "done",
+        "detail": "伤害、格挡、护盾公式（纯数字函数），三只宠物的技能和属性相克；数值都在 game_config.h。",
+        "en": {
+          "name": "Rules and pets",
+          "detail": "Damage, block and shield formulas (pure numeric functions), the three pets' skills and type matchups; all values live in game_config.h."
+        }
+      }
+    ],
+    "shared": [
+      {
+        "id": "radio",
+        "name": "无线收发",
+        "file": "lib/radio_link.c · protocol.h",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "802.15.4 广播帧 + 发送队列；协议 v5：中央板发完整快照，玩家发带 step_id 的动作，重复和过期的包自动忽略。",
+        "en": {
+          "name": "Radio link",
+          "detail": "802.15.4 broadcast frames plus a send queue; protocol v5: the central board sends full snapshots, players send actions tagged with a step_id, and duplicate or stale packets are ignored automatically."
+        }
+      },
+      {
+        "id": "tests",
+        "name": "测试与模拟器",
+        "file": "software/test",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "约 7000 项单元测试，加上丢包模拟器（0% / 30% / 60% 丢包下打完整局）和终端版对战 play.c。",
+        "en": {
+          "name": "Tests and simulator",
+          "detail": "About 7000 unit tests, plus a packet-loss simulator (full games at 0% / 30% / 60% loss) and a terminal battle program, play.c."
+        }
+      },
+      {
+        "id": "radiotest",
+        "name": "无线测试固件",
+        "file": "apps/radio_test",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "两块板互发，每秒报告丢包、往返延迟和信号强度，配 docs/hardware-test.md 上板清单。",
+        "en": {
+          "name": "Radio test firmware",
+          "detail": "Two boards exchange packets and report packet loss, round-trip latency and signal strength every second, with an on-hardware checklist in docs/hardware-test.md."
+        }
+      },
+      {
+        "id": "webproto",
+        "name": "网页对战原型",
+        "file": "battle.js",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "和固件规则完全一致的网页对战，滑块调参后可以导出 game_config.h。",
+        "en": {
+          "name": "Battle prototype",
+          "detail": "A web battle with rules identical to the firmware; tune values with sliders and export game_config.h."
+        }
+      },
+      {
+        "id": "sim",
+        "name": "掌机模拟器",
+        "file": "device.html",
+        "owner": "yihao",
+        "status": "doing",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板；底座已上线，三个模式和各个界面正在实现。",
+        "en": {
+          "name": "Handheld simulator",
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser; the base is live and the three modes and their screens are being implemented."
+        }
+      }
+    ]
   }
 }

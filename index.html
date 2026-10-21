@@ -52,6 +52,10 @@
 
     <h2><span data-i18n="app.overview.arch">系统架构</span> <small data-i18n="app.overview.archHint">点击任意模块查看详情</small></h2>
     <div class="card">
+      <div class="row arch-view" id="arch-view">
+        <button class="chip" data-view="hw" data-i18n="app.arch.hw">硬件</button>
+        <button class="chip" data-view="sw" data-i18n="app.arch.sw">软件</button>
+      </div>
       <div class="arch" id="arch"></div>
       <div class="detail" id="arch-detail"><span class="muted" data-i18n="app.overview.archIntro">两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。</span></div>
     </div>
