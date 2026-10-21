@@ -559,49 +559,5 @@
       ui.hintBar(g, ctx, [["B", "dev.ui.back"], ["M", "dev.conn.hintSetup"]]);
     },
   });
-
-  // S09: language (switches and restarts), pad, calibrate, channel
-  const PAD = ["auto", "on", "off"];
-  const setRows = ctx => [
-    {label: ctx.t("dev.set.lang"), value: I18N.lang === "en" ? "English" : "中文", arrows: true},
-    {label: ctx.t("dev.set.pad"), value: ctx.t("dev.set." + ctx.settings.pad), arrows: true},
-    {label: ctx.t("dev.set.calibrate"), value: "{R}"},
-    {label: ctx.t("dev.set.channel"), value: String(ctx.settings.channel), arrows: true},
-  ];
-  D.stubScreen("settings", {
-    local: true,
-    enter(ctx) { ctx.s.sel = 0; },
-    lines: () => [],
-    art(ctx, g) {
-      ui.list(g, 0, 30, 128, setRows(ctx), ctx.s.sel);
-      if (ctx.s.sel === 0) g.text(4, 100, ctx.t("dev.set.langNote"), {w: 120, c: "muted"});
-    },
-    hints: [["A", "dev.ui.ok"], ["B", "dev.ui.back"]],
-    input(ctx, ev) {
-      if (down(ev) && (ev.btn === "UP" || ev.btn === "DOWN")) { ctx.s.sel = (ctx.s.sel + (ev.btn === "UP" ? 3 : 1)) % 4; ctx.sfx("ui_move"); return; }
-      if (down(ev) && (ev.btn === "LEFT" || ev.btn === "RIGHT")) {
-        const d = ev.btn === "LEFT" ? -1 : 1;
-        if (ctx.s.sel === 0) ctx.setLanguage(otherLang());
-        if (ctx.s.sel === 1) ctx.saveSettings({pad: PAD[(PAD.indexOf(ctx.settings.pad) + d + 3) % 3]});
-        if (ctx.s.sel === 3) ctx.saveSettings({channel: 11 + ((ctx.settings.channel - 11 + d + 16) % 16)});
-        ctx.sfx("ui_move");
-        return;
-      }
-      if (ev.btn === "A" && ev.type === "down" && ctx.s.sel === 2) { ctx.sfx("ui_ok"); ctx.go("settings.cal"); }
-      if ((ev.btn === "B" && ev.type === "down") || (ev.btn === "MENU" && ev.type === "click")) { ctx.sfx("ui_back"); ctx.back(); }
-    },
-    bot(ctx, ctl) { if (!ctx.s.botDone) { ctx.s.botDone = true; ctl.press("B"); } },
-  });
-
-  // S10: live raw reading and pad level
-  D.stubScreen("settings.cal", {
-    local: true,
-    enter(ctx) { ctx.s.pad = D.padLevel.create(); ctx.s.level = 0; },
-    tick(ctx, dt) { ctx.s.level = ctx.padLevel(ctx.s.pad, dt); },
-    lines: ctx => [["dev.set.calTitle"], ctx.t("dev.set.calRaw") + " " + ctx.input.raw.fsr, "P " + ctx.input.pressure + "  L " + ctx.s.level + "%"],
-    art(ctx, g) { ui.bandBar(g, 3, 80, 122, 14, {center: 52, width: 24, level: ctx.s.level, inside: Math.abs(ctx.s.level - 52) <= 12}); },
-    hints: [["B", "dev.ui.back"]],
-    input(ctx, ev) { if (ev.btn === "B" && ev.type === "down") { ctx.sfx("ui_back"); ctx.back(); } },
-    bot(ctx, ctl) { if (!ctx.s.botDone) { ctx.s.botDone = true; ctl.press("B"); } },
-  });
+  // S09 settings and S10 calibrate live in screens-menu.js.
 })();

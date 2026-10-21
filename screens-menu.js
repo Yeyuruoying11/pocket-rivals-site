@@ -5,10 +5,6 @@
 // (round 2) S09 settings + S10 calibrate. Spec: docs/ui-design.md §1.3,
 // §3, §4.4-4.6, §4.11-4.13, §7.6-7.7, §8.3. API: the header of device-core.js.
 //
-// S09 / S10 were stubs in screens-boot-login.js (step 0, "owned by a later
-// step"). Screen ids cannot be registered twice, so this file (loaded after
-// it) takes those two ids over from the registry. On merge, delete the two
-// stubs there; the take-over below then becomes a plain registration.
 (() => {
   "use strict";
   const D = window.DEVICE, ui = D.ui, C = D.C, A = C.ACT, LB = C.LOBBY, SEV = C.SEV, PR = C.PRESENCE;
@@ -823,9 +819,6 @@
   });
 
   /* ============================== S09 settings ============================== */
-
-  // take the two ids over from the step-0 stubs (see the header)
-  for (const id of ["settings", "settings.cal"]) if (D.registry.screens[id]) delete D.registry.screens[id];
 
   const PADS = ["auto", "on", "off"];
   function settingRows(ctx) {
