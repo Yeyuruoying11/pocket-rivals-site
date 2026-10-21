@@ -837,18 +837,6 @@
           "name": "Font tool",
           "detail": "Cuts the few hundred Chinese characters and English letters actually used in the interface from the open-source pixel font Fusion Pixel 12px (OFL) to generate the simulator font and, later, a C font for the firmware."
         }
-      },
-      {
-        "id": "deepseek",
-        "name": "DeepSeek 助手",
-        "file": "tools/ds.py",
-        "owner": "yihao",
-        "status": "done",
-        "detail": "把翻译、总结、生成测试数据这类便宜的活交给 DeepSeek，节约 Claude 额度；每次调用和结果质量都有记录（docs/deepseek-log.md）。",
-        "en": {
-          "name": "DeepSeek assistant",
-          "detail": "Hands cheap work like translation, summarization, and generating test data to DeepSeek to save Claude quota; every call and its result quality are logged (docs/deepseek-log.md)."
-        }
       }
     ]
   }
