@@ -1746,8 +1746,12 @@
       }
     }
   }
+  // (x1 <= x0 must return: a rect wholly left of the screen gives a negative
+  // end index, and TypedArray.fill counts that from the END of the buffer —
+  // an arch post far to the left once painted the whole frame muted)
   const fillB = (back, x, y, w, h, c, cl) => {
     const x0 = max(x, 0), y0 = max(y, cl ? cl.y0 : 0), x1 = min(x + w, SW), y1 = min(y + h, cl ? cl.y1 : SH);
+    if (x1 <= x0) return;
     for (let yy = y0; yy < y1; yy++) back.fill(c, yy * SW + x0, yy * SW + x1);
   };
 
