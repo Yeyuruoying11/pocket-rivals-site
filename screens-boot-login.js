@@ -309,7 +309,10 @@
 
   const nameDone = ctx => {
     const pa = params(ctx);
-    if (!pa.draft.name) { ctx.sfx("ui_deny"); ctx.toast("dev.login.nameEmpty"); return; }
+    if (!pa.draft.name) { ctx.sfx("ui_deny"); ctx.toast("dev.login.nameEmpty"); ctx.local.nameEmptyAt = ctx.now(); return; }
+    // the "Name is empty" toast must not follow onto the avatar grid
+    if (ctx.local.nameEmptyAt != null && ctx.now() - ctx.local.nameEmptyAt < D.C.TOAST_MS) ctx.toast("dev.login.nameEmpty", null, 0);
+    ctx.local.nameEmptyAt = null;
     ctx.sfx("ui_ok");
     if (pa.flow === "new") ctx.go("login.avatar", pa);
     else { saveField(ctx, pa, "name"); ctx.back(); }

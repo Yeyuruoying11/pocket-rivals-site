@@ -1264,8 +1264,9 @@
       drawArt(g, c2, x, y) {
         const pl = st.players[me], now = c2.now();
         for (let i = 0; i < 3; i++) {
-          const up = pl.hp[i] > 0 && Math.floor(now / 250 + i) % 2 === 0 ? 2 : 0;
-          g.sprite(D.PETS[i].sprite, x + 22 + i * 28, y - up, {scale: 2, color: pl.hp[i] > 0 ? null : "line"});
+          // the 2x title ends at y 41 and the avatars start at y 64: hop down 1 px, never into the title
+          const hop = pl.hp[i] > 0 && Math.floor(now / 250 + i) % 2 === 0 ? 1 : 0;
+          g.sprite(D.PETS[i].sprite, x + 22 + i * 28, y + hop, {scale: 2, color: pl.hp[i] > 0 ? null : "line"});
         }
       },
       rows: [

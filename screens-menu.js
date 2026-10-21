@@ -629,7 +629,12 @@
     input(ctx, ev) {
       if (ctx.s.ask) {
         if (!isDown(ev)) return;
-        if (ev.btn === "A") { const a = ctx.s.ask; ctx.s.ask = null; ctx.rt(a.action, a.arg | 0); ctx.sfx("ui_ok"); }
+        if (ev.btn === "A") {
+          const a = ctx.s.ask; ctx.s.ask = null; ctx.rt(a.action, a.arg | 0); ctx.sfx("ui_ok");
+          // §4.11: a mode item ("Retry room") goes on playing afterwards; the
+          // session still refuses while the rival is in the settings subpage
+          if (a.resume) ctx.rt(A.PAUSE, 0);
+        }
         else if (ev.btn === "B") { ctx.s.ask = null; ctx.sfx("ui_back"); }
         return;
       }
@@ -660,7 +665,7 @@
       const it = items[ctx.s.sel];
       if (it.id === "resume") resume();
       else if (it.id === "settings") { ctx.s.sub = true; ctx.s.subSel = 0; ctx.setPresence(PR.SETTINGS); ctx.sfx("ui_ok"); }
-      else { ctx.s.ask = {confirmKey: it.confirmKey || "dev.ov.quitAsk", action: it.action, arg: it.arg}; ctx.sfx("ui_ok"); }
+      else { ctx.s.ask = {confirmKey: it.confirmKey || "dev.ov.quitAsk", action: it.action, arg: it.arg, resume: it.id === "mode"}; ctx.sfx("ui_ok"); }
     },
     // §8.3: the rival's pause: do nothing; my own: B resumes
     bot(ctx, ctl) {
@@ -851,7 +856,8 @@
   }
   D.registerScreen("settings", {
     local: true, fps: 10,
-    enter(ctx) { ctx.s.sel = 0; ctx.s.view = "list"; },
+    // coming back from calibrate / edit profile keeps the cursor on that row
+    enter(ctx) { ctx.s.sel = ctx.local.settingsSel || 0; ctx.local.settingsSel = 0; ctx.s.view = "list"; },
     draw(ctx, g) {
       if (ctx.s.view === "about") return drawAbout(ctx, g);
       ui.topBar(g, ctx, "dev.set.title", {signal: false});
@@ -894,11 +900,11 @@
       }
       if (!isDown(ev)) return;
       if (ev.btn === "A") {
-        if (row.id === "cal") { ctx.sfx("ui_ok"); ctx.go("settings.cal"); }
+        if (row.id === "cal") { ctx.sfx("ui_ok"); ctx.local.settingsSel = ctx.s.sel; ctx.go("settings.cal"); }
         else if (row.id === "about") { ctx.sfx("ui_ok"); ctx.s.view = "about"; ctx.fx.wipe(); }
         else if (row.id === "profile") {
           const cur = ctx.profiles.current();
-          if (cur && D.registry.screens["login.edit"]) { ctx.sfx("ui_ok"); ctx.go("login.edit", {slot: cur.slot}); }
+          if (cur && D.registry.screens["login.edit"]) { ctx.sfx("ui_ok"); ctx.local.settingsSel = ctx.s.sel; ctx.go("login.edit", {slot: cur.slot}); }
           else ctx.sfx("ui_deny");
         } else if (settingChange(ctx, row, 1, true)) ctx.sfx("ui_ok");
       } else if (ev.btn === "SKILL") {
