@@ -26,7 +26,7 @@
       "dev.login.guest": "访客", "dev.login.guestSub": "快速开始", "dev.login.lang": "{M} English",
       "dev.login.hintGo": "进入", "dev.login.hintEdit": "编辑", "dev.login.editTitle": "编辑资料",
       "dev.login.rename": "改名字", "dev.login.reavatar": "换头像", "dev.login.recolor": "换颜色", "dev.login.delete": "删除资料",
-      "dev.login.deleteAsk": "删除{name}？", "dev.login.deleteHold": "按住{A}",
+      "dev.login.deleteAsk": "删除{name}？",
       "dev.login.nameTitle": "名字", "dev.login.nameTip": "{S}随机 最多6位", "dev.login.nameEmpty": "名字不能为空",
       "dev.login.hintAdd": "输入", "dev.login.hintDel": "删除", "dev.login.hintOk": "完成", "dev.login.hintRnd": "随机",
       "dev.login.avatarTitle": "头像", "dev.login.colorTitle": "颜色", "dev.login.avatarNote": "只是外观",
@@ -37,7 +37,7 @@
       "dev.login.guest": "GUEST", "dev.login.guestSub": "quick play", "dev.login.lang": "{M} 中文",
       "dev.login.hintGo": "Go", "dev.login.hintEdit": "Edit", "dev.login.editTitle": "EDIT PROFILE",
       "dev.login.rename": "Rename", "dev.login.reavatar": "Avatar", "dev.login.recolor": "Color", "dev.login.delete": "Delete",
-      "dev.login.deleteAsk": "Delete {name}?", "dev.login.deleteHold": "Hold {A}",
+      "dev.login.deleteAsk": "Delete {name}?",
       "dev.login.nameTitle": "NAME", "dev.login.nameTip": "{S} random, max 6", "dev.login.nameEmpty": "Name is empty",
       "dev.login.hintAdd": "Add", "dev.login.hintDel": "Del", "dev.login.hintOk": "OK", "dev.login.hintRnd": "Rand",
       "dev.login.avatarTitle": "AVATAR", "dev.login.colorTitle": "COLOR", "dev.login.avatarNote": "Looks only",
@@ -228,17 +228,10 @@
 
   D.registerScreen("login.edit", {
     local: true,
-    enter(ctx) { ctx.s.sel = params(ctx).sel || 0; ctx.s.ask = false; },   // the cursor survives a sub-page
+    enter(ctx) { ctx.s.sel = params(ctx).sel || 0; },   // the cursor survives a sub-page
     input(ctx, ev) {
       const pa = params(ctx), pr = ctx.profiles.list()[pa.slot];
       if (!pr) { ctx.back(); return; }
-      if (ctx.s.ask) {
-        // delete: hold A 1 s (tick checks), B cancels
-        if (ev.btn === "A" && ev.type === "down") ctx.s.holdT0 = ctx.now();
-        if (ev.btn === "A" && ev.type === "up") ctx.s.holdT0 = null;
-        if (ev.btn === "B" && ev.type === "down") { ctx.sfx("ui_back"); ctx.s.ask = false; ctx.s.holdT0 = null; }
-        return;
-      }
       if (noJoy(ctx)) {
         const r = noJoyNav(ctx, ev, EDIT_ITEMS.length, ctx.s.sel);
         if (r && r.sel != null) ctx.s.sel = r.sel;
@@ -253,20 +246,16 @@
         pa.sel = ctx.s.sel;
         ctx.sfx("ui_ok");
         if (id) ctx.go(id, {slot: pa.slot, flow: "edit", draft: {name: pr.name, avatar: pr.avatar, color: pr.color}});
-        else { ctx.s.ask = true; ctx.s.holdT0 = null; }
+        else {
+          // delete: the shared confirm box (ov.confirm), hold A 1 s, B cancels
+          const slot = pa.slot;
+          ctx.confirm({textKey: "dev.login.deleteAsk", vars: {name: pr.name}, holdMs: 1000, c: "danger", onYes: () => {
+            if (ctx.local.loginRow === "slot" + slot) ctx.local.loginRow = null;
+            ctx.back();
+            ctx.profiles.remove(slot);
+          }});
+        }
       } else if (ev.btn === "B" && ev.type === "down") { ctx.sfx("ui_back"); ctx.back(); }
-    },
-    tick(ctx) {
-      if (!ctx.s.ask || ctx.s.holdT0 == null) return;
-      if (!ctx.input.a) { ctx.s.holdT0 = null; return; }
-      if (ctx.now() - ctx.s.holdT0 >= 1000) {
-        const slot = params(ctx).slot;
-        ctx.s.ask = false; ctx.s.holdT0 = null;
-        ctx.sfx("ui_back");
-        if (ctx.local.loginRow === "slot" + slot) ctx.local.loginRow = null;
-        ctx.back();
-        ctx.profiles.remove(slot);
-      }
     },
     draw(ctx, g) {
       ui.topBar(g, ctx, "dev.login.editTitle");
@@ -276,18 +265,7 @@
       g.text(32, 16, pr.name, {w: 90});
       g.text(32, 28, ctx.t("dev.login.wins", {n: pr.wins || 0}), {w: 90, c: "muted"});
       ui.list(g, 0, 44, 128, EDIT_ITEMS.map(([k], i) => ({label: ctx.t(k), disabled: false})), ctx.s.sel);
-      if (ctx.s.ask) {
-        ui.dim(g);
-        ui.panel(g, 4, 56, 120, 60);
-        g.text(64, 62, ctx.t("dev.login.deleteAsk", {name: pr.name}), {align: "c", w: 112, c: "danger", key: "dev.login.deleteAsk"});
-        g.text(64, 78, ctx.t("dev.login.deleteHold"), {align: "c", w: 112, key: "dev.login.deleteHold"});
-        const f = ctx.s.holdT0 == null ? 0 : Math.min(1, (ctx.now() - ctx.s.holdT0) / 1000);
-        g.frame(14, 98, 100, 8, "line");
-        if (f > 0) g.rect(15, 99, Math.round(98 * f), 6, "danger");
-        ui.hintBar(g, ctx, [["A", "dev.ui.ok"], ["B", "dev.ui.back"]]);
-      } else {
-        ui.hintBar(g, ctx, noJoy(ctx) ? [["A", "dev.ui.ok"], ["B", "dev.ui.next"]] : [["A", "dev.ui.ok"], ["B", "dev.ui.back"]]);
-      }
+      ui.hintBar(g, ctx, noJoy(ctx) ? [["A", "dev.ui.ok"], ["B", "dev.ui.next"]] : [["A", "dev.ui.ok"], ["B", "dev.ui.back"]]);
     },
     bot(ctx, ctl) { if (!ctx.s.botDone) { ctx.s.botDone = true; ctl.press("B"); } },
   });
@@ -504,6 +482,10 @@
     if (!l) return false;
     return !!(l.flags & (ctx.p === 0 ? C.FLAG.P2_LINK : C.FLAG.P1_LINK));
   };
+  // [+] the rival as S06 shows it: its profile only while the central hears it.
+  // The lobby keeps a profile whose link is lost (S17 needs the name), so after
+  // the rival's E1 (or any lost link) this board would still say "Connected".
+  const linkedRival = ctx => rivalLinked(ctx) ? ctx.rival() : null;
   const card = (ctx, g, x, labelKey, pr, color) => {
     g.frame(x, 92, 56, 50, pr ? color : "line");
     g.text(x + 28, 92, ctx.t(labelKey), {align: "c", w: 52, c: "muted", key: labelKey});
@@ -518,21 +500,15 @@
   };
 
   D.registerScreen("connect", {
-    enter(ctx) { ctx.s.t0 = ctx.now(); ctx.s.hadRival = !!ctx.rival(); },
+    enter(ctx) { ctx.s.t0 = ctx.now(); ctx.s.hadRival = !!linkedRival(ctx); },
     tick(ctx) {
       if (!ctx.link.gotState) { if (ctx.s.gotState) { ctx.s.t0 = ctx.now(); ctx.s.gotState = false; } }
       else ctx.s.gotState = true;
-      const rival = ctx.rival();
+      const rival = linkedRival(ctx);
       if (rival && !ctx.s.hadRival) {
         ctx.sfx("rival_join");
-        // §2.2: same color -> P2 takes the next free one for now (guests only:
-        // the core has no per-match color override for a saved profile)
-        const cur = ctx.profiles.current(), me = ctx.me();
-        if (ctx.p === 1 && me && cur && cur.slot === "guest" && me.color === rival.color) {
-          const c = (me.color + 1) % 6;
-          ctx.profiles.select("guest", Object.assign({}, me, {color: c}));
-          ctx.toast("dev.login.colorClash", {c: colorName(ctx, c)});
-        }
+        // §2.2 same colour: the core gives P2 a per-match colour and shows the
+        // dev.login.colorClash toast (saved profiles and guests alike)
       }
       ctx.s.hadRival = !!rival;
     },
@@ -542,7 +518,7 @@
     },
     draw(ctx, g) {
       ui.topBar(g, ctx, "dev.conn.title", {right: "P" + (ctx.p + 1)});
-      const got = ctx.link.gotState, rival = ctx.rival();
+      const got = ctx.link.gotState, rival = linkedRival(ctx);
       const arcs = got ? 3 : Math.floor(ctx.now() / 300) % 4;
       drawRadio(g, 48, 22, arcs, got ? "grassLt" : "accent");
       let key, c = "white";

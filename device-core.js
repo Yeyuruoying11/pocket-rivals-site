@@ -26,6 +26,9 @@
 //   icons as {A} {B} {S} {M} {STICK} {PAD} {OK} {NO} {STAR} {L} {R} {UP} {DN}
 //   {DEL} {DICE} {GEAR}, never as ✓ ▶ ⚄ (lint "charset"). dev.page.* (HTML
 //   page text) is exempt. Placeholders are {name}; icon names are reserved.
+//   [+] Once device-font.js is loaded, a non-ASCII character that is not in it
+//   is linted "missingGlyph" (at start for every string, and when drawn):
+//   re-run software/tools/make_font.py.
 // DEVICE.registerSprites(prefix, {"adv.slime": {w, h, mirror, frames: [[rows]],
 //   map: {letter: paletteName}}})   rows = left halves when mirror; "." = clear;
 //   name must start with prefix; duplicate names throw; <= 15 colors.
@@ -204,9 +207,11 @@
 // ctx = {p, now(), gameNow(), g, input, hw: {caps: {joy, pad, snd}, invert(ms), shake()},
 //   lobby, state, stateAge(), link: {up, gotState, rxPerSec, helloAcked, inMode, match},
 //   rival(), settings, s, m, local, t(key, vars), rng: {int(n), float()},
-//   go(id, params), back(), confirm({textKey, vars, holdMs, onYes, onNo}),
+//   go(id, params), back(), confirm({textKey, vars, holdMs, c, onYes, onNo}) ([+] c = text colour),
 //   profiles: {list(), current(), select(slot, guestProfile), save(slot, profile),
 //     remove(slot), logout(), bumpStats({battleWins, bestLapCs, advStars}) -> {newBest}},
+//   [+] current() also carries matchColor: null, or the colour P2 plays this match
+//   in because its saved colour was the rival's (§2.2; me() / color() / HELLO use it)
 //   saveSettings(patch), setLanguage(lang), setHover(card),
 //   act(action, arg, data), rt(action, arg, data) -> bool, send(msgName, fields),
 //   sendInputNow(), padLevel(st, dt), sfx(id), tone(hz),
@@ -253,7 +258,8 @@
 //
 // DEVICE.ui: topBar(g, ctx, titleKey, {right, signal, title [+], vars [+], titleW [+]}),
 //   hintBar(g, ctx, [[icon, key, vars], ...], {disabled, blink}) (icon "A" "B" "S"
-//   "M" "STICK" "PAD" "LR" or null), list(g, x, y, w, items, sel, {rowH, disabled})
+//   "M" "STICK" "PAD" "LR" or null; [+] a cell after a full 30 px label moves 2 px
+//   right when its own label is <= 28 px), list(g, x, y, w, items, sel, {rowH, disabled})
 //   (items: string | {label, value, arrows, disabled}), hpBar(g, x, y, w, hp, max, {h}),
 //   petCard(g, x, y, petIdx, {hp, max, selected, fainted, hidden, scale, color, w, h}),
 //   avatar(g, x, y, profile, {scale}), signal(g, x, y, bars),
@@ -699,6 +705,9 @@
     else if (isAscii(ch)) gl = Object.assign({ox: 0, oy: M_ASCII[ch].full ? 0 : 1}, M_ASCII[ch]);
     else {
       if (!fontTable) lint("fallback", "font", "m font table not loaded: CJK drawn with canvas fillText");
+      // [+] the table is loaded but lacks this character: the firmware would draw a
+      // red box, so say so (the simulator still draws it with the system font)
+      else lint("missingGlyph", "font", {ch, note: "not in device-font.js: re-run make_font.py"});
       gl = canvasGlyph(ch);
       if (!gl) glyphMissing.add(ch);
     }
@@ -996,10 +1005,15 @@
     g.rect(0, 147, W, 13, "panel");
     g.hline(0, 146, W, "line");
     const cells = [2, 44, 86];
-    (items || []).slice(0, 3).forEach((it, i) => {
+    // [+] re-spacing: a label that fills its 30 px leaves only 3 px before the
+    // next icon; then that next cell (icon + label) moves 2 px right when its
+    // own label is at most 28 px, so the gap is 5 px ("Again {B}Menu")
+    const list = (items || []).slice(0, 3);
+    const tw = list.map(it => it ? measureText(g.hh, tr(ctx, it[1], it[2]), {}).w + (it[0] === "LR" ? 5 : 0) : 0);
+    list.forEach((it, i) => {
       if (!it) return;
       const [icon, key, vars] = it;
-      const x = cells[i];
+      const x = cells[i] + (i > 0 && list[i - 1] && tw[i - 1] >= 29 && tw[i] <= 28 ? 2 : 0);
       const dis = opt.disabled === true || (Array.isArray(opt.disabled) && opt.disabled[i]);
       const c = dis ? "line" : "white";
       const hide = opt.blink === i && !blinkOn(ctx, 4);
@@ -1852,7 +1866,7 @@
       lastNonInModeLobbyStep: -1, lastLobbyStep: -1, lastModeStep: -1, lastStateMs: -1e9, centralBoot: null,
       rxTimes: [], badTimes: [], goodTimes: [],
       link: {up: false, gotState: false, rxPerSec: 0, helloAcked: false, inMode: false, match: -1},
-      pendingAct: null, rtQueue: [], rtCounter: 0, lastHeartbeat: -1e9, lastHello: -1e9, helloResend: 0, extraInput: null,
+      pendingAct: null, rtQueue: [], rtCounter: 0, lastHeartbeat: -1e9, lastHello: -1e9, helloResend: 0, matchColor: null, extraInput: null,
       pausedSince: null, pausedTotal: 0,
       invertUntil: 0, shakeAt: -1e9,
       mLobbyMatch: -1, mAhead: false,   // legacy-layout modes: lobby match behind m, m started early (newMatch)
@@ -1896,6 +1910,33 @@
     if (!cur || !hh.local.loggedIn) return null;
     if (cur.slot === "guest") return cur.profile || null;
     return hh.flash.slots[cur.slot] || null;
+  }
+  // [+] the profile other boards see: the saved one, with this match's colour
+  // when it clashed with the rival's (§2.2 / S05: P2 takes the next free colour)
+  function liveProfile(hh) {
+    const pr = currentProfile(hh);
+    return pr && hh.matchColor != null ? Object.assign({}, pr, {color: hh.matchColor}) : pr;
+  }
+  function setMatchColor(hh, c) {
+    c = c == null ? null : (c | 0) % 6;
+    if (c === hh.matchColor) return false;
+    hh.matchColor = c;
+    hh.helloResend = 3; hh.lastHello = -1e9;
+    return true;
+  }
+  // [+] §2.2: same colour as the rival -> P2 plays this match in the next colour
+  // (the saved profile keeps its own). Re-checked on every lobby, so it also
+  // follows a profile edit on either board; cleared at logout / profile change.
+  const PLAYER_COLOR_NAMES = ["red", "orange", "gold", "green", "blue", "white"];   // dev.login.c.*
+  function checkColorClash(hh) {
+    if (hh.p !== 1) { setMatchColor(hh, null); return; }
+    const pr = currentProfile(hh), rival = hh.ctx.rival();
+    if (!pr || !rival) return;
+    const own = (pr.color | 0) % 6;
+    if ((rival.color | 0) % 6 !== own) { setMatchColor(hh, null); return; }
+    const c = (own + 1) % 6;
+    if (setMatchColor(hh, c) && R.strings.keys.has("dev.login.colorClash"))
+      hh.ctx.toast("dev.login.colorClash", {c: hh.ctx.t("dev.login.c." + PLAYER_COLOR_NAMES[c])});
   }
   function writeFlash(hh) {
     hh.flash.settings = JSON.parse(JSON.stringify(hh.settings));
@@ -1946,8 +1987,8 @@
       get screenId() { return hh.screenId; },
       get overlayId() { return hh.ov ? hh.ov.id : null; },
       lingering: false,
-      me: () => currentProfile(hh),
-      color: () => { const pr = currentProfile(hh); return playerColor(pr ? pr.color : hh.p === 0 ? 0 : 4); },
+      me: () => liveProfile(hh),
+      color: () => { const pr = liveProfile(hh); return playerColor(pr ? pr.color : hh.p === 0 ? 0 : 4); },
       padOn: () => hh.padOn(),
       held: b => hh.input.held(b),
       mode: () => hh.link.inMode ? hh.stateModeDef : null,
@@ -1978,13 +2019,14 @@
           const cur = hh.flash.cur;
           if (!cur || !hh.local.loggedIn) return null;
           const profile = currentProfile(hh);
-          return profile ? {slot: cur.slot, profile: Object.assign({}, profile)} : null;
+          return profile ? {slot: cur.slot, profile: Object.assign({}, profile), matchColor: hh.matchColor} : null;
         },
         select(slot, guestProfile) {
           if (slot === "guest") hh.flash.cur = {slot: "guest", profile: normProfile(guestProfile || DEVICE.guestProfile(ctx.rng))};
           else if (hh.flash.slots[slot]) hh.flash.cur = {slot};
           else return false;
           hh.local.loggedIn = true;
+          hh.matchColor = null;
           hh.helloResend = 3; hh.lastHello = -1e9;
           writeFlash(hh);
           return true;
@@ -1997,11 +2039,11 @@
         },
         remove(slot) {
           hh.flash.slots[slot] = null;
-          if (hh.flash.cur && hh.flash.cur.slot === slot) { hh.flash.cur = null; hh.local.loggedIn = false; hh.local.stack = []; }
+          if (hh.flash.cur && hh.flash.cur.slot === slot) { hh.flash.cur = null; hh.local.loggedIn = false; hh.local.stack = []; hh.matchColor = null; }
           writeFlash(hh);
         },
         logout() {
-          hh.local.loggedIn = false; hh.flash.cur = null; hh.local.stack = [];
+          hh.local.loggedIn = false; hh.flash.cur = null; hh.local.stack = []; hh.matchColor = null;
           writeFlash(hh);
         },
         bumpStats(o = {}) {
@@ -2137,7 +2179,7 @@
   }
   const capsOf = hh => (hh.hw.caps.pad && hh.input.st.padPresent ? 1 : 0) | (hh.hw.caps.joy ? 2 : 0) | (hh.hw.caps.snd ? 4 : 0);
   function sendHello(hh) {
-    const pr = currentProfile(hh);
+    const pr = liveProfile(hh);
     if (!pr) return;
     const caps = capsOf(hh);
     radioSend(hh, "hello", {nick: pr.name, avatar: pr.avatar, color: pr.color, caps, bootNonce: hh.bootNonce, fwBuild: 1});
@@ -2216,6 +2258,7 @@
       deliverState(hh, m, prev, false);
       // session events seen on every screen: the core tells the asker about a deferred pause
       if (prev && m.evId !== prev.evId && m.evType === C.SEV.PAUSE_LATER && m.evWho === hh.p) hh.ctx.toast("dev.core.pauseLater");
+      safe("colorClash", checkColorClash, hh);
       for (const fn of R.lobbyHooks) safe("onLobby", fn, hh.ctx, m, prev);
       return;
     }
@@ -2331,6 +2374,7 @@
     hh.input.latch();
     hh.menuArmed = false;          // a hold of M that began on the old screen does not pause
     hh.presenceOverride = hh.link.inMode ? hh.presenceOverride : null;
+    hh.fx.border = null;           // [+] a flash from the old screen (e.g. the racing finish) does not reach the new one's first frame
     if (def && def.enter) safe(want.id + ".enter", () => def.enter(hh.ctx, want.params || null));
     hh.g.wipe();
     hh.nextFrame = hh.now();
@@ -3346,6 +3390,17 @@
   let restoreDraft = null;
 
   function checkRegistries() {
+    // [+] every non-ASCII character of a registered string must be in the
+    // exported m font (device-font.js), or the firmware shows a red box
+    if (window.DEVICE_FONT_M) {
+      for (const [lang, set] of [["zh", R.strings.zh], ["en", R.strings.en]]) {
+        for (const [k, v] of Object.entries(set)) {
+          if (k.startsWith("dev.page.") || k.startsWith("dev.dbg.")) continue;
+          const bare = String(v).replace(TOKEN_RE, (m, n) => ICON_NAMES.includes(n) ? "" : m).replace(/\{\w+\}/g, "");
+          for (const ch of bare) if (!isAscii(ch) && inMCharset(ch) && !(ch in window.DEVICE_FONT_M)) lint("missingGlyph", k, {lang, ch});
+        }
+      }
+    }
     for (const id of ["boot", "login", "connect", "menu", "lobby", "results"]) if (!R.screens[id]) lint("missingScreen", id, "not registered");
     for (const m of R.modes) {
       if (!R.msgs[m.stateMsg]) lint("modeParts", m.id, {missing: "stateMsg " + m.stateMsg});
@@ -3516,7 +3571,8 @@
   DEVICE.clearLint = () => { lints.length = 0; lintSeen.clear(); };     // [+]
   DEVICE.glyphs = () => {
     const used = [...glyphUse].sort(), registered = [...R.strings.cjk].sort();
-    return {used, missing: [...glyphMissing].sort(), registered, bytes: new Set([...used, ...registered]).size * 18};
+    const notInFont = window.DEVICE_FONT_M ? [...new Set([...used, ...registered])].filter(ch => !(ch in window.DEVICE_FONT_M)).sort() : [];
+    return {used, missing: [...glyphMissing].sort(), notInFont, registered, bytes: new Set([...used, ...registered]).size * 18};
   };
   DEVICE.sfxLog = p => HH(p).sfxLog.slice();
   DEVICE.exportStrings = () => {
