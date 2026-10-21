@@ -452,11 +452,11 @@
       "status": "choosing",
       "iface": "I2C",
       "owner": "all",
-      "use": "用途待定（候选：冒险托门、挥手放技能），每台掌机 1 个 + 1 个备用",
+      "use": "赛车挥手擦浪花、冒险手托升降门；每台掌机 1 个 + 1 个备用",
       "en": {
         "name": "Distance sensor (planned)",
         "model": "VL53L4CD time-of-flight, Qwiic / STEMMA QT",
-        "use": "Use still open (candidates: holding up a gate in adventure, waving to cast the skill); 1 per handheld + 1 spare"
+        "use": "Wave to wipe the splash in racing, hold up the gate by hand in adventure; 1 per handheld + 1 spare"
       }
     },
     {
@@ -582,10 +582,10 @@
         "name": "距离传感器（计划）",
         "iface": "I2C",
         "owner": "all",
-        "detail": "建议 VL53L4CD 激光测距（Qwiic，I2C 地址 0x29），串在摇杆的 Qwiic 线上，不占引脚。用途待定，候选：冒险里手悬在上方托起升降门、在掌机上方挥手放技能（S 键保留）。传感器要朝上、开孔。",
+        "detail": "建议 VL53L4CD 激光测距（Qwiic，I2C 地址 0x29），串在摇杆的 Qwiic 线上，不占引脚，朝上装、开孔。两个用途（已认可）：赛车里被浪花挡住时在掌机上方挥手擦掉；冒险里手悬在上方托住升降门，队友趁机过去（和压力垫二选一，取大的）。",
         "en": {
           "name": "Distance sensor (planned)",
-          "detail": "Suggested VL53L4CD time-of-flight sensor (Qwiic, I2C address 0x29), chained on the joystick's Qwiic cable, no pins. Use still open; candidates: hover a hand to hold up a gate in adventure, wave over the handheld to cast the skill (the S button stays). It must face up through an opening."
+          "detail": "Suggested VL53L4CD time-of-flight sensor (Qwiic, I2C address 0x29), chained on the joystick's Qwiic cable, no pins, facing up through an opening. Two uses (agreed): in racing, wave over the handheld to wipe off a splash; in adventure, hover a hand to hold up the gate while your partner gets through (either this or the pressure pad, whichever is stronger)."
         }
       },
       {

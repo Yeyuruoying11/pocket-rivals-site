@@ -3,6 +3,18 @@
     "date": "2026-10-21",
     "author": "yihao",
     "area": "硬件",
+    "title": "距离传感器定了两个用途：挥手擦浪花、手托升降门",
+    "body": "赛车里被潮影的浪花挡住视线时，在掌机上方挥手，每挥一次少挡 0.5 秒；冒险里一个人把手悬在掌机上方托住升降门，队友趁机过去（手的高度换算成和压力垫一样的托力，两者取大的，中央板规则和无线消息都不用改）。规格写在 docs/ui-design.md §5.11、§6.11；传感器建议 VL53L4CD，每台 1 个加 1 个备用。",
+    "en": {
+      "area": "Hardware",
+      "title": "Two uses for the distance sensor: wave to wipe the splash, hold up the gate by hand",
+      "body": "In racing, when Tide's splash blocks your view, each wave over the handheld cuts 0.5 s off it; in adventure, one player hovers a hand above the handheld to hold up the gate while the other gets through (the hand height becomes the same 0–100 hold value as the pressure pad, whichever is stronger, so the central rules and radio messages stay the same). Spec in docs/ui-design.md §5.11 and §6.11; suggested sensor VL53L4CD, 1 per handheld plus 1 spare."
+    }
+  },
+  {
+    "date": "2026-10-21",
+    "author": "yihao",
+    "area": "硬件",
     "title": "传感器计划：三只宠物三种攻击测试；网站按传感器 / 执行器分组",
     "body": "草案：焰灵捏压力垫跟光带（现在的测试）、潮影倾斜掌机用板载加速度计、叶芽跟着板载喇叭的拍子按 A。另外计划加一个 VL53L4CD 距离传感器（串在摇杆的 Qwiic 线上，不占引脚），用途待定（候选：冒险里托起升降门、挥手放技能）。系统架构的硬件视图现在按传感器（输入）和执行器（输出）分组，计划中的部件是虚线框；采购清单和引脚表也同步更新了。",
     "en": {
