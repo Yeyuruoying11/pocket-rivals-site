@@ -1,12 +1,17 @@
-name: 游戏评价
-description: 给 Pocket Rivals 留一条评价，会显示在项目网站的「留言」页
-title: "[评价] "
+# Chinese first, then English, in every label and option. reviews.js reads
+# issues by these "### <label>" headings and pre-fills the dropdowns with these
+# exact option texts, so change both together; it also still reads the older
+# Chinese-only labels and options.
+name: 游戏评价 Game review
+description: 给 Pocket Rivals 留一条评价，会显示在项目网站的「留言」页 · Leave a review of Pocket Rivals; it shows up on the project site's Guestbook tab
+title: "[评价 Review] "
 labels: ["review"]
 body:
   - type: dropdown
     id: rating
     attributes:
-      label: 评分
+      label: 评分 Rating
+      description: 5 星是超好玩 · 5 stars means super fun
       options:
         - "★★★★★ 5"
         - "★★★★☆ 4"
@@ -18,21 +23,21 @@ body:
   - type: dropdown
     id: pet
     attributes:
-      label: 最喜欢的宠物
+      label: 最喜欢的宠物 Favorite pet
       options:
-        - "Ember 焰灵（火）"
-        - "Tide 潮影（水）"
-        - "Sprout 叶芽（草）"
-        - "还没选"
+        - "Ember 焰灵（火 fire）"
+        - "Tide 潮影（水 water）"
+        - "Sprout 叶芽（草 grass）"
+        - "还没选 No favorite yet"
   - type: textarea
     id: comment
     attributes:
-      label: 评价
-      description: 好玩的地方、不好玩的地方、想加什么
+      label: 评价 Review
+      description: 好玩的地方、不好玩的地方、想加什么 · What was fun, what wasn't, what you'd add
     validations:
       required: true
   - type: input
     id: name
     attributes:
-      label: 署名（可选）
-      description: 留空就显示你的 GitHub 用户名
+      label: 署名（可选） Name (optional)
+      description: 留空就显示你的 GitHub 用户名 · Leave blank to show your GitHub username

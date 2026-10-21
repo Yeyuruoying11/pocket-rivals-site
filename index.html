@@ -193,33 +193,33 @@
 
   <!-- ================= 留言 ================= -->
   <section class="panel" data-panel="reviews" hidden>
-    <h2>留言板 <small>玩过原型或者看过 demo？留下你对游戏的评价，也可以回复别人的评价</small></h2>
+    <h2><span data-i18n="reviews.title">留言板</span> <small data-i18n="reviews.subtitle">玩过原型或者看过 demo？留下你对游戏的评价，也可以回复别人的评价</small></h2>
     <div class="card rv-summary" id="rv-summary"></div>
 
-    <h2>写一条评价</h2>
+    <h2 data-i18n="reviews.write">写一条评价</h2>
     <div class="card">
       <div class="rv-picker">
         <div class="rv-stars" id="rv-stars"></div>
         <span class="muted" id="rv-stars-label"></span>
       </div>
       <form class="composer" id="rv-form" onsubmit="return false">
-        <label>最喜欢的宠物<select name="pet"></select></label>
-        <label>署名（可选）<input name="name" maxlength="40" placeholder="留空显示 GitHub 用户名"></label>
-        <label class="full">评价<textarea name="comment" rows="3" placeholder="好玩的地方、不好玩的地方、想加什么"></textarea></label>
+        <label><span data-i18n="reviews.form.pet">最喜欢的宠物</span><select name="pet"></select></label>
+        <label><span data-i18n="reviews.form.name">署名（可选）</span><input name="name" maxlength="40" placeholder="留空显示 GitHub 用户名" data-i18n-attr="placeholder:reviews.form.namePh"></label>
+        <label class="full"><span data-i18n="reviews.form.comment">评价</span><textarea name="comment" rows="3" placeholder="好玩的地方、不好玩的地方、想加什么" data-i18n-attr="placeholder:reviews.form.commentPh"></textarea></label>
       </form>
       <div class="row" style="margin-top:12px">
-        <a class="btn primary" id="rv-submit" href="#" target="_blank" rel="noopener">去 GitHub 发布 ↗</a>
+        <a class="btn primary" id="rv-submit" href="#" target="_blank" rel="noopener" data-i18n="reviews.form.submit">去 GitHub 发布 ↗</a>
       </div>
-      <p class="muted" style="font-size:12px;margin:10px 0 0">会打开一个填好内容的 GitHub 页面，点 Create 就发布了（需要登录 GitHub 账号，不需要是协作者）。回来点「刷新」就能看到。</p>
+      <p class="muted" style="font-size:12px;margin:10px 0 0" data-i18n="reviews.form.note">会打开一个填好内容的 GitHub 页面，点 Create 就发布了（需要登录 GitHub 账号，不需要是协作者）。回来点「刷新」就能看到。</p>
     </div>
 
-    <h2>大家的评价</h2>
+    <h2 data-i18n="reviews.list">大家的评价</h2>
     <div class="toolbar">
       <div class="row" id="rv-sort">
-        <button class="chip" data-sort="new">最新</button>
-        <button class="chip" data-sort="high">评分最高</button>
+        <button class="chip" data-sort="new" data-i18n="reviews.sort.new">最新</button>
+        <button class="chip" data-sort="high" data-i18n="reviews.sort.high">评分最高</button>
       </div>
-      <button class="btn" id="rv-refresh" style="margin-left:auto">刷新</button>
+      <button class="btn" id="rv-refresh" style="margin-left:auto" data-i18n="reviews.refresh">刷新</button>
     </div>
     <div id="rv-list"></div>
   </section>
