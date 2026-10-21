@@ -384,11 +384,11 @@
       "status": "choosing",
       "iface": "ADC",
       "owner": "yihao",
-      "use": "攻击蓄力",
+      "use": "焰灵攻击测试、赛车油门、冒险绞盘",
       "en": {
         "name": "Pressure sensor",
         "model": "FSR (model TBD)",
-        "use": "Charging attacks"
+        "use": "Ember's attack trial, racing throttle, adventure winch"
       }
     },
     {
@@ -398,10 +398,10 @@
       "status": "buy",
       "iface": "UART",
       "owner": "harvey",
-      "use": "播放 MP3/WAV 音效",
+      "use": "播放音效（48 个文件，见 docs/sd-card.md）",
       "en": {
         "name": "Audio module",
-        "use": "Plays MP3/WAV sound effects"
+        "use": "Plays the sound effects (48 files, see docs/sd-card.md)"
       }
     },
     {
@@ -446,6 +446,34 @@
       }
     },
     {
+      "name": "距离传感器（计划）",
+      "model": "VL53L4CD 激光测距，Qwiic / STEMMA QT 接口",
+      "qty": 3,
+      "status": "choosing",
+      "iface": "I2C",
+      "owner": "all",
+      "use": "用途待定（候选：冒险托门、挥手放技能），每台掌机 1 个 + 1 个备用",
+      "en": {
+        "name": "Distance sensor (planned)",
+        "model": "VL53L4CD time-of-flight, Qwiic / STEMMA QT",
+        "use": "Use still open (candidates: holding up a gate in adventure, waving to cast the skill); 1 per handheld + 1 spare"
+      }
+    },
+    {
+      "name": "Qwiic 连接线",
+      "model": "Qwiic 4-pin 线，50–100 mm",
+      "qty": 3,
+      "status": "choosing",
+      "iface": "I2C",
+      "owner": "all",
+      "use": "把距离传感器串在摇杆后面",
+      "en": {
+        "name": "Qwiic cable",
+        "model": "Qwiic 4-pin cable, 50–100 mm",
+        "use": "Chains the distance sensor after the joystick"
+      }
+    },
+    {
       "name": "震动马达（可选）",
       "model": "待定",
       "qty": 2,
@@ -467,43 +495,23 @@
         "name": "TFT 屏",
         "iface": "SPI",
         "owner": "harvey",
-        "detail": "1.8\" ST7735S，128×160。需要自己写 driver（课程硬性目标），注意局部刷新和帧率。",
+        "detail": "1.8\" ST7735S，128×160，SPI（SPIM2，8 MHz）。所有画面都画在这块屏上；绘图核心和驱动草稿已写好，等上板核对偏移、颜色顺序和时钟。",
         "en": {
           "name": "TFT screen",
-          "detail": "1.8\" ST7735S, 128×160. We write our own driver (a hard requirement of the course); watch partial refresh and the frame rate."
-        }
+          "detail": "1.8\" ST7735S, 128×160, SPI (SPIM2, 8 MHz). Every screen is drawn here; the drawing core and a draft driver are written and wait for on-board checks of offsets, colour order and clock."
+        },
+        "kind": "actuator"
       },
       {
-        "id": "joy",
-        "name": "摇杆",
-        "iface": "I2C",
-        "owner": "yihao",
-        "detail": "Qwiic Joystick，走 P19/P20 的外部 I2C，不额外占 pin。",
+        "id": "beep",
+        "kind": "actuator",
+        "name": "板载喇叭",
+        "iface": "PWM",
+        "owner": "all",
+        "detail": "micro:bit V2 自带的喇叭（P0.00，PWM 方波），没有延迟：界面音、节奏音和赛车引擎声都走它；计划中叶芽打节拍的拍子也由它发出。",
         "en": {
-          "name": "Joystick",
-          "detail": "Qwiic Joystick on the external I2C bus (P19/P20), so it takes no extra pins."
-        }
-      },
-      {
-        "id": "btn",
-        "name": "按钮 ×4",
-        "iface": "GPIO",
-        "owner": "yihao",
-        "detail": "技能 / 攻击 / 防御 / 菜单。板载 A/B 键可以当确认和返回。",
-        "en": {
-          "name": "Buttons ×4",
-          "detail": "Skill / attack / defend / menu. The on-board A/B buttons can act as confirm and back."
-        }
-      },
-      {
-        "id": "fsr",
-        "name": "压力传感器",
-        "iface": "ADC",
-        "owner": "yihao",
-        "detail": "按得越用力蓄力越快，需要校准两块板之间的读数差异。",
-        "en": {
-          "name": "Pressure sensor",
-          "detail": "The harder you press, the faster it charges; the readings of the two boards need to be calibrated against each other."
+          "name": "On-board speaker",
+          "detail": "The micro:bit V2's own speaker (P0.00, PWM square wave) with no latency: UI sounds, rhythm cues and the racing engine sound; it will also play the beat for Sprout's planned rhythm trial."
         }
       },
       {
@@ -511,10 +519,73 @@
         "name": "DFPlayer + 喇叭",
         "iface": "UART",
         "owner": "harvey",
-        "detail": "通过 UART 发指令，播放 microSD 卡里的音效。",
+        "detail": "DFPlayer Mini，UART（P0 发指令），播放 microSD 卡里的音效（打中、全力一击、胜负），按优先级打断；卡里要放的 48 个文件见 docs/sd-card.md。",
         "en": {
           "name": "DFPlayer + speaker",
-          "detail": "Sends commands over UART to play sound effects from the microSD card."
+          "detail": "DFPlayer Mini over UART (commands on P0), plays sound effects from the microSD card (hits, full-power strikes, win/lose) with priority-based interrupts; the 48 files the card needs are listed in docs/sd-card.md."
+        },
+        "kind": "actuator"
+      },
+      {
+        "id": "joy",
+        "name": "摇杆",
+        "iface": "I2C",
+        "owner": "yihao",
+        "detail": "Qwiic Joystick（I2C 地址 0x20），走 P19/P20 的外部 I2C，不额外占 pin。菜单移动、赛车转向、冒险走格子。",
+        "en": {
+          "name": "Joystick",
+          "detail": "Qwiic Joystick (I2C address 0x20) on the external I2C bus (P19/P20), so it takes no extra pins. Menu movement, racing steering, walking in adventure."
+        },
+        "kind": "sensor"
+      },
+      {
+        "id": "btn",
+        "name": "按钮 ×4",
+        "iface": "GPIO",
+        "owner": "yihao",
+        "detail": "A / B 用板载按钮（确认 / 返回、格挡），S 技能、M 菜单是外接按钮。A / B 按下的时刻用中断记录，精确到 1 ms。计划：叶芽的攻击测试是跟着拍子按 A。",
+        "en": {
+          "name": "Buttons ×4",
+          "detail": "A / B are the on-board buttons (confirm / back, blocking); S (skill) and M (menu) are external buttons. A / B press times are recorded by interrupt to 1 ms. Planned: Sprout's attack trial is pressing A on the beat."
+        },
+        "kind": "sensor"
+      },
+      {
+        "id": "fsr",
+        "name": "压力传感器",
+        "iface": "ADC",
+        "owner": "yihao",
+        "detail": "FSR 压力垫，ADC（P1）。焰灵的攻击测试（捏住跟光带）、赛车油门、冒险里拉绞盘；开机或设置里可以校准。",
+        "en": {
+          "name": "Pressure sensor",
+          "detail": "FSR pressure pad on the ADC (P1). Ember's attack trial (squeeze to follow the band), the racing throttle and the adventure winch; can be calibrated at boot or in settings."
+        },
+        "kind": "sensor"
+      },
+      {
+        "id": "accel",
+        "kind": "sensor",
+        "planned": true,
+        "name": "加速度计（计划）",
+        "iface": "I2C",
+        "owner": "all",
+        "detail": "micro:bit V2 板载（内部 I2C，不占边缘引脚）。计划用于潮影的攻击测试：倾斜掌机让水珠停在浪尖上。待组里确认，要实测机壳里的轴向和舒适的倾斜角度。",
+        "en": {
+          "name": "Accelerometer (planned)",
+          "detail": "On the micro:bit V2 board (internal I2C, no edge pins). Planned for Tide's attack trial: tilt the handheld to keep a water drop on the wave crest. Pending team confirmation; the axes inside the case and a comfortable tilt range need testing."
+        }
+      },
+      {
+        "id": "dist",
+        "kind": "sensor",
+        "planned": true,
+        "name": "距离传感器（计划）",
+        "iface": "I2C",
+        "owner": "all",
+        "detail": "建议 VL53L4CD 激光测距（Qwiic，I2C 地址 0x29），串在摇杆的 Qwiic 线上，不占引脚。用途待定，候选：冒险里手悬在上方托起升降门、在掌机上方挥手放技能（S 键保留）。传感器要朝上、开孔。",
+        "en": {
+          "name": "Distance sensor (planned)",
+          "detail": "Suggested VL53L4CD time-of-flight sensor (Qwiic, I2C address 0x29), chained on the joystick's Qwiic cable, no pins. Use still open; candidates: hover a hand to hold up a gate in adventure, wave over the handheld to cast the skill (the S button stays). It must face up through an opening."
         }
       },
       {
@@ -526,7 +597,8 @@
         "en": {
           "name": "Enclosure",
           "detail": "3D-printed; holds the screen, buttons, joystick and speaker."
-        }
+        },
+        "kind": "other"
       }
     ],
     "central": [
@@ -539,7 +611,8 @@
         "en": {
           "name": "Battle logic",
           "detail": "The central board holds the single authoritative game state (round, HP, win/loss)."
-        }
+        },
+        "kind": "other"
       },
       {
         "id": "radio",
@@ -550,18 +623,20 @@
         "en": {
           "name": "Wireless protocol",
           "detail": "Messages carry sequence numbers; key actions need an ACK; a player who sends nothing for more than 1 s is considered disconnected."
-        }
+        },
+        "kind": "comms"
       },
       {
         "id": "matrix",
         "name": "LED 点阵",
         "iface": "GPIO",
         "owner": "all",
-        "detail": "中央板没有屏幕，可以用板载点阵显示连接状态和当前回合。",
+        "detail": "中央板没有屏幕，用板载 5×5 点阵显示连接状态；无线实测时点亮的列数表示收包率。",
         "en": {
           "name": "LED matrix",
-          "detail": "The central board has no screen, so its on-board LED matrix can show the connection status and the current round."
-        }
+          "detail": "The central board has no screen, so its on-board 5×5 matrix shows the connection status; during radio tests the number of lit columns shows the packet rate."
+        },
+        "kind": "actuator"
       }
     ]
   },

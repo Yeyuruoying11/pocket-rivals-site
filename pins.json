@@ -4,7 +4,7 @@
     {"pin": "P0",  "nrf": "P0.02", "caps": ["GPIO", "ADC"], "builtin": null,       "player": {"use": "DFPlayer RX（MCU 的 UART TX）", "part": "audio", "en": {"use": "DFPlayer RX (MCU UART TX)"}}},
     {"pin": "P1",  "nrf": "P0.03", "caps": ["GPIO", "ADC"], "builtin": null,       "player": {"use": "压力传感器 (ADC AIN1)", "part": "fsr", "en": {"use": "Pressure sensor (ADC AIN1)"}}},
     {"pin": "P2",  "nrf": "P0.04", "caps": ["GPIO", "ADC"], "builtin": null,       "player": {"use": "按钮 1：技能", "part": "btn", "en": {"use": "Button 1: skill"}}},
-    {"pin": "P3",  "nrf": "P0.31", "caps": ["GPIO", "ADC"], "builtin": "LED 列 3", "player": null, "en": {"builtin": "LED column 3"}},
+    {"pin": "P3",  "nrf": "P0.31", "caps": ["GPIO", "ADC"], "builtin": "LED 列 3", "player": {"use": "DFPlayer TX → MCU RX（可选，串 1 kΩ，开机自检读声音模块状态）", "part": "audio", "en": {"use": "DFPlayer TX → MCU RX (optional, 1 kΩ in series; the boot self-test reads the sound module status)"}}, "en": {"builtin": "LED column 3"}},
     {"pin": "P4",  "nrf": "P0.28", "caps": ["GPIO", "ADC"], "builtin": "LED 列 1", "player": null, "en": {"builtin": "LED column 1"}},
     {"pin": "P5",  "nrf": "P0.14", "caps": ["GPIO"],        "builtin": "按钮 A",   "player": {"use": "板载按钮 A：确认", "part": "btn", "en": {"use": "On-board button A: confirm"}}, "en": {"builtin": "Button A"}},
     {"pin": "P6",  "nrf": "P1.05", "caps": ["GPIO"],        "builtin": "LED 列 4", "player": null, "en": {"builtin": "LED column 4"}},
@@ -22,20 +22,22 @@
     {"pin": "P14", "nrf": "P0.01", "caps": ["GPIO", "SPI MISO"], "builtin": null,  "player": {"use": "按钮 3：防御（TFT 不需要 MISO）", "part": "btn", "en": {"use": "Button 3: defend (the TFT doesn't need MISO)"}}},
     {"pin": "P15", "nrf": "P0.13", "caps": ["GPIO", "SPI MOSI"], "builtin": null,  "player": {"use": "TFT MOSI (SDA)", "part": "tft"}},
     {"pin": "P16", "nrf": "P1.02", "caps": ["GPIO"],        "builtin": null,       "player": {"use": "TFT CS", "part": "tft"}},
-    {"pin": "P19", "nrf": "P0.26", "caps": ["I2C SCL"],     "builtin": "Qwiic SCL", "player": {"use": "摇杆 I2C SCL", "part": "joy", "en": {"use": "Joystick I2C SCL"}}},
-    {"pin": "P20", "nrf": "P1.00", "caps": ["I2C SDA"],     "builtin": "Qwiic SDA", "player": {"use": "摇杆 I2C SDA", "part": "joy", "en": {"use": "Joystick I2C SDA"}}}
+    {"pin": "P19", "nrf": "P0.26", "caps": ["I2C SCL"],     "builtin": "Qwiic SCL", "player": {"use": "摇杆 + 距离传感器（计划）I2C SCL，Qwiic 串接", "part": "joy", "en": {"use": "Joystick + distance sensor (planned) I2C SCL, chained over Qwiic"}}},
+    {"pin": "P20", "nrf": "P1.00", "caps": ["I2C SDA"],     "builtin": "Qwiic SDA", "player": {"use": "摇杆 + 距离传感器（计划）I2C SDA，Qwiic 串接", "part": "joy", "en": {"use": "Joystick + distance sensor (planned) I2C SDA, chained over Qwiic"}}}
   ],
   "extra": [
     "TFT RST 直接接 3V，用软件复位指令代替，省一个 pin。",
     "TFT 背光 (BL/LED) 接 3V。",
-    "玩家板用 TFT 显示，不需要板载 LED 点阵：停用点阵后 P3、P4、P6、P7、P10 还能再空出 5 个 pin（其中 P3、P4、P10 支持 ADC）。"
+    "玩家板用 TFT 显示，不需要板载 LED 点阵：停用点阵后 P3、P4、P6、P7、P10 空出 P3、P4、P6、P7、P10（其中 P3、P4、P10 支持 ADC）；P3 计划接 DFPlayer TX。",
+    "板载传感器和喇叭不占边缘引脚：加速度计在 micro:bit 内部的 I2C 上（计划给潮影用），喇叭在 P0.00（PWM）。"
   ],
   "en": {
     "note": "Draft: the player-board pin assignment hasn't been finalized with Binqi yet; please double-check before wiring.",
     "extra": [
       "TFT RST is tied straight to 3V and a software reset command is used instead, which saves a pin.",
       "The TFT backlight (BL/LED) goes to 3V.",
-      "Player boards display on the TFT and don't need the on-board LED matrix: with the matrix disabled, P3, P4, P6, P7 and P10 free up 5 more pins (P3, P4 and P10 support ADC)."
+      "Player boards display on the TFT and don't need the on-board LED matrix: with the matrix disabled, P3, P4, P6, P7 and P10 are free (P3, P4 and P10 support ADC); P3 is planned for the DFPlayer TX.",
+      "The on-board sensors and speaker take no edge pins: the accelerometer is on the micro:bit's internal I2C (planned for Tide) and the speaker is on P0.00 (PWM)."
     ]
   }
 }

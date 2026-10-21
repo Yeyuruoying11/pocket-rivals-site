@@ -22,7 +22,7 @@ I18N.add({
 
     "app.overview.arch": "系统架构",
     "app.overview.archHint": "点击任意模块查看详情",
-    "app.overview.archIntro": "两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。",
+    "app.overview.archIntro": "两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。每块板按传感器（输入）和执行器（输出）分组，虚线框是计划中的部件。",
     "app.overview.team": "团队分工",
     "app.overview.teamHint": "点击成员只看 TA 的任务",
     "app.overview.latest": "最新进展",
@@ -45,6 +45,7 @@ I18N.add({
     "app.board.player": "玩家板",
     "app.board.playerN": "玩家板 {n}",
     "app.board.playerSub": "输入 · 显示 · 音效",
+    "app.kind.sensor": "传感器（输入）", "app.kind.actuator": "执行器（输出）", "app.kind.comms": "通讯", "app.kind.other": "其它", "app.kind.planned": "计划中",
     "app.board.central": "中央板",
     "app.board.centralSub": "游戏状态的唯一来源",
     "app.team.count": "{n} 项负责任务 · {doing} 项进行中 · 进度 {pct}%",
@@ -137,7 +138,7 @@ I18N.add({
 
     "app.overview.arch": "System architecture",
     "app.overview.archHint": "Click any module for details",
-    "app.overview.archIntro": "The two player boards handle input and display, the central board runs the battle logic, and the three boards talk to each other over 802.15.4 radio.",
+    "app.overview.archIntro": "The two player boards handle input and display, the central board runs the battle logic, and the three boards talk to each other over 802.15.4 radio. Each board lists its sensors (input) and actuators (output); dashed parts are planned.",
     "app.overview.team": "Team roles",
     "app.overview.teamHint": "Click a member to see only their tasks",
     "app.overview.latest": "Latest updates",
@@ -160,6 +161,7 @@ I18N.add({
     "app.board.player": "Player board",
     "app.board.playerN": "Player board {n}",
     "app.board.playerSub": "Input · display · audio",
+    "app.kind.sensor": "Sensors (input)", "app.kind.actuator": "Actuators (output)", "app.kind.comms": "Comms", "app.kind.other": "Other", "app.kind.planned": "Planned",
     "app.board.central": "Central board",
     "app.board.centralSub": "Single source of truth for the game state",
     "app.team.count": "{n} tasks owned · {doing} in progress · {pct}% done",
@@ -443,6 +445,7 @@ function renderArchSoftware() {
     board("shared", "app.board.shared", "app.board.sharedSub", "shared");
 }
 
+const KIND_ORDER = ["sensor", "actuator", "comms", "other"];
 function renderArch() {
   $$("#arch-view [data-view]").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === state.archView));
   $("#arch").classList.toggle("sw", state.archView === "sw");
@@ -450,15 +453,21 @@ function renderArch() {
   if (state.archView === "sw") return renderArchSoftware();
   const comp = (c, board) => {
     const dim = state.member && c.owner !== state.member && c.owner !== "all";
-    return `<button class="comp${dim ? " dim" : ""}" data-comp="${board}:${c.id}">
+    return `<button class="comp${dim ? " dim" : ""}${c.planned ? " planned" : ""}" data-comp="${board}:${c.id}">
       <span class="dot" style="--c:${memberColor(c.owner)}"></span>${esc(L(c, "name"))}<span class="if">${esc(c.iface)}</span></button>`;
   };
+  // grouped by kind: sensors (input), actuators (output), then the rest
+  const comps = (list, board) => KIND_ORDER.map(k => {
+    const items = list.filter(c => (c.kind || "other") === k);
+    return items.length ? `<div class="kind kind-${k}"><div class="kind-h">${esc(tr("app.kind." + k))}</div>
+      <div class="comps">${items.map(c => comp(c, board)).join("")}</div></div>` : "";
+  }).join("");
   const player = n => `<div class="board"><h4>${esc(tr("app.board.playerN", {n}))}</h4><div class="sub">${esc(tr("app.board.playerSub"))}</div>
-    <div class="comps">${D.status.components.player.map(c => comp(c, "player")).join("")}</div></div>`;
+    ${comps(D.status.components.player, "player")}</div>`;
   const link = `<div class="link"><span class="packet"></span><span class="packet back"></span></div>`;
   $("#arch").innerHTML = player(1) + link +
     `<div class="board central"><h4>${esc(tr("app.board.central"))}</h4><div class="sub">${esc(tr("app.board.centralSub"))}</div>
-      <div class="comps">${D.status.components.central.map(c => comp(c, "central")).join("")}</div></div>` +
+      ${comps(D.status.components.central, "central")}</div>` +
     link + player(2);
 }
 
@@ -469,7 +478,8 @@ $("#arch").addEventListener("click", e => {
   const sw = board.startsWith("sw-");
   const c = sw ? D.status.software[board.slice(3)].find(x => x.id === id) : D.status.components[board].find(x => x.id === id);
   $$(".comp").forEach(x => x.classList.toggle("sel", x.dataset.comp === b.dataset.comp));
-  const tag = sw ? `<span class="tag mono">${esc(c.file)}</span><span class="tag">${esc(tr("app.task." + c.status))}</span>` : `<span class="tag">${esc(c.iface)}</span>`;
+  const tag = sw ? `<span class="tag mono">${esc(c.file)}</span><span class="tag">${esc(tr("app.task." + c.status))}</span>`
+    : `<span class="tag">${esc(tr("app.kind." + (c.kind || "other")))}</span><span class="tag">${esc(c.iface)}</span>${c.planned ? `<span class="tag">${esc(tr("app.kind.planned"))}</span>` : ""}`;
   $("#arch-detail").innerHTML = `<b>${esc(L(c, "name"))}</b>${tag}
     <span class="muted" style="margin-left:8px">${esc(tr("app.owner", {name: ownerFull(c.owner)}))}</span>
     <div style="margin-top:6px">${esc(L(c, "detail"))}</div>`;

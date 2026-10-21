@@ -2,6 +2,18 @@
   {
     "date": "2026-10-21",
     "author": "yihao",
+    "area": "硬件",
+    "title": "传感器计划：三只宠物三种攻击测试；网站按传感器 / 执行器分组",
+    "body": "草案：焰灵捏压力垫跟光带（现在的测试）、潮影倾斜掌机用板载加速度计、叶芽跟着板载喇叭的拍子按 A。另外计划加一个 VL53L4CD 距离传感器（串在摇杆的 Qwiic 线上，不占引脚），用途待定（候选：冒险里托起升降门、挥手放技能）。系统架构的硬件视图现在按传感器（输入）和执行器（输出）分组，计划中的部件是虚线框；采购清单和引脚表也同步更新了。",
+    "en": {
+      "area": "Hardware",
+      "title": "Sensor plan: three attack trials for three pets; the site groups sensors and actuators",
+      "body": "Draft: Ember squeezes the pressure pad to follow the band (today's trial), Tide tilts the handheld using the on-board accelerometer, Sprout presses A on the beat from the on-board speaker. A VL53L4CD distance sensor is also planned (chained on the joystick's Qwiic cable, no pins), use still open (candidates: holding up a gate in adventure, waving to cast the skill). The hardware architecture view now groups sensors (input) and actuators (output), with planned parts dashed; the parts list and pin table are updated too."
+    }
+  },
+  {
+    "date": "2026-10-21",
+    "author": "yihao",
     "area": "模拟器",
     "title": "掌机模拟器第二版上线：三种模式都能玩",
     "body": "开机、登录（名字、头像、颜色）、两人投票选模式、大厅、暂停、掉线重连、设置、压力垫校准和结算都做好了。对抗按真规则来；双人赛车里每只宠物有自己的车和手感（焰灵快但升温快、潮影水洼不打滑、叶芽转弯灵），车上坐着小精灵；双人冒险有 4 个房间和石像守卫 Boss。中英文都有，手机上也能玩。",
