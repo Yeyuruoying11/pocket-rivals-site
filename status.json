@@ -620,11 +620,11 @@
         "name": "屏幕与界面",
         "file": "TFT driver · UI（规划中）",
         "owner": "harvey",
-        "status": "todo",
-        "detail": "ST7735S driver、16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；界面按 docs/ui-design.md 分 T0–T3 逐步实现。",
+        "status": "doing",
+        "detail": "绘图核心（16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分）和 ST7735S 驱动草稿正在写，用测试和模拟器逐像素对齐；驱动要上板核对偏移、颜色顺序和 SPI 时钟。界面按 docs/ui-design.md 分 T0–T3 实现。",
         "en": {
           "name": "Screen and UI",
-          "detail": "ST7735S driver, 16-color 4 bpp double buffering, refreshing only the 8×8 blocks that changed; the UI follows docs/ui-design.md, implemented stage by stage from T0 to T3."
+          "detail": "The drawing core (16-colour 4 bpp double buffer, refreshing only the 8×8 blocks that changed) and a draft ST7735S driver are being written and checked pixel-for-pixel against the simulator; the driver still needs on-board checks of offsets, colour order and SPI clock. The UI follows docs/ui-design.md in stages T0–T3."
         }
       },
       {
@@ -732,11 +732,11 @@
         "name": "掌机模拟器",
         "file": "device.html",
         "owner": "yihao",
-        "status": "doing",
-        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板；底座已上线，三个模式和各个界面正在实现。",
+        "status": "done",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车）和双人冒险（4 个房间 + Boss），有暂停、掉线重连、设置和压力垫校准。",
         "en": {
           "name": "Handheld simulator",
-          "detail": "Two 128×160 handhelds plus a virtual central board in the browser; the base is live and the three modes and their screens are being implemented."
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet) and co-op adventure (4 rooms + a boss), with pause, reconnect, settings and pad calibration."
         }
       },
       {
@@ -744,7 +744,7 @@
         "name": "字库工具",
         "file": "software/tools/make_font.py",
         "owner": "yihao",
-        "status": "doing",
+        "status": "done",
         "detail": "从开源像素字体 Fusion Pixel 12px（OFL）裁出界面实际用到的几百个中文字和英文字母，生成模拟器字库和以后固件用的 C 字库。",
         "en": {
           "name": "Font tool",

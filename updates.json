@@ -2,6 +2,18 @@
   {
     "date": "2026-10-21",
     "author": "yihao",
+    "area": "模拟器",
+    "title": "掌机模拟器第二版上线：三种模式都能玩",
+    "body": "开机、登录（名字、头像、颜色）、两人投票选模式、大厅、暂停、掉线重连、设置、压力垫校准和结算都做好了。对抗按真规则来；双人赛车里每只宠物有自己的车和手感（焰灵快但升温快、潮影水洼不打滑、叶芽转弯灵），车上坐着小精灵；双人冒险有 4 个房间和石像守卫 Boss。中英文都有，手机上也能玩。",
+    "en": {
+      "area": "Simulator",
+      "title": "Handheld simulator v2 is live: all three modes are playable",
+      "body": "Boot, login (name, avatar, colour), voting on a mode, lobbies, pause, reconnect, settings, pad calibration and results are all in. Battle follows the real rules; in two-player racing each pet has its own kart and handling (Ember is fastest but heats up, Tide never skids in puddles, Sprout turns sharpest) with the pet riding on top; co-op adventure has 4 rooms and the Stone Warden boss. Chinese and English, and it works on phones."
+    }
+  },
+  {
+    "date": "2026-10-21",
+    "author": "yihao",
     "area": "网站",
     "title": "网站加入英文界面",
     "body": "右上角的「EN / 中文」按钮可以切换语言，选择会记住；第一次打开时按浏览器语言自动选择。所有页面、对战原型、留言板和数据（任务、零件、引脚、进展）都有英文；留言表单改成中英双语。对战原型的规则说明也精简成了 6 条短句。",
