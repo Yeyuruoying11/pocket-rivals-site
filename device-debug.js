@@ -28,6 +28,7 @@
       const label = document.createElement("label");
       const box = document.createElement("input");
       box.type = "checkbox";
+      box.checked = D.bot(i);          // phones start with the computer playing P2 (§8.12)
       box.addEventListener("change", () => D.bot(i, box.checked));
       label.append(box, " " + t("dev.dbg.bot", {n: i + 1}));
       row.append(label);

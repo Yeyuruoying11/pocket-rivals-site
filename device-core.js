@@ -29,27 +29,46 @@
 // DEVICE.registerSprites(prefix, {"adv.slime": {w, h, mirror, frames: [[rows]],
 //   map: {letter: paletteName}}})   rows = left halves when mirror; "." = clear;
 //   name must start with prefix; duplicate names throw; <= 15 colors.
-// DEVICE.registerSfx(prefix, {id: {ch: "DF", file, prio, ms} | {ch: "BEEP",
-//   tones: [[hz, ms], ...], ui: bool}})   ids start with prefix ("adv_", "race_"...)
+// DEVICE.registerSfx(group, {id: {ch: "DF", file, prio, ms} | {ch: "BEEP",
+//   tones: [[hz, ms], ...], ui: bool}})   ids and DF file numbers exactly as in
+//   the §2.6 table (they do not share a prefix: "lap", "finish", "send_out");
+//   group is a label. Lint "sfxDup" (id registered twice), "sfxFile" (two ids
+//   on one DF file). Core sounds: ui_move ui_ok ui_back ui_deny key_type
+//   tick_in_band stage_up sweep_start block_perfect block_good block_miss
+//   count_tick count_go link_lost boot rival_join mode_agree ready_go
+//   link_back error victory defeat menu_bgm. ui: true = muted by "Clicks off".
 // DEVICE.registerMessage(name, typeId, fields, {kind: "mode"|"session"|"uplink", legacyLayout})
 //   fields: "name:u8|i8|u16|i16", "name:u8[6]", ["name", count, [subfields]].
 //   Header (version, type, src, dst, seq; 5 B) is added. > 64 B throws.
 //   Top-level fields may not be called "name" or "hdr" (unpack uses them).
 //   kind "mode" needs step:u16, phase:u8, flags:u8, match:u8 right after the
 //   header (legacyLayout: only that step/phase/flags exist). Little-endian.
+//   At start the §7.6 types are checked (lint "msgSize"): battle.state 0x41
+//   47 B mode, race.input 0x04 23 B uplink, race.state 0x43 55 B mode,
+//   adv.state 0x44 61 B mode. An "uplink" message a board sends with
+//   ctx.send() reaches the running mode's central.message().
 // DEVICE.registerScreen(id, def)     see SCREEN DEF
 // DEVICE.registerSession(def)        screens-menu.js only; replaces the stub session
 // DEVICE.registerMode(def)           see MODE DEF
 // DEVICE.registerFixture(id, {titleKey, run(T)})   T = test API (see TEST HOOK)
 // DEVICE.modes() -> [modeDef]        registered, visible (not hidden), sorted by order
 // DEVICE.mode(idOrModeId) -> modeDef | null                                  [+]
-// DEVICE.params(modeId) -> {key: value}   mode params (defaults + saved tuning)  [+]
+// DEVICE.params(modeId) -> {key: value}   mode params (defaults < saved tuning < reset({params}))  [+]
 // DEVICE.setParams(modeId, patch)         saved to localStorage pr.device.params.<id> [+]
 // DEVICE.battleParams() -> battle prototype params (localStorage pr.params.v4,
 //   read only; game_config.h defaults)                                     [+]
 // DEVICE.onStart(fn(dom))   called after the DOM is built: dom = {root,
-//   toolbar, debug, handhelds: [{shell, canvas, controls}]} (device-debug.js) [+]
-// DEVICE.on(name, fn)       "reset" (world rebuilt), "tab" (Tab key)          [+]
+//   toolbar, debug, handhelds: [{shell, canvas, controls, buttons, pad, stick}]}
+//   (device-debug.js)                                                       [+]
+// DEVICE.on(name, fn)       "reset" (world rebuilt), "tab" (fn(swapped): Tab
+//   was pressed, the core has already swapped the key groups), "frame"
+//   (fn({p, rects, stats}): rects pushed by this present(), for the
+//   "show changed blocks" flash)                                           [+]
+// DEVICE.onLobby(fn(ctx, msg, prev))   every lobby message on every board,
+//   whatever screen or overlay is up: the session file turns its ev_* events
+//   (LEFT, QUIT, LOGOUT...) into ctx.toast() here. The core itself already
+//   toasts dev.core.pauseLater to the board whose PAUSE was deferred.     [+]
+// DEVICE.defaultSettings() -> fresh default settings (S09 "S: restore")   [+]
 // DEVICE.stubMode(opts) / DEVICE.stubScreen(id, def)   placeholder builders
 //   used by the step-0 stub files and the echo mode (see section 12)        [+]
 //
@@ -78,6 +97,22 @@
 // results; overlays ov.pause ov.nosignal ov.linklost ov.error ov.confirm;
 // mode screens battle.pick battle.hud race.pick race.hud adv.pick adv.room.
 // The boot screen ends itself with ctx.local.booted = true.
+// After every screen or overlay change, presses ("down", "click", "long",
+// stick edges) are ignored for 150 ms (SCREEN_LOCK_MS); a stick already
+// pushed on entry counts only after it comes back to the middle.
+// Overlays get every state message (lobby and mode) and all input while up;
+// the MENU "long" reaches an overlay (S17's hold-M quit); the hold-M pause
+// bar is drawn only for mode screens, so an overlay draws its own progress
+// with ctx.held("MENU").
+//
+// BOTS (DEVICE.bot(p, true), §8.3): every tick, before input is read. With
+// an overlay up only the overlay's bot runs. Otherwise the screen's bot runs,
+// then the mode's bot, but the mode's bot only on the mode's own screens
+// (its stateMsg prefix: race.pick, race.hud; never results or menus); when
+// it stops, whatever it held is let go. ctl = {press(btn, ms = 50),
+// hold(btn, down), stick(x, y), pressure(0..255), rng: {int(n), float()}}
+// (rng = the bot.<p> stream; never Math.random). A bot's presses are held
+// back until the 150 ms lock has passed, so it may act on its first tick.
 //
 // ======================= MODE DEF =======================
 //
@@ -87,23 +122,50 @@
 //   params: [{key, c, labelKey, min, max, step, def, unit}], rules: {...},
 //   lobby: {badgeKey, badgeVars(params), goals: [k1, k2], keys: [[icon, nameKey, whatKey], ...]},
 //   central: {periodMs, create(api, opts) -> {
-//     tick(now), action(p, action, arg, data, info) -> bool, input(p, fields),
+//     tick(now) (every TICK_MS while not paused; use api.gameNow() for clocks
+//       that must stop during a pause), action(p, action, arg, data, info) -> bool
+//       (also called while paused: the mode decides, §4.11), input(p, fields)
+//       (every MSG_INPUT: joyX joyY buttons pressure ui; also while paused),
 //     message(p, name, fields), snapshot() -> fields, over() -> null |
 //     {winner: 0|1|null, coop, quit: p|null, res: [u8 x4]}, canPause(p) ->
-//     "now"|"defer"|"no", pause(), resume(), debug(cmd, arg),
-//     quit(p) [+] (session QUIT: end the match so over() reports quit: p),
+//     "now"|"defer"|"no", pause(), resume(), debug(cmd, arg) (DEVICE.debug),
+//     quit(p) [+] session QUIT: end the match so over() reports quit: p and
+//       both boards reach S19. Implement it: without it QUIT just ends the
+//       mode and both boards go straight back to the menu.
 //     carry() [+] (state kept by a retry-room rematch -> opts.carry) }},
 //     opts = {first, params, profiles, rematch, retryRoom, carry}
 //   player: {create(ctx) -> m, destroy(ctx), onState(ctx, msg, prev),
 //     tick(ctx, dt), route(ctx) -> id | {id, params}, busy(ctx) -> bool,
-//     inputBits(ctx) -> u8 (bits 4-7 of heartbeat buttons), pauseItems: [...],
+//     inputBits(ctx) -> u8 (bits 4-7 of heartbeat buttons), pauseItems:
+//       [{labelKey, confirmKey, action, arg}] (S15 lists them after Quit; on
+//       confirm it sends ctx.rt(action, arg)),
 //     heartbeat: true | false | (ctx) => bool (false: the core skips MSG_INPUT
 //       while in the mode, except on pick / results screens and while paused),
+//     uplink(ctx, {joyX, joyY, buttons, pressure}) -> same [+]: patch each
+//       MSG_INPUT this board sends while in the mode (inputBits already ORed
+//       in; pressure is the pad, or without a pad the padLevel equivalent of
+//       holding A). Adventure: the 6 s no-pad winch cap and 1 s re-hold (§6.3).
+//     newMatch(ctx, msg, prev) -> bool [+]: legacy layouts only (no match
+//       field: battle.state). The core takes the match number from the lobby,
+//       which goes out just before the mode state; if that lobby was lost the
+//       mode may say "msg starts a new match" (battle: GAME_OVER -> SEND_OUT)
+//       and m is re-created at once (normally not again when the lobby
+//       catches up; under heavy loss it can be, so rebuild m from the state).
 //     results(ctx) -> {titleKey, titleColor, scoreText, drawArt(g, ctx, x, y, w, h),
 //       rows: [{labelKey, you, other} | {labelKey, shared, star}], noteKey,
-//       noteVars, again: {labelKey, kind: "rematch"|"retryRoom"}}},
+//       noteVars, again: {labelKey, kind: "rematch"|"retryRoom"},
+//       stats [+]: {battleWins, bestLapCs, advStars} for this board's profile:
+//       the results screen passes it once to ctx.profiles.bumpStats after the
+//       1.5 s lock. Decide noteKey ("NEW BEST!") before that and keep it in
+//       ctx.m: after the bump the profile already holds the new record.
+//       win [+]: true (won / cleared: confetti, "victory"), false ("defeat"),
+//       null (neither: YOU QUIT, GAVE UP); sfx [+]: a sound id that replaces that
+//       choice. The results screen plays it once on enter.}},
 //   bot(ctx, ctl),
 // });
+// A new match (match field changed, or a different mode) calls
+// player.destroy on the old m, then create, then onState(ctx, msg, null).
+// Leaving the mode (the lobby says it ended) calls destroy and stops tone().
 //
 // ======================= SESSION + CENTRAL API =======================
 //
@@ -112,9 +174,18 @@
 //   snapshot() -> lobby fields (host fills step, flags, centralBoot, match,
 //   helloNonce), modeOver(result), pausePending [+] (optional [bool, bool],
 //   shown by DEVICE.central())}})
+// Lobby fields the session owns: phase (C.LOBBY), mode, hover[p] =
+// (presence << 4) | card, vote, readyMask, rematchMask, pausedBy, wins
+// (player * 3 + modeId), profile[2] (blank while that player's presence is
+// LOGIN), modesBuilt, error (2 = E2), modeRes (over().res), and the latest
+// event: evId (new value per event, never 0), evType (C.SEV.*), evWho (the
+// player it is about). The core toasts dev.core.pauseLater to evWho when
+// evType is PAUSE_LATER; other events are the session file's (DEVICE.onLobby).
+// ?mode=x and DEVICE.reset({mode}) always use the core's stub session.
 // api = {now(), rand(), randInt(n), step(), nextStep(), broadcast(), links(),
 //   profiles(), pause(by), resume(), paused(), startMode(id, opts), endMode(),
 //   mode(), match(), params, log(msg),
+//   gameNow() [+] -> central ms without the time spent paused,
 //   canPause(p) [+] -> mode's canPause or "now" ("no" without a mode),
 //   over() [+] -> the running mode's over() or null,
 //   quitMode(p) [+] -> mode.quit(p) if defined, else endMode()}
@@ -124,7 +195,9 @@
 // turn actions (< 0x10) once per player per step, live actions (>= 0x10)
 // deduplicated by counter window, 1 s silence -> LINK bit 0 + PAUSED (in a
 // mode), flags bits 0-2 ORed into every state, lobby 10 Hz outside a mode,
-// 1 Hz inside, and at once whenever a field changes.
+// 1 Hz inside, and at once whenever a field changes. In one tick the lobby
+// goes out before the mode state; frames from one board are never
+// reordered on the air (only lost).
 //
 // ======================= HANDHELD CONTEXT ctx =======================
 //
@@ -143,8 +216,17 @@
 //   [+] color() -> my palette color name, padOn() -> pad in use (settings + detection),
 //   [+] held(btn) -> ms the button has been held (0 = up), mode() -> running mode def,
 //   [+] params(modeId) -> DEVICE.params, error() -> null | {code, board, central},
-//   [+] closeConfirm(yes), setPresence(v | null) (pause settings subpage = 2)}
-// ctx.local = {booted, stack: [{id, params}], loggedIn, confirm, hover, ...}
+//   [+] closeConfirm(yes), setPresence(v | null) (pause settings subpage = 2;
+//       cleared when that overlay closes), hw.protocol (this board's flashed
+//       protocol version), hw.channel (radio channel now), hw.fwBuild}
+// ctx.local = {booted, stack: [{id, params}], loggedIn, confirm, hover,
+//   flashReset [+] (the stored profiles were unreadable and were reset: W3), ...}
+//   It lives in RAM for the whole power-on (screens keep things like the
+//   last session event id they toasted here; ctx.s is new on every enter).
+// Time: ctx.now() = this board's clock (its own offset; never compare two
+// boards' clocks), ctx.gameNow() = the same without the time the state said
+// PAUSED. Random: ctx.rng (decoration, fx.<p> stream), api.rand* (rules,
+// central stream), ctl.rng (bots). Never Math.random / Date / performance.now.
 // The core does for every screen: hold-M pause (+ progress bar), presence in
 // the heartbeat, mode create / destroy on a new match, stack clearing (mode
 // start, central reboot, logout), the wipe on every screen change, linger,
@@ -192,7 +274,10 @@
 // ======================= INPUT =======================
 //
 // ctx.input = {x, y (-100..100, + = up), a, b, skill, menu, pressure (0..255),
-//   padPresent, aDownMs, bDownMs, stickClick, raw: {fsr, joyX, joyY}}
+//   padPresent, aDownMs, bDownMs, stickClick, aBtn [+] (A without the stick
+//   click: trial, throttle and winch "hold A" use this), raw: {fsr, joyX, joyY}}
+//   Only this board's input; the central sees each player's MSG_INPUT in
+//   central.input(p, fields).
 // ev = {btn: "A"|"B"|"SKILL"|"MENU"|"UP"|"DOWN"|"LEFT"|"RIGHT",
 //   type: "down"|"up"|"click" (released < 500 ms)|"long" (held 1000 ms)|"repeat",
 //   t (board ms), fromStick [+] (A came from the stick click)}
@@ -200,7 +285,9 @@
 //          stick     A   B   SKILL  MENU  pad hard (230)  pad light (130)
 //   P1     W A S D   F   G   R      T     V               C
 //   P2     arrows    K   L   I      O     ,               .
-//   ` (Backquote) pauses / resumes the simulation; Tab -> DEVICE.on("tab").
+//   ` (Backquote) pauses / resumes the simulation; Tab swaps which handheld
+//   each key group drives (DEVICE.keySwap(), badge in the toolbar), then
+//   tells DEVICE.on("tab").
 // Touch / mouse: under each screen a virtual stick (drag, dead zone 15),
 // A / B / S / M buttons and a vertical pressure bar (finger height = force).
 // Pad force goes through a simulated FSR (lag 120 / 60 ms, seeded +-3 noise,
@@ -209,23 +296,43 @@
 // ======================= TEST HOOK window.DEVICE =======================
 //
 // DEVICE.ready; DEVICE.reset({seed, skipBoot, profiles, mode, loss, latency,
-//   collisions, pad, caps, freshFlash [+]}); pause(); resume(); step(ms); now();
+//   collisions, pad, caps, freshFlash [+], params [+], battleParams [+]});
+//   pause(); resume(); step(ms); now();   params = {modeId: {key: value}} and
+//   battleParams = {key: value} (DEVICE.battleParams keys): this world only,
+//   win over saved tuning, never written to localStorage (fixtures pass the
+//   values they depend on). mode = start it at once with the stub session.
 // press(p, btn, holdMs = 50) (btn also "UP".."RIGHT", "PAD", "PAD_LIGHT", "STICK");
 // hold(p, btn, down); stick(p, x, y); pressure(p, v); bot(p, on);
+//   (unlike a bot's, these are not held back: a script, like a person, loses
+//   a press made within 150 ms of a screen change, so step(200) after one)
 // screen(p) -> {id, overlay, mode, params}; texts(p); find(p, substr);
 // pixels(p); hash(p); png(p, scale = 4); central(); radio.set({loss, latency,
 // collisions}); radio.stats(); radio.unplug(p, on); radio.powerCentral(on);
-// radio.channel(p, ch); radio.version(node, v) [+]; reboot(p); rules(modeId);
-// fixtures(); fixture(id) -> Promise<{id, ok, error, log}>; stats(p); lint();
-// errors(); msgSizes(); msgSize(name); glyphs(); sfxLog(p); exportStrings();
+// radio.channel(p, ch) (p = "central" or -1 [+]: the central board);
+// radio.version(node, v) [+]; reboot(p); rules(modeId);
+// fixtures(); fixture(id) -> Promise<{id, ok, error, log, shots}>; stats(p); lint();
+// errors() -> [{where, message, stack, t, count}] (one entry per distinct error);
+// msgSizes(); msgSize(name); glyphs(); sfxLog(p); exportStrings();
 // pack(name, obj, hdr); unpack(bytes); trial; padLevel; ui; C; opts.
+// Inside a fixture, T = DEVICE + {log(msg), assert(cond, msg), shot(label)
+// [+]}; the simulation does not run by itself while it runs (use T.step).
+// shot() keeps both screens (PNG ×2, screen ids, SPI stats) for the gallery:
+// fixture(id) -> Promise<{id, ok, error, log, shots: [{label, screens, stats, png}]}>.
 // URL: ?seed=N ?test=1 ?view=p1|p2|both ?gallery ?fixture=id ?pad=auto|on|off
 //      ?mode=battle|racing|adventure|echo ?speed=0.25..2 ?scale=2|3|4
+//      Without ?view a page under 900 px wide (phone) shows P1 only with P2
+//      on its bot (§8.12); bot(p) without `on` says whether p is a bot [+];
+//      outside ?test=1 a reset keeps who is a bot.
 // [+] also: DEVICE.speed(v), seed(), world(), hh(p) (internal handheld object),
 //     registry (registries), clearLint(), bytesToStr(arr), mapPressure(raw, min, max),
 //     SSYM, KEYMAP, opts, rng(seed, name) (mulberry32 stream),
 //     trial.defaults() / cfgFrom(battleParams) / endMs(cfg) / stageAt(t, cfg) /
-//     ready(T) / pct(inside, scored), stubModeScreens(prefix, titleKey, hud).
+//     ready(T) / pct(inside, scored), stubModeScreens(prefix, titleKey, hud),
+//     debug(cmd, arg) (the running mode's central.debug; broadcasts next tick),
+//     ctl(p, "script"|"pad"|"touch") (a ctl on that input source: gamepads go
+//     on "pad"), caps(p, {joy, pad, snd}) (unplug the stick / pull the SD card
+//     at run time; HELLO caps follow), keySwap(on) (Tab), world().fsrInverted
+//     (FSR divider wired the other way), world().spiMhz (8 | 16).
 //
 // ======================= BASE MESSAGES (§7.6) =======================
 //
@@ -289,7 +396,7 @@
   const R = {   // registries
     screens: {}, modes: [], session: null, fixtures: {}, sprites: {}, sfx: {},
     msgs: {}, msgByType: {}, strings: {keys: new Set(), zh: {}, en: {}, cjk: new Set()},
-    startHooks: [], listeners: {},
+    startHooks: [], listeners: {}, lobbyHooks: [],
   };
   const lints = [], lintSeen = new Set(), errors = [];
   let world = null;     // the simulation (section 12c)
@@ -300,9 +407,15 @@
     lintSeen.add(k);
     lints.push({kind, where, detail});
   }
+  // The same error from a callback that runs every tick is kept once, with a
+  // count (and logged to the console once), so it cannot flood devtools
+  const errorSeen = new Map();
   function recordError(where, e) {
     const message = e && e.message ? e.message : String(e);
-    if (errors.length < 200) errors.push({where, message, stack: e && e.stack ? String(e.stack) : "", t: world ? world.clock : 0});
+    const k = where + "|" + message, old = errorSeen.get(k);
+    if (old) { old.count++; return; }
+    const rec = {where, message, stack: e && e.stack ? String(e.stack) : "", t: world ? world.clock : 0, count: 1};
+    if (errors.length < 200) { errors.push(rec); errorSeen.set(k, rec); }
     if (!world || !world.test) console.error("[device] " + where + ": " + message, e);
   }
   // Run a module callback; errors are recorded, never thrown
@@ -314,6 +427,7 @@
   }
   DEVICE.on = (name, fn) => { (R.listeners[name] = R.listeners[name] || []).push(fn); };
   DEVICE.onStart = fn => { R.startHooks.push(fn); if (DEVICE._dom) safe("onStart", fn, DEVICE._dom); };
+  DEVICE.onLobby = fn => { R.lobbyHooks.push(fn); };
 
   const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   const isObj = v => v && typeof v === "object" && !Array.isArray(v);
@@ -1068,7 +1182,7 @@
     const src = {kbd: newSource(), touch: newSource(), pad: newSource(), script: newSource(), bot: newSource()};
     const queue = [];   // {t (sim ms), src, field, value}
     const st = {x: 0, y: 0, a: false, b: false, skill: false, menu: false, pressure: 0, padPresent: false,
-      aDownMs: 0, bDownMs: 0, stickClick: false, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
+      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
     const btn = {};
     for (const b of BTNS) btn[b] = {down: false, at: 0, long: false, gen: 0, fromStick: false};
     const stick = {dir: null, next: 0, latched: false};
@@ -1232,7 +1346,7 @@
         throw new Error("mode message " + name + " must start with step:u16, phase:u8, flags:u8, match:u8");
       }
     }
-    const def = {name, typeId, layout, size, kind: opts.kind || "uplink", legacy: !!opts.legacyLayout};
+    const def = {name, typeId, layout, size, kind: opts.kind || "uplink", legacy: !!opts.legacyLayout, stub: !!opts.stub};
     R.msgs[name] = def;
     R.msgByType[typeId] = def;
     return def;
@@ -1322,6 +1436,7 @@
     const nodes = [0, 1, 2].map(() => ({ch: 15, ver: C.PROTOCOL_VERSION, plugged: true, rx: null, bad: null, seq: 0,
       sent: 0, lost: 0, bytes: 0, air: 0, rxBadVersion: 0, lastBadVersion: 0}));
     const inflight = [];
+    const lastAt = [0, 0, 0];   // one radio per node sends frames one after another: never reordered
     const radio = {
       nodes, loss: 0, latency: [1, 4], collisions: false, log: [],
       powered: n => n !== 0 || (world.central && world.central.powered),
@@ -1335,7 +1450,9 @@
         const now = world.clock;
         const airMs = (bytes.length + 31) * 0.032;
         const lat = radio.latency[0] + rng.float() * (radio.latency[1] - radio.latency[0]);
-        const f = {src: srcNode, dst, bytes, ch: n.ch, t0: now, t1: now + airMs, at: now + Math.max(lat, airMs), lost: rng.float() < radio.loss};
+        const at = Math.max(now + Math.max(lat, airMs), lastAt[srcNode] + 0.001);
+        lastAt[srcNode] = at;
+        const f = {src: srcNode, dst, bytes, ch: n.ch, t0: now, t1: now + airMs, at, lost: rng.float() < radio.loss};
         if (radio.collisions) {
           for (const o of inflight) if (o.ch === f.ch && o.t0 < f.t1 && f.t0 < o.t1) { o.lost = true; f.lost = true; }
         }
@@ -1384,10 +1501,12 @@
       manual: null,        // {by} manual pause
       paused: false,
       lobbyAt: -1e9, lobbyJson: "", lobbySnap: null, wantBroadcast: false,
+      pausedTotal: 0, pausedSince: null,
       log: [],
     };
     const api = {
       now: () => world.clock,
+      gameNow: () => world.clock - c.pausedTotal - (c.pausedSince != null ? world.clock - c.pausedSince : 0),
       rand: () => rng.float(),
       randInt: n => rng.int(n),
       step: () => c.step,
@@ -1527,6 +1646,8 @@
       const want = !!c.mode && (c.manual !== null || !(c.links[0] && c.links[1]));
       if (want !== c.paused) {
         c.paused = want;
+        if (want) c.pausedSince = now;
+        else if (c.pausedSince != null) { c.pausedTotal += now - c.pausedSince; c.pausedSince = null; }
         if (c.mode) safe(want ? "mode pause" : "mode resume", () => (want ? c.mode.inst.pause : c.mode.inst.resume) && (want ? c.mode.inst.pause() : c.mode.inst.resume()));
         c.wantBroadcast = true;
       }
@@ -1537,7 +1658,8 @@
         const res = api.over();
         if (res) { c.mode.overReported = true; safe("session.modeOver", () => c.session.modeOver(res)); c.wantBroadcast = true; }
       }
-      if (c.mode && (c.wantBroadcast || now - c.mode.lastBroadcast >= (c.mode.def.central.periodMs || C.STATE_PERIOD_MS))) broadcastMode();
+      // lobby first: a new match / phase reaches the boards before the mode
+      // state of the same tick (frames from one radio are never reordered)
       const lf = lobbyFields();
       const js = JSON.stringify(lf);
       const period = c.mode ? C.LOBBY_MODE_MS : C.LOBBY_IDLE_MS;
@@ -1545,6 +1667,7 @@
         c.lobbyJson = js; c.lobbyAt = now; c.lobbySnap = lf;
         send(0xff, "lobby", lf);
       }
+      if (c.mode && (c.wantBroadcast || now - c.mode.lastBroadcast >= (c.mode.def.central.periodMs || C.STATE_PERIOD_MS))) broadcastMode();
       c.wantBroadcast = false;
     };
 
@@ -1695,9 +1818,18 @@
   const PRESENCE_LOCAL = {settings: 2, "settings.cal": 2};
   const SYSTEM_MENU = new Set(["connect", "menu", "lobby"]);
 
+  DEVICE.defaultSettings = DEFAULT_SETTINGS;   // [+] S09 "restore default" (S key)
+  // -> {data, corrupt}; corrupt = something was stored but it is not a profile record (W3)
   function loadFlash(world, p) {
-    if (world.flashMem) return world.flashMem[p] || null;
-    try { return JSON.parse(localStorage.getItem("pr.device.flash." + p) || "null"); } catch { return null; }
+    if (world.flashMem) return {data: world.flashMem[p] || null, corrupt: false};
+    let raw = null;
+    try { raw = localStorage.getItem("pr.device.flash." + p); } catch { return {data: null, corrupt: false}; }
+    if (raw == null) return {data: null, corrupt: false};
+    try {
+      const v = JSON.parse(raw);
+      if (v && typeof v === "object" && !Array.isArray(v)) return {data: v, corrupt: false};
+    } catch {}
+    return {data: null, corrupt: true};
   }
   function saveFlash(world, p, data) {
     if (world.flashMem) { world.flashMem[p] = JSON.parse(JSON.stringify(data)); return; }
@@ -1723,9 +1855,12 @@
       pendingAct: null, rtQueue: [], rtCounter: 0, lastHeartbeat: -1e9, lastHello: -1e9, helloResend: 0, extraInput: null,
       pausedSince: null, pausedTotal: 0,
       invertUntil: 0, shakeAt: -1e9,
+      mLobbyMatch: -1, mAhead: false,   // legacy-layout modes: lobby match behind m, m started early (newMatch)
+      ctls: {}, modeBotOn: false, sentCaps: null, lastPushed: [],
       dom,
     };
-    const flash = loadFlash(world, p) || {};
+    const fl = loadFlash(world, p);
+    const flash = fl.data || {};
     hh.flash = {
       slots: Array.isArray(flash.slots) ? flash.slots.slice(0, 3).concat([null, null, null]).slice(0, 3) : [null, null, null],
       cur: flash.cur || null,
@@ -1736,7 +1871,7 @@
     hh.settings.lang = LANG;
     if (world.opts.pad) hh.settings.pad = world.opts.pad;
     hh.settingsDirty = false;
-    hh.local = {booted: !!world.opts.skipBoot, stack: [], loggedIn: !!hh.flash.cur, confirm: null, hover: 0};
+    hh.local = {booted: !!world.opts.skipBoot, stack: [], loggedIn: !!hh.flash.cur, confirm: null, hover: 0, flashReset: fl.corrupt};
     const preset = (world.opts.profiles || [])[p];
     if (preset) { hh.flash.cur = {slot: "guest", profile: normProfile(preset)}; hh.local.loggedIn = true; }
     world.radio.nodes[hh.node].ch = hh.settings.channel;
@@ -1782,6 +1917,9 @@
         get caps() { return hh.hw.caps; },
         invert(ms = 60) { hh.invertUntil = hh.now() + ms; },
         shake() { hh.shakeAt = hh.now(); },
+        get protocol() { return world.radio.nodes[hh.node].ver; },   // [+] flashed protocol version (S01 "v6", About)
+        get channel() { return world.radio.nodes[hh.node].ch; },     // [+] channel the radio is on now
+        fwBuild: 1,                                                    // [+]
       },
       get lobby() { return hh.lobby; },
       get state() { return hh.state; },
@@ -1938,8 +2076,10 @@
     if (hh.m && hh.stateModeDef) safe("mode destroy", () => hh.stateModeDef.player.destroy && hh.stateModeDef.player.destroy(hh.ctx));
     hh.m = null;
     Object.assign(hh, {lobby: null, lobbyPrev: null, state: null, stateName: null, stateModeDef: null,
-      lastNonInModeLobbyStep: -1, lastLobbyStep: -1, lastModeStep: -1, pendingAct: null, rtQueue: [], centralBoot: null});
+      lastNonInModeLobbyStep: -1, lastLobbyStep: -1, lastModeStep: -1, pendingAct: null, rtQueue: [], centralBoot: null,
+      mLobbyMatch: -1, mAhead: false});
     hh.link.gotState = false; hh.link.inMode = false; hh.link.match = -1; hh.link.helloAcked = false;
+    setTone(hh, 0);
   }
 
   function radioSend(hh, name, fields) {
@@ -1980,14 +2120,24 @@
     }
     hh.hbPadAt = hh.now();
     const hover = hh.screenId === "menu" ? hh.local.hover & 0x0f : 0x0f;
-    radioSend(hh, "input", {joyX: clamp(Math.round(st.x), -100, 100), joyY: clamp(Math.round(st.y), -100, 100), buttons, pressure, ui: (presenceOf(hh) << 4) | hover});
+    let f = {joyX: clamp(Math.round(st.x), -100, 100), joyY: clamp(Math.round(st.y), -100, 100), buttons, pressure};
+    // [+] the mode may patch what goes up (adventure: 6 s cap on the no-pad winch hold, §6.3)
+    if (def && def.player.uplink) {
+      const r = safe("mode " + def.id + " uplink", () => def.player.uplink(hh.ctx, Object.assign({}, f)));
+      if (r && typeof r === "object") f = {joyX: clamp(Math.round(+r.joyX || 0), -100, 100), joyY: clamp(Math.round(+r.joyY || 0), -100, 100),
+        buttons: (r.buttons | 0) & 0xff, pressure: clamp(Math.round(+r.pressure || 0), 0, 255)};
+    }
+    f.ui = (presenceOf(hh) << 4) | hover;
+    radioSend(hh, "input", f);
     hh.lastHeartbeat = hh.now();
   }
+  const capsOf = hh => (hh.hw.caps.pad && hh.input.st.padPresent ? 1 : 0) | (hh.hw.caps.joy ? 2 : 0) | (hh.hw.caps.snd ? 4 : 0);
   function sendHello(hh) {
     const pr = currentProfile(hh);
     if (!pr) return;
-    const caps = (hh.hw.caps.pad && hh.input.st.padPresent ? 1 : 0) | (hh.hw.caps.joy ? 2 : 0) | (hh.hw.caps.snd ? 4 : 0);
+    const caps = capsOf(hh);
     radioSend(hh, "hello", {nick: pr.name, avatar: pr.avatar, color: pr.color, caps, bootNonce: hh.bootNonce, fwBuild: 1});
+    hh.sentCaps = caps;
     hh.lastHello = hh.now();
   }
 
@@ -2002,6 +2152,7 @@
     }
     if (beat && now - hh.lastHeartbeat >= C.INPUT_PERIOD_MS) sendHeartbeat(hh);
     if (hh.extraInput != null && now >= hh.extraInput) { hh.extraInput = null; sendHeartbeat(hh); }
+    if (hh.sentCaps != null && capsOf(hh) !== hh.sentCaps && hh.helloResend === 0) { hh.helloResend = 1; hh.lastHello = -1e9; }
     if (hh.local.loggedIn && (!hh.link.helloAcked || hh.helloResend > 0) && now - hh.lastHello >= C.HELLO_MS) {
       sendHello(hh);
       if (hh.helloResend > 0) hh.helloResend--;
@@ -2059,6 +2210,9 @@
       hh.link.helloAcked = m.helloNonce[hh.p] === hh.bootNonce;
       updateInMode(hh);
       deliverState(hh, m, prev, false);
+      // session events seen on every screen: the core tells the asker about a deferred pause
+      if (prev && m.evId !== prev.evId && m.evType === C.SEV.PAUSE_LATER && m.evWho === hh.p) hh.ctx.toast("dev.core.pauseLater");
+      for (const fn of R.lobbyHooks) safe("onLobby", fn, hh.ctx, m, prev);
       return;
     }
     const def = modeOfState(m.name);
@@ -2066,11 +2220,27 @@
     if (m.step <= hh.lastNonInModeLobbyStep) return;                     // from a match that has ended
     if (m.step < hh.lastModeStep && hh.stateModeDef === def) return;   // stale
     hh.lastModeStep = m.step;
-    const match = m.match != null ? m.match : hh.lobby ? hh.lobby.match : 0;
-    if (hh.stateModeDef !== def || match !== hh.link.match) {
+    // A new match re-creates m. New messages carry `match`; a legacy layout
+    // (battle.state, v5) has none, so the lobby's match is used, and the mode
+    // may spot the new match itself first (player.newMatch) when the lobby
+    // that announces it was lost.
+    const legacy = !!d.legacy;
+    const lm = hh.lobby ? hh.lobby.match : 0;
+    let fresh = false, ahead = hh.mAhead;
+    if (hh.stateModeDef !== def) { fresh = true; ahead = false; }
+    else if (!legacy) fresh = m.match !== hh.link.match;
+    else if (lm !== hh.mLobbyMatch) {
+      fresh = !(ahead && lm === hh.link.match);    // no: m already started the match this lobby announces
+      ahead = false;
+    } else if (def.player.newMatch && hh.state && safe("mode " + def.id + " newMatch", () => def.player.newMatch(hh.ctx, m, hh.state))) {
+      fresh = true; ahead = true;
+    }
+    hh.mAhead = ahead;
+    if (legacy) hh.mLobbyMatch = lm;
+    if (fresh) {
       if (hh.m && hh.stateModeDef) safe("mode destroy", () => hh.stateModeDef.player.destroy && hh.stateModeDef.player.destroy(hh.ctx));
       hh.stateModeDef = def;
-      hh.link.match = match;
+      hh.link.match = !legacy ? m.match : ahead ? (hh.link.match + 1) & 0xff : lm;
       hh.state = null;
       hh.m = safe("mode " + def.id + " player.create", () => def.player.create && def.player.create(hh.ctx)) || {};
     }
@@ -2095,6 +2265,7 @@
     if (!is && was) {
       if (hh.stateModeDef) safe("mode destroy", () => hh.stateModeDef.player.destroy && hh.stateModeDef.player.destroy(hh.ctx));
       hh.m = null; hh.state = null; hh.stateModeDef = null; hh.link.match = -1; hh.lastModeStep = -1;
+      hh.mLobbyMatch = -1; hh.mAhead = false;
       hh.presenceOverride = null;
       setTone(hh, 0);
     }
@@ -2154,6 +2325,7 @@
     hh.screenId = want.id; hh.screenDef = def || null; hh.screenParams = want.params || null;
     hh.lockUntil = hh.now() + C.SCREEN_LOCK_MS;
     hh.input.latch();
+    hh.menuArmed = false;          // a hold of M that began on the old screen does not pause
     hh.presenceOverride = hh.link.inMode ? hh.presenceOverride : null;
     if (def && def.enter) safe(want.id + ".enter", () => def.enter(hh.ctx, want.params || null));
     hh.g.wipe();
@@ -2161,6 +2333,9 @@
   }
   function switchOverlay(hh, id) {
     if (hh.ov && hh.ov.def.exit) safe(hh.ov.id + ".exit", () => hh.ov.def.exit(hh.ov.ctx));
+    // ctx.setPresence() belongs to the overlay that set it (S15's settings subpage):
+    // it ends with that overlay, so the rival's "Resume" never stays greyed out
+    if (hh.ov) hh.presenceOverride = null;
     if (!id) { hh.ov = null; hh.g.wipe(); return; }
     const def = R.screens[id];
     if (!def) { hh.ov = null; lint("missingScreen", id, "no overlay registered"); return; }
@@ -2216,10 +2391,17 @@
   function handheldTick(hh, t0, t1) {
     const ctx = hh.ctx;
     if (hh.bot && hh.ctl) {
-      if (hh.ov && hh.ov.def.bot) safe(hh.ov.id + ".bot", () => hh.ov.def.bot(hh.ov.ctx, hh.ctl));
-      else if (hh.screenDef && hh.screenDef.bot) safe(hh.screenId + ".bot", () => hh.screenDef.bot(ctx, hh.ctl));
+      // With an overlay up only its bot plays (a mode bot's A would answer
+      // the rival's pause menu); the mode bot plays the mode's own screens
+      // (pick, HUD), never the system ones (results has its own bot).
       const md = hh.link.inMode ? hh.stateModeDef : null;
-      if (md && md.bot) safe("mode " + md.id + " bot", () => md.bot(ctx, hh.ctl));
+      const pre = modeScreenPrefix(md);
+      const modeBot = !hh.ov && !!md && !!md.bot && !!pre && !!hh.screenId && hh.screenId.startsWith(pre);
+      if (hh.modeBotOn && !modeBot) hh.input.releaseAll("bot");     // let go of what it was holding
+      hh.modeBotOn = modeBot;
+      if (hh.ov) { if (hh.ov.def.bot) safe(hh.ov.id + ".bot", () => hh.ov.def.bot(hh.ov.ctx, hh.ctl)); }
+      else if (hh.screenDef && hh.screenDef.bot) safe(hh.screenId + ".bot", () => hh.screenDef.bot(ctx, hh.ctl));
+      if (modeBot) safe("mode " + md.id + " bot", () => md.bot(ctx, hh.ctl));
     }
     const events = hh.input.process(t0, t1);
     linkTick(hh);
@@ -2312,7 +2494,9 @@
     else hh.fx.border = null;
     const pushed = g.present(now);
     hh.lastTexts = hh.texts;
+    hh.lastPushed = pushed;
     blit(hh, pushed);
+    if (R.listeners.frame) emit("frame", {p: hh.p, rects: pushed, stats: g.stats()});
     return g.stats().spiMs;
   }
   function drawErrorScreen(hh, id) {
@@ -2363,10 +2547,17 @@
     try { audio = new AC(); } catch { audio = null; }
     return audio;
   }
+  // The §2.6 table is the source of truth for names and DF file numbers, and
+  // its names do not share one prefix per mode (lap, finish, send_out, team_down),
+  // so prefix is only a group label; real conflicts are linted instead.
   DEVICE.registerSfx = function (prefix, defs) {
     for (const [id, def] of Object.entries(defs)) {
-      if (prefix && !id.startsWith(prefix)) lint("prefix", "sfx " + id, {prefix});
-      R.sfx[id] = def;
+      if (R.sfx[id]) { lint("sfxDup", id, {group: prefix, was: R.sfx[id].group}); continue; }
+      if (def.ch === "DF") {
+        const other = Object.entries(R.sfx).find(([, d]) => d.ch === "DF" && d.file === def.file);
+        if (other) lint("sfxFile", id, {file: def.file, usedBy: other[0]});
+      } else if (def.ch !== "BEEP") lint("sfx", id, "ch must be BEEP or DF");
+      R.sfx[id] = Object.assign({group: prefix || ""}, def);
     }
   };
   const VOL = [0, 0.27, 0.5, 0.73, 1];
@@ -2425,6 +2616,7 @@
   }
   function setTone(hh, hz) {
     hz = hz | 0;
+    if (!hz && !hh.voice) return;
     const v = voice(hh);
     if (!v) return;
     v.tone = hz;
@@ -2595,11 +2787,11 @@
     if (!m) return {};
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem("pr.device.params." + m.id) || "{}") || {}; } catch { saved = {}; }
+    // DEVICE.reset({params: {racing: {laps: 1}}}): this world only, never saved (fixtures)
+    const over = world && world.opts.params && (world.opts.params[m.id] || world.opts.params[m.modeId]) || {};
+    const ok = (p, v) => typeof v === "number" && (p.min == null || v >= p.min) && (p.max == null || v <= p.max);
     const out = {};
-    for (const p of m.params || []) {
-      const v = saved[p.key];
-      out[p.key] = typeof v === "number" && (p.min == null || v >= p.min) && (p.max == null || v <= p.max) ? v : p.def;
-    }
+    for (const p of m.params || []) out[p.key] = ok(p, over[p.key]) ? over[p.key] : ok(p, saved[p.key]) ? saved[p.key] : p.def;
     return out;
   };
   DEVICE.setParams = function (idOrNum, patch) {
@@ -2618,8 +2810,9 @@
     if (battleParamsCache && t - battleParamsAt < 1000 && t >= battleParamsAt) return battleParamsCache;
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem("pr.params.v4") || "{}") || {}; } catch { saved = {}; }
+    const over = (world && world.opts.battleParams) || {};    // DEVICE.reset({battleParams}): fixtures
     const out = {};
-    for (const [k, d] of Object.entries(BATTLE_DEFAULTS)) out[k] = typeof saved[k] === "number" ? saved[k] : d;
+    for (const [k, d] of Object.entries(BATTLE_DEFAULTS)) out[k] = typeof over[k] === "number" ? over[k] : typeof saved[k] === "number" ? saved[k] : d;
     battleParamsCache = Object.freeze(out); battleParamsAt = t;
     return battleParamsCache;
   };
@@ -2656,18 +2849,18 @@
       "dev.page.view": "显示", "dev.page.both": "两台", "dev.page.scale": "缩放", "dev.page.auto": "自动",
       "dev.page.player": "玩家 {n}", "dev.page.keys0": "A=F B=G S=R M=T 捏=V", "dev.page.keys1": "A=K B=L S=I M=O 捏=,",
       "dev.page.pad": "捏", "dev.page.stick": "摇杆", "dev.page.screen": "玩家 {n} 的屏幕",
-      "dev.page.paused": "模拟已暂停（按 ` 继续）",
+      "dev.page.paused": "模拟已暂停（按 ` 继续）", "dev.page.swapped": "键位已对调（Tab）",
       "dev.page.help": "两人共用一个键盘。屏幕上的 A / B / S / M 是掌机的按键，不是键盘上的同名键，按下表找：",
-      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟。",
+      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟；Tab 对调两组键位（一个人也能操作任意一台）。",
       "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏"},
     en: {"dev.page.title": "Device simulator", "dev.page.back": "← Back to progress",
       "dev.page.intro": "Two handhelds and a virtual central board: all three modes, two players on one computer. The screens are the real 128×160 pixels, the same as on the TFT.",
       "dev.page.view": "Show", "dev.page.both": "Both", "dev.page.scale": "Scale", "dev.page.auto": "Auto",
       "dev.page.player": "Player {n}", "dev.page.keys0": "A=F B=G S=R M=T pad=V", "dev.page.keys1": "A=K B=L S=I M=O pad=,",
       "dev.page.pad": "Pad", "dev.page.stick": "Stick", "dev.page.screen": "Player {n} screen",
-      "dev.page.paused": "Simulation paused (press ` to resume)",
+      "dev.page.paused": "Simulation paused (press ` to resume)", "dev.page.swapped": "Keys swapped (Tab)",
       "dev.page.help": "Two players share one keyboard. A / B / S / M on the screens are the handheld's buttons, not the keyboard keys with those letters:",
-      "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation.",
+      "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation; Tab swaps the two key groups, so one person can drive either handheld.",
       "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light"},
   });
 
@@ -2702,7 +2895,7 @@
   // prefix ("race."), hud ("hud" | "room"), pick: true, lobby, params}
   const SP = {PICK: 0, PLAY: 1, OVER: 2};
   DEVICE.stubMode = function (o) {
-    DEVICE.registerMessage(o.stateMsg, o.typeId, ["step:u16", "phase:u8", "flags:u8", "match:u8", "picked:u8", "count:u8[2]", "winner:u8", "quitBy:u8"], {kind: "mode"});
+    DEVICE.registerMessage(o.stateMsg, o.typeId, ["step:u16", "phase:u8", "flags:u8", "match:u8", "picked:u8", "count:u8[2]", "winner:u8", "quitBy:u8"], {kind: "mode", stub: true});
     const A = C.ACT;
     return {
       id: o.id, modeId: o.modeId, order: o.order || 0, titleKey: o.titleKey, subKey: o.subKey, subVars: o.subVars || (() => ({})),
@@ -2809,6 +3002,7 @@
     seed: params.has("seed") ? (parseInt(params.get("seed"), 10) >>> 0) : null,
     test: params.get("test") === "1",
     view: ["p1", "p2", "both"].includes(params.get("view")) ? params.get("view") : "both",
+    viewGiven: ["p1", "p2", "both"].includes(params.get("view")),
     gallery: params.has("gallery"),
     fixture: params.get("fixture"),
     pad: ["auto", "on", "off"].includes(params.get("pad")) ? params.get("pad") : null,
@@ -2822,6 +3016,7 @@
     const streams = {};
     for (const n of ["central", "radio", "bot.0", "bot.1", "fx.0", "fx.1", "input.0", "input.1", "world"]) streams[n] = makeStream(seed, n);
     const prev = world;
+    if (prev) for (const h of prev.hh || []) setTone(h, 0);     // the old world's engine must not keep humming
     const w = {
       seed, opts, streams, clock: 0, test: OPTS.test, speed: prev ? prev.speed : OPTS.speed,
       running: prev ? prev.running : true, spiMhz: prev ? prev.spiMhz : C.SPI_MHZ, fsrInverted: false,
@@ -2830,6 +3025,7 @@
       userGesture: prev ? prev.userGesture : false, langDraft: null, inTick: false,
     };
     world = w;
+    battleParamsCache = null;          // a new world may pin other battle params
     w.radio = makeRadio(w);
     if (opts.loss != null) w.radio.loss = clamp(+opts.loss, 0, 1);
     if (opts.latency) w.radio.latency = opts.latency.slice(0, 2);
@@ -2840,6 +3036,8 @@
     w.hh = [0, 1].map(p => makeHandheld(w, p, doms[p] || null));
     for (const hh of w.hh) {
       hh.ctl = makeCtl(hh, "bot", w.streams["bot." + hh.p]);
+      // who is a bot survives a reset from the page (not in ?test=1, where scripts decide)
+      hh.bot = !OPTS.test && prev && prev.hh ? prev.hh[hh.p].bot : !!(opts.bots && opts.bots[hh.p]);
       if (doms[hh.p]) { doms[hh.p].img = null; doms[hh.p].inverted = false; }
     }
     if (w.autoMode) {
@@ -2886,17 +3084,27 @@
 
   // ctl for bots and the test hook: press / hold / stick / pressure on one source
   const BTN_FIELD = {A: "a", B: "b", SKILL: "skill", MENU: "menu", STICK: "stick", UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right", PAD: "padHard", PAD_LIGHT: "padLight"};
-  function makeCtl(hh, srcName) {
+  // A bot's presses wait until the 150 ms input lock after a screen / overlay
+  // change has passed (otherwise its first press on a new screen is silently
+  // dropped); changes are applied in the order they were made.
+  function makeCtl(hh, srcName, rng) {
     const field = btn => { const f = BTN_FIELD[btn]; if (!f) throw new Error("unknown button: " + btn); return f; };
+    let lastT = 0;
+    const at = () => {
+      let t = hh.world.clock;
+      if (srcName === "bot") t = Math.max(t, hh.lockUntil - hh.offset);
+      return (lastT = Math.max(t, lastT));
+    };
     return {
       press(btn, ms = 50) {
-        const f = field(btn), t = hh.world.clock;
+        const f = field(btn), t = at();
         hh.input.set(srcName, f, true, t);
         hh.input.set(srcName, f, false, t + Math.max(C.TICK_MS, ms));
       },
-      hold(btn, down) { hh.input.set(srcName, field(btn), !!down); },
-      stick(x, y) { hh.input.set(srcName, "x", clamp(Math.round(x), -100, 100)); hh.input.set(srcName, "y", clamp(Math.round(y), -100, 100)); },
+      hold(btn, down) { hh.input.set(srcName, field(btn), !!down, at()); },
+      stick(x, y) { const t = at(); hh.input.set(srcName, "x", clamp(Math.round(x), -100, 100), t); hh.input.set(srcName, "y", clamp(Math.round(y), -100, 100), t); },
       pressure(v) { hh.input.set(srcName, "force", clamp(+v || 0, 0, 255)); },
+      rng: rng ? {int: rng.int, float: rng.float} : null,     // [+] bot.<p> stream (bots only)
     };
   }
 
@@ -2933,9 +3141,10 @@
     }
     scaleSel.addEventListener("change", () => { OPTS.scale = +scaleSel.value; layout(); });
     const pausedBadge = el("span", {class: "dv-paused", hidden: "", text: t("dev.page.paused")});
+    const swapBadge = el("span", {class: "dv-paused", hidden: "", text: t("dev.page.swapped")});
     const toolbar = el("div", {class: "dv-toolbar"},
       el("span", {class: "dv-label", text: t("dev.page.view")}), viewSeg,
-      el("span", {class: "dv-label", text: t("dev.page.scale")}), scaleSel, pausedBadge);
+      el("span", {class: "dv-label", text: t("dev.page.scale")}), scaleSel, pausedBadge, swapBadge);
     const row = el("div", {class: "dv-row"});
     const handhelds = [0, 1].map(p => buildShell(p));
     handhelds.forEach(h => row.append(h.shell));
@@ -2953,7 +3162,7 @@
       el("p", {text: t("dev.page.help")}), el("div", {class: "dv-keywrap"}, table), el("p", {text: t("dev.page.helpTouch")}));
     const debug = el("section", {class: "dv-debug", id: "device-debug"});
     root.append(intro, toolbar, row, help, debug);
-    const dom = {root, toolbar, row, debug, handhelds, pausedBadge, viewSeg, scaleSel};
+    const dom = {root, toolbar, row, debug, handhelds, pausedBadge, swapBadge, viewSeg, scaleSel};
     DEVICE._dom = dom;
     return dom;
   }
@@ -3075,7 +3284,7 @@
     if (e.code === "Tab") {
       const a = document.activeElement;
       if (a && a !== document.body && a.tagName !== "CANVAS") return;   // keep Tab for focus moves
-      if (down && !e.repeat) emit("tab");
+      if (down && !e.repeat) { DEVICE.keySwap(!keySwap); emit("tab", keySwap); }
       e.preventDefault();
       return;
     }
@@ -3083,10 +3292,22 @@
     if (!k) return;
     e.preventDefault();
     if (e.repeat) return;
-    const [p, field] = k;
+    const p = keySwap ? 1 - k[0] : k[0], field = k[1];
     world.hh[p].input.set("kbd", field, down, simTimeOf(e));
     lightKey(p, field, down);
   }
+  // Tab: the two key groups drive the other handheld (one person can steer
+  // either pet in adventure, or either side anywhere). Held keys are let go.
+  let keySwap = false;
+  DEVICE.keySwap = function (on) {                                    // [+]
+    if (on != null && !!on !== keySwap) {
+      keySwap = !!on;
+      releaseKeyboard();
+      const d = DEVICE._dom;
+      if (d && d.swapBadge) d.swapBadge.hidden = !keySwap;
+    }
+    return keySwap;
+  };
   function lightKey(p, field, down) {
     const d = DEVICE._dom;
     if (!d) return;
@@ -3128,6 +3349,11 @@
       for (const k of ["route", "results"]) if (!m.player[k]) lint("modeParts", m.id, {missing: "player." + k});
       if (!m.central.create) lint("modeParts", m.id, {missing: "central.create"});
     }
+    // §7.6 sizes and kinds (the step-0 stubs register placeholders and are skipped)
+    for (const [type, size, kind] of [[C.MSG.BATTLE_STATE, 47, "mode"], [C.MSG.RACE_INPUT, 23, "uplink"], [C.MSG.RACE_STATE, 55, "mode"], [C.MSG.ADV_STATE, 61, "mode"]]) {
+      const d = R.msgByType[type];
+      if (d && !d.stub && (d.size !== size || d.kind !== kind)) lint("msgSize", d.name, {size: d.size, want: size, kind: d.kind, wantKind: kind});
+    }
   }
 
   DEVICE.start = function () {
@@ -3143,7 +3369,10 @@
     }
     checkRegistries();
     const dom = buildDom();
-    const opts = {seed: OPTS.seed, mode: OPTS.mode, pad: OPTS.pad, skipBoot: !!OPTS.mode};
+    // §8.12: a phone shows one handheld, P1, with the computer playing P2
+    const phone = !!dom && !OPTS.test && !OPTS.viewGiven && window.innerWidth < 900;
+    if (phone) OPTS.view = "p1";
+    const opts = {seed: OPTS.seed, mode: OPTS.mode, pad: OPTS.pad, skipBoot: !!OPTS.mode, bots: phone ? [false, true] : null};
     buildWorld(opts);
     if (restoreDraft) applyDraft(restoreDraft);
     if (dom) {
@@ -3188,12 +3417,23 @@
   DEVICE.seed = () => world ? world.seed : null;
   DEVICE.world = () => world;
   const HH = p => { const h = world.hh[p]; if (!h) throw new Error("no handheld " + p); return h; };
-  const scriptCtl = p => (HH(p).scriptCtl = HH(p).scriptCtl || makeCtl(HH(p), "script"));
+  // [+] a controller on one input source: "script" (DEVICE.press...), "pad" (gamepads, device-debug.js), "touch"
+  DEVICE.ctl = (p, src = "script") => {
+    if (!["script", "pad", "touch"].includes(src)) throw new Error("ctl source: script | pad | touch");
+    const h = HH(p);
+    return h.ctls[src] || (h.ctls[src] = makeCtl(h, src));
+  };
+  const scriptCtl = p => DEVICE.ctl(p, "script");
   DEVICE.press = (p, btn, holdMs = 50) => scriptCtl(p).press(btn, holdMs);
   DEVICE.hold = (p, btn, down) => scriptCtl(p).hold(btn, down);
   DEVICE.stick = (p, x, y) => scriptCtl(p).stick(x, y);
   DEVICE.pressure = (p, v) => scriptCtl(p).pressure(v);
-  DEVICE.bot = (p, on) => { HH(p).bot = !!on; if (!on) HH(p).input.releaseAll("bot"); };
+  DEVICE.bot = (p, on) => {                        // on omitted [+]: just tell whether it is a bot
+    if (on === undefined) return HH(p).bot;
+    HH(p).bot = !!on;
+    if (!on) HH(p).input.releaseAll("bot");
+    return HH(p).bot;
+  };
   DEVICE.screen = p => {
     const h = HH(p);
     return {id: h.screenId, overlay: h.ov ? h.ov.id : null, mode: h.link.inMode && h.stateModeDef ? h.stateModeDef.id : null, params: h.screenParams};
@@ -3233,7 +3473,7 @@
       world.central = makeCentral(world);
       world.radio.nodes[0].rx = (bytes, src) => world.central.receive(bytes, src);
     },
-    channel(p, ch) { world.radio.nodes[p + 1].ch = ch | 0; },
+    channel(p, ch) { world.radio.nodes[p === "central" || p < 0 ? 0 : p + 1].ch = ch | 0; },   // [+] "central" / -1 = the central board
     version(node, v) { world.radio.nodes[node].ver = v | 0; },
     get loss() { return world.radio.loss; },
   };
@@ -3242,10 +3482,25 @@
     const hh = makeHandheld(world, p, old.dom);
     hh.bootNonce = 1 + world.streams.world.int(255);
     if (hh.bootNonce === old.bootNonce) hh.bootNonce = (hh.bootNonce % 255) + 1;
-    hh.ctl = makeCtl(hh, "bot");
+    hh.ctl = makeCtl(hh, "bot", world.streams["bot." + p]);
     hh.bot = old.bot;
     if (hh.dom) hh.dom.img = null;
+    setTone(old, 0);
     world.hh[p] = hh;
+  };
+  // [+] fixtures: the running mode's central.debug(cmd, arg) (e.g. jump to the boss room); broadcasts next tick
+  DEVICE.debug = function (cmd, arg) {
+    const c = world.central;
+    if (!c.mode || !c.mode.inst.debug) return undefined;
+    const r = safe("mode " + c.mode.def.id + " debug", () => c.mode.inst.debug(cmd, arg));
+    c.wantBroadcast = true;
+    return r;
+  };
+  // [+] debug panel: unplug the joystick / pull the SD card at run time ({joy, pad, snd}); HELLO caps follow
+  DEVICE.caps = function (p, patch) {
+    const h = HH(p);
+    if (patch) Object.assign(h.hw.caps, patch);
+    return Object.assign({}, h.hw.caps);
   };
   DEVICE.stats = p => { const s = HH(p).g.stats(); return {fps: s.fps, px: s.px, bytes: s.bytes, rects: s.rects, spiMs: +s.spiMs.toFixed(3), level: s.level, overBudget: HH(p).overBudget}; };
   DEVICE.lint = () => lints.map(l => Object.assign({}, l));
@@ -3265,15 +3520,20 @@
   DEVICE.fixture = async function (id) {
     const f = R.fixtures[id];
     if (!f) return {id, ok: false, error: "unknown fixture", log: []};
-    const log = [];
+    const log = [], shots = [];
     const T = Object.assign({}, DEVICE, {
       log: m => log.push(String(m)),
       assert(cond, msg) { if (!cond) throw new Error("assert: " + (msg || "")); },
+      // a gallery frame: both screens as they are now (png needs the page's document)
+      shot(label) {
+        shots.push({label: String(label), screens: [DEVICE.screen(0), DEVICE.screen(1)], stats: [DEVICE.stats(0), DEVICE.stats(1)],
+          png: typeof document !== "undefined" ? [DEVICE.png(0, 2), DEVICE.png(1, 2)] : null});
+      },
     });
     const wasRunning = world.running;
     world.running = false;
-    try { await f.run(T); return {id, ok: true, error: null, log}; }
-    catch (e) { return {id, ok: false, error: e && e.message ? e.message : String(e), log}; }
+    try { await f.run(T); return {id, ok: true, error: null, log, shots}; }
+    catch (e) { return {id, ok: false, error: e && e.message ? e.message : String(e), log, shots}; }
     finally { world.running = wasRunning; }
   };
   DEVICE.hh = p => HH(p);          // [+] internal handheld object (debug panel)
