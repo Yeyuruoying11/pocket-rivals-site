@@ -648,10 +648,10 @@
         "file": "lib/input.c · joystick.c · buttons.c · fsr.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "读摇杆（I2C）、按钮（去抖）、压力垫（ADC），合成一份输入快照；外设都可选，光板子也能玩。还没上板实测。",
+        "detail": "读摇杆（I2C）、按钮（去抖）、压力垫（ADC），合成一份输入快照；A / B 按下的时刻用 GPIOTE 中断记录，精确到 1 ms。外设都可选，光板子也能玩。还没上板实测。",
         "en": {
           "name": "Input driver",
-          "detail": "Reads the joystick (I2C), buttons (debounced) and pressure pad (ADC), and assembles an input snapshot. Every peripheral is optional, so the bare board is still playable. Not yet tested on hardware."
+          "detail": "Reads the joystick (I2C), buttons (debounced) and pressure pad (ADC) into one input snapshot; A / B press times are recorded by GPIOTE interrupt to 1 ms. Every peripheral is optional, so a bare board still plays. Not yet tested on hardware."
         }
       },
       {
@@ -660,10 +660,10 @@
         "file": "lib/controls.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "唯一知道“哪个键做什么”的模块：把输入变成意图（确认、下一只、攻击、格挡、换宠物），摇杆选宠物，压力垫或按住 A 控制指针。",
+        "detail": "唯一知道“哪个键做什么”的模块：把输入变成意图（确认、下一只、攻击、格挡、换宠物），摇杆选宠物，压力垫或按住 A 控制指针。菜单键短按（松开时）打开换宠物框，按住 1 秒暂停。",
         "en": {
           "name": "Controls",
-          "detail": "The only module that knows which button does what: turns input into intents (confirm, next pet, attack, block, switch pet), with the joystick selecting pets and the pressure pad or holding A steering the pointer."
+          "detail": "The only module that knows which button does what: turns input into intents (confirm, next pet, attack, block, switch pet), with the joystick selecting pets and the pressure pad or holding A steering the pointer. A short MENU press opens the switch box on release; holding it 1 s pauses."
         }
       },
       {
@@ -693,7 +693,7 @@
       {
         "id": "screen",
         "name": "屏幕与界面",
-        "file": "TFT driver · UI（规划中）",
+        "file": "lib/gfx.c · tft_st7735.c（分支 r3-gfx）",
         "owner": "harvey",
         "status": "doing",
         "detail": "绘图核心（16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分）和 ST7735S 驱动草稿正在写，用测试和模拟器逐像素对齐；驱动要上板核对偏移、颜色顺序和 SPI 时钟。界面按 docs/ui-design.md 分 T0–T3 实现。",
@@ -705,13 +705,13 @@
       {
         "id": "sound",
         "name": "音效",
-        "file": "DFPlayer（规划中）",
+        "file": "lib/audio.c · beep_pwm.c · dfplayer.c",
         "owner": "harvey",
-        "status": "todo",
-        "detail": "DFPlayer 放音效；板载喇叭放界面音和节奏音。",
+        "status": "doing",
+        "detail": "声音调度：板载喇叭（PWM）放界面音、节奏音和引擎声（音量只有音效的 1/4），DFPlayer（UART）按优先级放音效；音效表从模拟器自动生成。主机测试通过，还没上板试听；游戏事件还没接上声音。",
         "en": {
           "name": "Sound effects",
-          "detail": "DFPlayer plays the sound effects; the onboard speaker handles UI sounds and rhythm beats."
+          "detail": "Sound scheduling: the on-board speaker (PWM) plays UI sounds, rhythm cues and the engine (at a quarter of the sfx level), the DFPlayer (UART) plays sound effects by priority; the sound table is generated from the simulator. Host tests pass; not yet heard on a board, and game events are not wired to sounds yet."
         }
       }
     ],
@@ -767,15 +767,27 @@
         }
       },
       {
+        "id": "race",
+        "name": "赛车核心",
+        "file": "lib/race_core.c · race_track.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "双人赛车的物理、计圈、宠物特性（玩家板）和倒计时、比赛时钟、冲线顺序、技能（中央板），和模拟器逐步完全一致（27 万多项对照检查）。还没接到两块板的主程序里，画面也还没做。",
+        "en": {
+          "name": "Racing core",
+          "detail": "Two-player racing physics, laps and pet traits (player board) plus countdown, race clock, finish order and skills (central board), step-for-step identical to the simulator (over 270,000 parity checks). Not yet wired into either board's main program, and no screens yet."
+        }
+      },
+      {
         "id": "tests",
         "name": "测试与模拟器",
         "file": "software/test",
         "owner": "yihao",
         "status": "done",
-        "detail": "约 7000 项单元测试，加上丢包模拟器（0% / 30% / 60% 丢包下打完整局）和终端版对战 play.c。",
+        "detail": "约 30 万项单元和对照测试（规则、按键计时、声音、赛车和模拟器逐步对齐），加上丢包模拟器（0% / 30% / 60% 丢包下打完整局）和终端版对战 play.c。",
         "en": {
           "name": "Tests and simulator",
-          "detail": "About 7000 unit tests, plus a packet-loss simulator (full games at 0% / 30% / 60% loss) and a terminal battle program, play.c."
+          "detail": "About 300,000 unit and parity checks (rules, button timing, sound, racing step-for-step against the simulator), plus the lossy-radio simulator (full matches at 0% / 30% / 60% loss) and the terminal battle play.c."
         }
       },
       {
@@ -808,10 +820,10 @@
         "file": "device.html",
         "owner": "yihao",
         "status": "done",
-        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车）和双人冒险（4 个房间 + Boss），有暂停、掉线重连、设置和压力垫校准。",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车，可选俯视 / 车后 / 第一人称视角）和双人冒险（4 个房间 + Boss），有暂停、掉线重连、设置和压力垫校准。",
         "en": {
           "name": "Handheld simulator",
-          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet) and co-op adventure (4 rooms + a boss), with pause, reconnect, settings and pad calibration."
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet, top-down / chase / first-person view) and co-op adventure (4 rooms + a boss), with pause, reconnect, settings and pad calibration."
         }
       },
       {
