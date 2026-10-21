@@ -95,7 +95,9 @@ code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, m
 
 /* ---------- header ---------- */
 .hero { padding: 40px 0 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between; }
-.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lang-toggle { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 2px 10px; font-size: 12px; letter-spacing: 0; text-transform: none; cursor: pointer; }
+.lang-toggle:hover { border-color: var(--muted); }
 .hero h1 { font-size: 40px; line-height: 1.1; margin: 6px 0 6px; letter-spacing: -0.02em; }
 .hero p { margin: 0; color: var(--muted); }
 .countdown { display: flex; gap: 8px; align-items: flex-end; }
