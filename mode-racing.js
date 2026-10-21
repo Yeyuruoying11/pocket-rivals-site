@@ -9,6 +9,8 @@
 // 0..65535 = 360°, a 256-entry sine table. Pure functions live in `rules`
 // (DEVICE.rules("racing")), which also exports race_config.h (configH()).
 // Screens: race.pick (DEVICE.ui.pickScreen, secret pick) and race.hud.
+// Each pet has its own kart, rider and handling (§5.9): sprites
+// race.car.<pet> / race.rider.<pet>, petTune() in the physics.
 // The mode bot (AI rival, §5.8) follows a racing line with pure pursuit,
 // lifts before the U-turns and puddles and watches its heat.
 (() => {
@@ -63,6 +65,14 @@
     ["uplinkMs", "RACE_UPLINK_MS", 20, 100, 10, 50, "ms", "上行间隔", "Uplink", "race.input 的发送间隔"],
     ["draftPct", "RACE_DRAFT_PCT", 0, 30, 1, 10, "%", "尾流", "Draft", "尾流，0 = 关（试玩默认开）"],
     ["catchupPct", "RACE_CATCHUP_PCT", 0, 30, 1, 0, "%", "拉车", "Catch-up", "隐形拉车，0 = 关"],
+    // per-pet handling (§5.9); 100 = same as everyone
+    ["emberTopPct", "RACE_EMBER_TOP_PCT", 90, 120, 1, 106, "%", "焰灵极速", "Ember top", "焰灵：路面最高速度 %"],
+    ["emberHeatPct", "RACE_EMBER_HEAT_PCT", 50, 200, 5, 125, "%", "焰灵升温", "Ember heat", "焰灵：升温速度 %"],
+    ["tideCoolPct", "RACE_TIDE_COOL_PCT", 50, 200, 5, 130, "%", "潮影降温", "Tide cool", "潮影：降温速度 %"],
+    ["tidePuddleSafe", "RACE_TIDE_PUDDLE_SAFE", 0, 101, 1, 101, "%", "潮影水洼", "Tide puddle", "潮影：过水洼不打滑的油门上限 %（101 = 永不打滑）"],
+    ["tidePuddleCool", "RACE_TIDE_PUDDLE_COOL", 0, 100, 5, 30, "", "潮影水冷", "Puddle cool", "潮影：每进一格水洼，热量 −这么多"],
+    ["sproutTopPct", "RACE_SPROUT_TOP_PCT", 80, 110, 1, 96, "%", "叶芽极速", "Sprout top", "叶芽：路面最高速度 %"],
+    ["sproutTurnPct", "RACE_SPROUT_TURN_PCT", 50, 200, 5, 125, "%", "叶芽转向", "Sprout turn", "叶芽：转向速度 %（最高速时半径约 24 px）"],
     ["botPct", "RACE_SIM_BOT_PCT", 50, 110, 5, 100, "%", "电脑难度", "Bot pace", "模拟器专用：AI 对手的油门 %"],
   ];
   const DEFAULTS = {};
@@ -81,6 +91,8 @@
     "dev.race.counter.splashDash": "浪花 打断 冲刺", "dev.race.counter.dashVine": "冲刺 烧掉 藤蔓", "dev.race.counter.vineSplash": "藤蔓 吸收 浪花",
     "dev.race.rivalChoosing": "对方：选择中…", "dev.race.rivalPicked": "对方：{OK} 已选好", "dev.race.waitRival": "等待对方…",
     "dev.race.sameDriver": "两人选了同一只", "dev.race.hintPick": "选", "dev.race.hintLock": "选定",
+    // per-pet handling, one line each (§5.9)
+    "dev.race.trait.ember": "跑得最快，但升温快", "dev.race.trait.tide": "降温快，水洼不打滑", "dev.race.trait.sprout": "转弯最灵，极速稍低",
     // S13 HUD (§4.9)
     "dev.race.lap": "第{n}/{m}圈", "dev.race.pos1": "第1", "dev.race.pos2": "第2",
     "dev.race.go": "出发！", "dev.race.finalLap": "最后一圈！", "dev.race.wrongWay": "逆行！",
@@ -106,6 +118,7 @@
     "dev.race.counter.splashDash": "Splash stops Dash", "dev.race.counter.dashVine": "Dash burns Vines", "dev.race.counter.vineSplash": "Vines soak Splash",
     "dev.race.rivalChoosing": "Rival: choosing...", "dev.race.rivalPicked": "Rival: ready {OK}", "dev.race.waitRival": "Waiting...",
     "dev.race.sameDriver": "Same driver", "dev.race.hintPick": "Pick", "dev.race.hintLock": "Lock",
+    "dev.race.trait.ember": "Fastest, heats fast", "dev.race.trait.tide": "Cools fast, no skid", "dev.race.trait.sprout": "Sharp turns, slower",
     "dev.race.lap": "LAP {n}/{m}", "dev.race.pos1": "1ST", "dev.race.pos2": "2ND",
     "dev.race.go": "GO!", "dev.race.finalLap": "FINAL LAP!", "dev.race.wrongWay": "WRONG WAY!",
     "dev.race.overheat": "OVERHEAT!", "dev.race.skid": "Skid!", "dev.race.perfectStart": "PERFECT GO!", "dev.race.wheelspin": "Wheelspin!",
@@ -157,6 +170,117 @@
   const STEP_MS = 20;          // local physics, 50 Hz
   const PET_EMBER = 0, PET_TIDE = 1, PET_SPROUT = 2;
   const SKILL = ["dash", "splash", "vine"];
+
+  /* ============================== cars and riders (§5.9) ============================== */
+
+  // Each pet has its own kart: body in the pet's color and a tail you can
+  // tell apart without color (Ember: pointed nose + two flame fins; Tide:
+  // round nose + full-width wave wing with a fin; Sprout: square bumper +
+  // one leaf spoiler on the right). 10x10, two frames (nose up, nose
+  // up-right); the other 6 headings are flips / transposes (drawCar).
+  // o = outline and wheels, b = body, d = body shade, l = light trim,
+  // k = cockpit. The rider is the pet's head (5x4, light color, two void
+  // eyes, the pet's own tuft: flame horns / water tip / two leaves), drawn
+  // upright over the cockpit and 2 px up, so it sits "in" the kart at every
+  // heading. Under both, a 1 px drop shadow in the player's color (P1 / P2).
+  const CAR_ROWS = {
+    ember: [[
+      "....oo....",
+      "...oblo...",
+      ".ooobbooo.",
+      ".oobbbboo.",
+      "..obkkbo..",
+      "..obkkbo..",
+      ".oobbbboo.",
+      ".oobddboo.",
+      ".loddddol.",
+      "l..oooo..l"], [
+      "......oo..",
+      "....ooolo.",
+      "...oobbbo.",
+      ".ooobbbbo.",
+      "ooobkkbbo.",
+      "oobbkkbooo",
+      "loddbboo..",
+      ".oddboo...",
+      ".looooo...",
+      "...l......"]],
+    tide: [[
+      "...oooo...",
+      "..obbbbo..",
+      ".oobbbboo.",
+      ".oobbbboo.",
+      "..obkkbo..",
+      "..obkkbo..",
+      ".oobbbboo.",
+      ".oobllboo.",
+      "llllllllll",
+      ".oooooooo."], [
+      "....oooo..",
+      "....oobbo.",
+      "...oobbbbo",
+      ".ooobbbbbo",
+      "loobkkbboo",
+      "llbbkkbooo",
+      "olllbboo..",
+      ".ollboo...",
+      "..olloo...",
+      "...oll...."]],
+    sprout: [[
+      "..oooooo..",
+      "..obbbbo..",
+      ".oobbbboo.",
+      ".oobbbboo.",
+      "..obkkbo..",
+      "..obkkbo..",
+      ".oobbbboo.",
+      ".oobddbol.",
+      "..oddddoll",
+      "...oooo.ll"], [
+      "....oooo..",
+      "....oobbo.",
+      "...oobbbbo",
+      ".ooobbbbbo",
+      ".oobkkbboo",
+      ".obbkkbooo",
+      ".oddbboo..",
+      ".oddbool..",
+      "..oooolll.",
+      "......ll.."]],
+  };
+  const RIDER_ROWS = {
+    ember: [".l.l.", "lllll", "lolol", ".lll."],
+    tide: ["..l..", ".lll.", "lolol", ".lll."],
+    sprout: ["ll.ll", ".lll.", "lolol", ".lll."],
+  };
+  // Racing skill icons (8x8, §2.4): Flare Dash ">>", Splash fountain, Vine curl;
+  // trait icons for the pick cards: fast, grip (drop over a tread), turn
+  const RACE_ICONS = {
+    dash: ["fire", "gold", "#...#...", "##..##..", ".##..##.", "..++..++", "..++..++", ".##..##.", "##..##..", "#...#..."],
+    splash: ["water", "waterLt", "+..+..+.", "........", ".+.##.+.", "...##...", "..####..", "..####..", "#......#", ".######."],
+    vine: ["grass", "grassLt", "...###..", "..#...#.", "..#.+.#.", "...#++..", "+...#...", "++..#...", ".+##....", "..#....."],
+    fast: ["gold", "white", "........", "++++....", "....###.", "+++..###", "....###.", "++++....", "........", "........"],
+    grip: ["waterLt", "white", "...#....", "..###...", ".#####..", ".#####..", "..###...", "........", "+.+.+.+.", ".+.+.+.+"],
+    turn: ["grassLt", "white", "..####..", ".#....#.", "#......#", "#......#", "#....###", ".....##.", "......#.", "........"],
+  };
+  const TRAIT_ICON = ["fast", "grip", "turn"];
+  {
+    const defs = {};
+    D.PETS.forEach(pt => {
+      defs["race.car." + pt.id] = {w: 10, h: 10, map: {o: "void", b: pt.color, d: pt.dk, l: pt.lt, k: "void"}, frames: CAR_ROWS[pt.id]};
+      defs["race.rider." + pt.id] = {w: 5, h: 4, map: {l: pt.lt, o: "void"}, frames: [RIDER_ROWS[pt.id]]};
+    });
+    for (const [k, [c1, c2, ...rows]] of Object.entries(RACE_ICONS)) defs["race.icon." + k] = {w: 8, h: 8, map: {"#": c1, "+": c2}, frames: [rows]};
+    D.registerSprites("race.", defs);
+  }
+  // Per-pet handling (§5.9) from the params: the numbers stepCar uses
+  function petTune(P, pet) {
+    const t = {topPct: 100, heatPct: 100, coolPct: 100, turnPct: 100, puddleSafe: P.puddleSafe, puddleCool: 0};
+    if (pet === PET_EMBER) { t.topPct = P.emberTopPct; t.heatPct = P.emberHeatPct; }
+    else if (pet === PET_TIDE) { t.coolPct = P.tideCoolPct; t.puddleSafe = P.tidePuddleSafe; t.puddleCool = P.tidePuddleCool; }
+    else if (pet === PET_SPROUT) { t.topPct = P.sproutTopPct; t.turnPct = P.sproutTurnPct; }
+    return t;
+  }
 
   /* ============================== track (§5.2) ============================== */
 
@@ -281,8 +405,9 @@
       | (c.wrong ? CF.WRONGWAY : 0) | (c.finished ? CF.FINISHED : 0);
   }
   // Effective top speed in px/s at this moment (before the throttle)
-  function topSpeed(c, P, t, kind, env) {
-    let top = (kind === K.GRASS || kind === K.TREE) ? P.grassSpeed : P.topSpeed;
+  function topSpeed(c, P, t, kind, env, tn) {
+    tn = tn || petTune(P, env.pet);
+    let top = (kind === K.GRASS || kind === K.TREE) ? P.grassSpeed : trunc(P.topSpeed * tn.topPct / 100);
     const boost = max(t < c.boostUntil ? P.boostPct : 0, t < c.dashUntil ? P.dashPct : 0);
     top = trunc(top * (100 + boost) / 100);
     if (env.draft && P.draftPct > 0) top = trunc(top * (100 + P.draftPct) / 100);
@@ -291,7 +416,8 @@
     return top;
   }
   // One 20 ms step. ctl = {u: 0..100, brake, sx, sy (stick, + = up)};
-  // env = {t (local race ms), laps, vineTile (rival's vine or 255), draft, catchup}.
+  // env = {t (local race ms), laps, vineTile (rival's vine or 255), draft, catchup,
+  // pet (this car's driver: per-pet handling, §5.9; missing = no trait)}.
   // Returns the events of this step (strings) for sounds and banners.
   function stepCar(c, P, ctl, env) {
     const ev = [];
@@ -303,9 +429,11 @@
     c.u = u;
     const px = c.x >> 8, py = c.y >> 8;
     const ti = (py >> 3) * 16 + (px >> 3), kind = KIND[ti];
+    const tn = petTune(P, env.pet);
     if (ti !== c.tile) {
       c.tile = ti;
-      if (kind === K.PUDDLE && u > P.puddleSafe && t >= c.skidUntil) {
+      if (kind === K.PUDDLE && tn.puddleCool > 0 && c.heat > 0) { c.heat = max(0, c.heat - tn.puddleCool * 1000); ev.push("cooled"); }
+      if (kind === K.PUDDLE && u > tn.puddleSafe && t >= c.skidUntil) {
         c.skidUntil = t + P.skidMs; c.skidDir = c.steer >= 0 ? 1 : -1;
         c.v = trunc(c.v * 70 / 100);
         ev.push("skid");
@@ -321,7 +449,7 @@
     }
     // speed
     const grass = kind === K.GRASS || kind === K.TREE;
-    const top = topSpeed(c, P, t, kind, env);
+    const top = topSpeed(c, P, t, kind, env, tn);
     const target = trunc(top * 256 * u / 100);
     const st = k => trunc(k * 256 * dt / 1000);   // px/s^2 -> 1/256 px/s per step
     if (c.v < 0 && !ctl.brake) c.v = min(0, c.v + st(P.brake));
@@ -336,12 +464,12 @@
     }
     // heat (milli-units, 100000 = full); boost and dash never heat up
     const hot = u > P.heatLine;
-    if (hot && t >= c.boostUntil && t >= c.dashUntil) c.heat += P.heatRise * dt;
-    else if (!hot) c.heat = max(0, c.heat - P.heatCool * dt);
+    if (hot && t >= c.boostUntil && t >= c.dashUntil) c.heat += trunc(P.heatRise * dt * tn.heatPct / 100);
+    else if (!hot) c.heat = max(0, c.heat - trunc(P.heatCool * dt * tn.coolPct / 100));
     if (c.heat >= 100000) { c.heat = 0; c.stallUntil = t + P.stallMs; c.stalls++; ev.push("overheat"); }
     // steering: the stick is the wanted heading; slower turning at speed
     const vpx = min(abs(c.v) >> 8, P.topSpeed);
-    let turn = P.turnLo - trunc((P.turnLo - P.turnHi) * vpx / P.topSpeed);
+    let turn = trunc((P.turnLo - trunc((P.turnLo - P.turnHi) * vpx / P.topSpeed)) * tn.turnPct / 100);
     if (t < c.skidUntil || t < c.snareUntil) turn = trunc(turn / 2);
     const maxStep = trunc(turn * 65536 * dt / 360000);
     const sx = ctl.sx | 0, sy = ctl.sy | 0;
@@ -396,7 +524,7 @@
     const lines = ["// race_config.h: Pocket Rivals racing tunables (exported from the device simulator)", "#pragma once", ""];
     for (const p of PARAMS) {
       if (p[0] === "botPct") continue;   // simulator only
-      const def = ("#define " + p[1]).padEnd(29) + String(P[p[0]]).padEnd(6);
+      const def = ("#define " + p[1] + " ").padEnd(31) + String(P[p[0]]).padEnd(6);
       lines.push(p[9] ? def + "// " + p[9] : def.trimEnd());
     }
     return lines.join("\n") + "\n";
@@ -606,6 +734,12 @@
       else if (e === "wrongWay") ctx.sfx("wrong_way");
       else if (e === "snared") { banner(ctx, "dev.race.snared", "grassLt"); ctx.sfx("skid"); }
       else if (e === "burned") { banner(ctx, "dev.race.burned", "gold"); ctx.sfx("boost"); }
+      else if (e === "cooled") {
+        // Tide in a puddle: a ring of waterLt drops around the car (decoration)
+        const c = m.car, x = c.x >> 8, y = c.y >> 8;
+        for (const [dx, dy] of [[-5, -3], [5, -3], [-6, 2], [6, 2], [0, 5]]) m.parts.push({x: x + dx, y: y + dy, at: ctx.now(), c: "waterLt"});
+        while (m.parts.length > 12) m.parts.shift();
+      }
       else if (e === "lap") {
         ctx.fx.border("white");
         ctx.sfx("lap");
@@ -706,7 +840,7 @@
       const u = ctx.padLevel(m.pl, STEP_MS);
       if (!live) { c.u = c.finished ? 0 : u; continue; }
       const rv = rivalView(ctx);
-      const env = {t: m.raceT, laps: st.laps, vineTile: st.vines[1 - ctx.p].tile, draft: false, catchup: false};
+      const env = {t: m.raceT, laps: st.laps, vineTile: st.vines[1 - ctx.p].tile, draft: false, catchup: false, pet: myPet(ctx, m)};
       if (rv && P.draftPct > 0) {
         // rival 10-40 px ahead in my heading, within 6 px of my line
         const dx = rv.x - (c.x >> 8), dy = rv.y - (c.y >> 8);
@@ -813,17 +947,29 @@
     for (const [dx, dy] of [[2, 2], [4, 3], [6, 2], [3, 5], [5, 5], [2, 6]]) g.px(x + dx, y + dy, "grass");
     if (mine) g.px(x + 4, y + 4, "white");
   }
-  // 8 headings from ui.car (nose up) and ui.carDiag (nose up-right)
+  // 8 headings from frame 0 (nose up) and frame 1 (nose up-right) of race.car.<pet>
+  const CAR_ORI = [
+    [0, {transpose: true, flipX: true}], [1, {flipY: true}], [0, {flipY: true}], [1, {flipX: true, flipY: true}],
+    [0, {transpose: true}], [1, {flipX: true}], [0, {}], [1, {}],
+  ];
+  // Kart + rider centred on (cx, cy); color = the player's color (drop
+  // shadow); opt.color paints kart and rider in one color (stall blink);
+  // opt.rider false = kart only. No pet yet (NO_PET) = a grey kart, no rider.
   function drawCar(g, cx, cy, hd, color, petIdx, opt = {}) {
     const dir = ((hd + 4096) >> 13) & 7;   // 0 E, 1 SE, 2 S, 3 SW, 4 W, 5 NW, 6 N, 7 NE
     const pet = D.PETS[petIdx];
-    const map = {c: color, p: pet ? pet.color : "muted"};
-    const o = [
-      ["ui.car", {transpose: true, flipX: true}], ["ui.carDiag", {flipY: true}], ["ui.car", {flipY: true}], ["ui.carDiag", {flipX: true, flipY: true}],
-      ["ui.car", {transpose: true}], ["ui.carDiag", {flipX: true}], ["ui.car", {}], ["ui.carDiag", {}],
-    ][dir];
     const s = opt.scale || 1;
-    g.sprite(o[0], cx - 4 * s, cy - 4 * s, Object.assign({map, scale: s}, o[1], opt.color ? {color: opt.color} : {}));
+    const [frame, o] = CAR_ORI[dir];
+    const car = "race.car." + (pet ? pet.id : "ember"), rider = pet && opt.rider !== false ? "race.rider." + pet.id : null;
+    const bx = cx - 5 * s, by = cy - 5 * s, rx = cx - 2 * s, ry = cy - 4 * s;
+    // the shadow is 1 px at any scale (a thin edge on the pick cards and results)
+    for (const [dx, dy] of [[1, 0], [0, 1], [1, 1]]) {
+      g.sprite(car, bx + dx, by + dy, Object.assign({frame, scale: s, color}, o));
+      if (rider) g.sprite(rider, rx + dx, ry + dy, {scale: s, color});
+    }
+    const paint = opt.color ? {color: opt.color} : pet ? {} : {map: {b: "muted", d: "line", l: "muted"}};
+    g.sprite(car, bx, by, Object.assign({frame, scale: s}, o, paint));
+    if (rider) g.sprite(rider, rx, ry, Object.assign({scale: s}, opt.color ? {color: opt.color} : {}));
   }
   function drawLights(g, n) {
     // panel + 3 lights (10x10) at x 44 / 59 / 74, y 46: danger -> gold -> grassLt
@@ -865,10 +1011,19 @@
     const blinkStall = t < c.stallUntil && (Math.floor(now / 120) & 1);
     drawCar(g, myX, TRACK_Y + myY, c.hd, cols[me], myPet(ctx, m), blinkStall ? {color: "muted"} : {});
     const counting = m.goAt != null || !m.went;
-    const overlap = rv && abs(rv.x - myX) < 9 && abs(rv.y - myY) < 9;
+    const overlap = rv && abs(rv.x - myX) < 11 && abs(rv.y - myY) < 11;
     if (counting || overlap) {
-      const ay = TRACK_Y + myY - 4 - 5;
-      g.hline(myX - 2, ay, 5, "white"); g.hline(myX - 1, ay + 1, 3, "white"); g.px(myX, ay + 2, "white");
+      // above the rider, pointing down; when the rival sits just above (P2 on
+      // the start grid) it goes right of the kart, pointing left, so it never
+      // lands on the rival (below would be under the start lights)
+      const side = rv && rv.y < myY && myY - rv.y < 14 && abs(rv.x - myX) < 11;
+      if (side) {
+        const ax = myX + 7, y = TRACK_Y + myY;
+        g.px(ax, y, "white"); g.vline(ax + 1, y - 1, 3, "white"); g.vline(ax + 2, y - 2, 5, "white");
+      } else {
+        const ay = TRACK_Y + myY - 9;
+        g.hline(myX - 2, ay, 5, "white"); g.hline(myX - 1, ay + 1, 3, "white"); g.px(myX, ay + 2, "white");
+      }
     }
     // Splash: track under water except a window around my car
     if (t < c.splashUntil && m.went) {
@@ -918,16 +1073,16 @@
     const P = m.P, c = m.car, now = ctx.now();
     g.rect(0, 147, 128, 13, "panel");
     g.hline(0, 146, 128, "line");
-    // skill icon (pet element color; "line" once used this lap)
-    const pet = D.PETS[myPet(ctx, m)];
+    // racing skill icon of my pet (its colors; "line" once used this lap)
+    const petIdx = myPet(ctx, m), tn = petTune(P, petIdx);
     const used = c.skillLap === c.lap || c.finished;
-    if (pet) g.sprite(pet.icon, 3, 149, used ? {color: "line"} : {});
+    if (D.PETS[petIdx]) g.sprite("race.icon." + SKILL[petIdx], 3, 149, used ? {color: "line"} : {});
     // throttle (accent) with the puddle-safe and heat-line ticks
     const bx = 14, bw = 62;
     const at = pct => bx + trunc(clamp(pct, 0, 100) * (bw - 1) / 100);
     g.rect(bx, 148, bw, 4, "void");
     if (c.u > 0) g.rect(bx, 148, at(c.u) - bx + 1, 4, "accent");
-    g.vline(at(P.puddleSafe), 147, 6, "waterLt");
+    if (tn.puddleSafe <= 100) g.vline(at(tn.puddleSafe), 147, 6, "waterLt");   // Tide never skids: no tick
     g.vline(at(P.heatLine), 147, 6, "danger");
     // heat (gold, danger above the warning line, blinking while stalled)
     g.rect(bx, 154, bw, 4, "void");
@@ -969,29 +1124,36 @@
       const rivalPet = st ? st.cars[1 - ctx.p].pet : NO_PET;
       const rv = ctx.rival();
       const sel = locked ? mine : s.sel;
-      // the rival's revealed card shows the rival's name where the skill icon was
-      const cards = D.PETS.map((pt, i) => ({pet: i, line1: rivalPet === i ? null : {icon: pt.icon}, mark: locked && i === mine ? "ok" : null,
-        line2: rivalPet === i ? (rv ? rv.name : "P" + (2 - ctx.p)) : null}));
+      // cards: kart + rider (3x, facing right), name, skill icon + trait icon;
+      // the rival's revealed card also shows the rival's name (s font)
+      const cards = D.PETS.map((pt, i) => ({line2: rivalPet === i ? (rv ? rv.name : "P" + (2 - ctx.p)) : null}));
       const sk = SKILL[sel];
-      let statusKey = rivalIn ? "dev.race.rivalPicked" : "dev.race.rivalChoosing";
-      let info = [["dev.race.skLine", {sk: ctx.t("dev.race.sk." + sk)}], "dev.race.skDesc." + sk];
+      let noteKey = rivalIn ? "dev.race.rivalPicked" : "dev.race.rivalChoosing";
       if (rivalPet !== NO_PET && mine !== NO_PET) {
         // both revealed: the relation between the two skills (§4.7)
         const pair = mine + "" + rivalPet;
-        statusKey = {"10": "dev.race.counter.splashDash", "01": "dev.race.counter.splashDash", "02": "dev.race.counter.dashVine",
+        noteKey = {"10": "dev.race.counter.splashDash", "01": "dev.race.counter.splashDash", "02": "dev.race.counter.dashVine",
           "20": "dev.race.counter.dashVine", "21": "dev.race.counter.vineSplash", "12": "dev.race.counter.vineSplash"}[pair] || "dev.race.sameDriver";
-      } else if (locked) info = [info[0], "dev.race.waitRival"];
+      }
       ui.pickScreen(g, ctx, {
-        titleKey: "dev.race.pickTitle", badgeKey: "dev.race.secret", noteKey: "dev.race.pickNote",
-        sel, locked, statusKey, info, cards,
+        titleKey: "dev.race.pickTitle", badgeKey: "dev.race.secret", noteKey,
+        sel, locked, statusKey: null, info: [["dev.race.skLine", {sk: ctx.t("dev.race.sk." + sk)}], "dev.race.skDesc." + sk], cards,
         hints: locked ? [] : [["LR", "dev.race.hintPick"], ["A", "dev.race.hintLock"], ["B", "dev.ui.next"]],
       });
-      // the rival's pick gets a marker in the rival's color once revealed
-      if (rivalPet !== NO_PET) {
-        const x = 4 + 40 * rivalPet;
-        g.rect(x + 2, 32, 6, 6, colors(ctx)[1 - ctx.p]);
-        g.frame(x + 2, 32, 6, 6, "void");
-      }
+      const cols = colors(ctx), me = ctx.p;
+      D.PETS.forEach((pt, i) => {
+        const x = 4 + 40 * i;
+        const theirs = rivalPet === i && !(locked && mine === i);
+        drawCar(g, x + 20, 46, 0, cols[theirs ? 1 - me : me], i, {scale: 3});
+        g.text(x + 20, 61, ctx.t(pt.nameKey), {align: "c", w: 36, c: "white", key: pt.nameKey});
+        g.sprite("race.icon." + SKILL[i], x + 9, 77);
+        g.sprite("race.icon." + TRAIT_ICON[i], x + 23, 77);
+        if (locked && i === mine) g.sprite("icon.OK", x + 30, 32, {color: cols[me]});
+        // the rival's pick gets a marker in the rival's color once revealed
+        if (rivalPet === i) { g.rect(x + 2, 32, 6, 6, cols[1 - me]); g.frame(x + 2, 32, 6, 6, "void"); }
+      });
+      // the selected pet's handling, one line in its light color (§5.9)
+      g.text(4, 132, ctx.t("dev.race.trait." + D.PETS[sel].id), {w: 120, c: D.PETS[sel].lt, key: "dev.race.trait." + D.PETS[sel].id});
     },
   });
 
@@ -1056,7 +1218,7 @@
     else if (nc.d < 20 && v >= vc - 2) u = trunc(vc * 100 / P.topSpeed);
     if (pr.d2 > 64) u = min(u, 70);   // off the line: slow down to get back
     const aheadK = kindAt(trunc(x + 10 * Math.cos(c.hd * Math.PI / 32768)), trunc(y + 10 * Math.sin(c.hd * Math.PI / 32768)));
-    if (aheadK === K.PUDDLE) u = min(u, P.puddleSafe - 4);
+    if (aheadK === K.PUDDLE) u = min(u, petTune(P, myPet(ctx, m)).puddleSafe - 4);
     if (c.heat > 62000) u = min(u, P.heatLine - 2);
     if (!brake && need <= 0) u = trunc(u * pace / 100);
     // stuck against the edge or on the grass: back up for a moment
@@ -1099,6 +1261,7 @@
     rules: {
       MAP, KIND: Array.from(KIND), DIR: Array.from(DIR), PROG: Array.from(PROG), K, PH, CF, EV, START, TRACK_LEN, DEFAULTS,
       newCar, stepCar, carFlags, progress, project: (x, y) => project(CENTER, x, y), tileBehind, iatan2, isin, icos, configH,
+      petTune, CAR_ROWS, RIDER_ROWS,
     },
     lobby: {badgeKey: "dev.lobby.laps", badgeVars: p => ({n: p.laps}), goals: ["dev.race.goal1", "dev.race.goal2"],
       keys: [["STICK", "dev.race.k1n", "dev.race.k1"], ["PAD", "dev.race.k2n", "dev.race.k2"],
