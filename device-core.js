@@ -295,8 +295,8 @@
 // ctx.input = {x, y (-100..100, + = up), a, b, skill, menu, pressure (0..255),
 //   padPresent, aDownMs, bDownMs, stickClick, aBtn [+] (A without the stick
 //   click: trial, throttle and winch "hold A" use this), distMm [+] (distance
-//   sensor over the handheld: 60 = hand over it, otherwise the hand height in
-//   mm up to 1300 = no hand), raw: {fsr, joyX, joyY}}
+//   sensor over the handheld: 80 while the wave key is held, otherwise the hand
+//   height in mm, 1300 = no hand), raw: {fsr, joyX, joyY}}
 //   Only this board's input; the central sees each player's MSG_INPUT in
 //   central.input(p, fields).
 // ev = {btn: "A"|"B"|"SKILL"|"MENU"|"UP"|"DOWN"|"LEFT"|"RIGHT",
@@ -1348,7 +1348,7 @@
         st.raw.joyX = hh.hw.caps.joy ? Math.round(512 + m.x * 5.11) : 0;
         st.raw.joyY = hh.hw.caps.joy ? Math.round(512 + m.y * 5.11) : 0;
         st.aBtn = m.aBtn;
-        st.distMm = m.wave ? 60 : hh.handMm;
+        st.distMm = m.wave ? 80 : hh.handMm;   // the wave key = a hand held at 80 mm (ui-design §6.11)
         return out;
       },
     };
