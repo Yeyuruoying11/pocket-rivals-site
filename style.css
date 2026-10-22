@@ -264,7 +264,7 @@ table.gantt { border-collapse: collapse; width: 100%; min-width: 720px; font-siz
 .st.done { background: color-mix(in srgb, var(--done) 15%, transparent); color: var(--done); }
 .st.doing { background: color-mix(in srgb, var(--doing) 16%, transparent); color: var(--doing); }
 .st.todo { box-shadow: inset 0 0 0 1px var(--todo); }
-table.drivers { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 13px; }
+table.drivers { border-collapse: collapse; width: 100%; min-width: 880px; font-size: 13px; }
 .drivers th, .drivers td { border-bottom: 1px solid var(--line); padding: 8px 8px; text-align: left; vertical-align: top; }
 .drivers th { font-weight: 500; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .drivers td.nm { font-weight: 600; width: 15%; }
