@@ -558,7 +558,7 @@
         "....###########......T.....###..",
         "...####....S...............###ST",
         "..####.................T.T.###..",
-        "..222......................###..",
+        "..2222.....................###..",
         ".o####................T...####..",
         "..o####...T.T.T.T.T.T.T.T####...",
         "...o####................####..ss",
@@ -635,7 +635,7 @@
         ".S..#######..####...T.###.......",
         ".....####.o....###...###........",
         ".........o..T..###...##......T..",
-        "................55.T.###........",
+        "...............555.T.###........",
         "........T.....T###...###........",
         "...............###....###.......",
         "..............###......###......",
@@ -1823,13 +1823,17 @@
   const LAYOUTS = {full: {y0: 14, y1: 128}, small: {y0: 14, y1: 110}};   // 3D window 128x114 / 128x96 (hardware variant)
   const FOG_PX = 104;          // floor beyond this is a static haze band
   const NEAR_Q = 2 * 4096;     // near plane of the floor-level geometry (the arch banner is cut here)
-  // Billboards (trees, cones, signs, arch posts, karts, vines, particles)
+  // Billboards (trees, cones, signs, arch posts, vines, particles)
   // nearer than this are not drawn ("广告牌贴脸"): closer, a tree or a sign
   // sits at its 64 px size cap right in the face and an arch post is a grey
   // column 16-64 px wide over the whole window height (the full grey frame
   // the judge saw was fillB's negative end, guarded below). 8 px keeps the
   // rival beside or just behind my kart in the chase cam (z ~ 10-28 px).
-  const BB_NEAR_Q = 8 * 4096;
+  // Karts have their own, nearer clip: a kart billboard stops at 64x47 px
+  // (never the whole window), and a rival 4-8 px ahead of the cockpit
+  // camera (bumper to bumper) is a whole kart right over my hood, so it
+  // must stay on screen; nearer than 4 px it overlaps my own kart.
+  const BB_NEAR_Q = 8 * 4096, KART_NEAR_Q = 4 * 4096;
   const SIZES = [3, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64];   // billboard widths (pre-scaled copies in flash)
   const DECO_W = {[K.TREE]: 11, [K.CONE]: 4, [K.SIGN]: 7, [K.ARCH]: 14};   // billboard width in world px
   const DECO_SPR = {[K.TREE]: "tree", [K.CONE]: "cone", [K.SIGN]: "sign", [K.ARCH]: "arch"};
@@ -2101,11 +2105,11 @@
     }
   }
   // Point (ox, oy) in Q8 px -> {sx, gy (ground row), zq (Q12 depth), dx, dy};
-  // null nearer than BB_NEAR_Q (only billboards use it)
-  function project3(S, cam, ox, oy) {
+  // null nearer than nearQ (only billboards use it: BB_NEAR_Q, karts KART_NEAR_Q)
+  function project3(S, cam, ox, oy, nearQ = BB_NEAR_Q) {
     const dx = ox * 16 - cam.x, dy = oy * 16 - cam.y;
     const zq = (dx * cam.Fx + dy * cam.Fy) >> 10, xq = (dx * cam.Rx + dy * cam.Ry) >> 10;
-    if (zq < BB_NEAR_Q) return null;
+    if (zq < nearQ) return null;
     return {zq, sx: 64 + trunc(xq * S.f / zq), gy: S.hz + trunc(S.Hq * S.f / zq), dx, dy};
   }
   // Arch over the road: two posts and a banner between their tops, a
@@ -2142,7 +2146,7 @@
   // A kart as a billboard; the view (rear / side / front) from its heading
   // against the line of sight
   function kartItem(S, cam, pose, petIdx, shadow, one) {
-    const p = project3(S, cam, pose.x, pose.y);
+    const p = project3(S, cam, pose.x, pose.y, KART_NEAR_Q);
     if (!p || p.zq > FOG_PX * 4096) return null;
     const w = pickSize(trunc(KART_W * 16 * S.f * 4096 / p.zq));
     if (!w) return null;
