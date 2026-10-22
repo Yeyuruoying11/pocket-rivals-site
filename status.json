@@ -696,10 +696,10 @@
         "file": "lib/gfx.c · ui.c · ui_battle.c · ui_t1.c · scr_*.c",
         "owner": "harvey",
         "status": "doing",
-        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面和 T1 会话画面（连接、选模式、大厅、暂停、信号）都已经和模拟器逐像素一致，排行榜画面在写。TFT 屏驱动见驱动清单。",
+        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面、T1 会话画面（连接、选模式、大厅、暂停、信号）和排行榜画面（排行榜、名字缩写、结算的\"今日第N名\"）都已经和模拟器逐像素一致；设置、资料和赛车 / 冒险画面还没做。TFT 屏驱动见驱动清单。",
         "en": {
           "name": "Drawing core and screens",
-          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens and the T1 session screens (connect, mode select, lobby, pause, signal) match the simulator pixel for pixel, and the leaderboard screens are in progress. The TFT driver is in the driver list."
+          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens, the T1 session screens (connect, mode select, lobby, pause, signal) and the leaderboard screens (rankings, initials, the \"today's #N\" badge on results) match the simulator pixel for pixel; settings, profiles and the racing / adventure screens are still to do. The TFT driver is in the driver list."
         }
       },
       {
@@ -745,11 +745,11 @@
         "name": "今日排行榜",
         "file": "lib/rank_core.c · rank_rules.c · rank_boards.c · rank_client.c",
         "owner": "yihao",
-        "status": "doing",
-        "detail": "中央板记下今天每张榜的前 5 名（对抗最高测试分、赛车最快一圈、冒险最快通关，最多 4 张），判断哪些成绩算数，通过 MSG_RANK 告诉掌机\"今日第N名\"；记录追加写进闪存的两页，断电不丢。掌机端收榜、提交名字缩写（丢包重发也只记一次）。规则和模拟器逐项一致；闪存读写走 rank_store.h 接口，驱动见驱动清单。排行榜画面在写。",
+        "status": "done",
+        "detail": "中央板记下今天每张榜的前 5 名（对抗最高测试分、赛车最快一圈、冒险最快通关，最多 4 张），判断哪些成绩算数，通过 MSG_RANK 告诉掌机\"今日第N名\"；记录追加写进闪存的两页，断电不丢。掌机端收榜、提交名字缩写（丢包重发也只记一次）。规则和模拟器逐项一致；闪存读写走 rank_store.h 接口，驱动见驱动清单。掌机上的排行榜画面也已完成。",
         "en": {
           "name": "Today's leaderboard",
-          "detail": "The central board keeps today's top 5 on each board (versus best trial score, racing fastest lap, adventure fastest clear; up to 4 boards), decides which results count, and tells the handhelds \"today's #N\" via MSG_RANK; records are appended to two flash pages and survive power-off. The handheld side receives the boards and submits initials (a resend after packet loss is applied once). Rules match the simulator check for check; flash goes through the rank_store.h interface (driver in the driver list). The leaderboard screens are in progress."
+          "detail": "The central board keeps today's top 5 on each board (versus best trial score, racing fastest lap, adventure fastest clear; up to 4 boards), decides which results count, and tells the handhelds \"today's #N\" via MSG_RANK; records are appended to two flash pages and survive power-off. The handheld side receives the boards and submits initials (a resend after packet loss is applied once). Rules match the simulator check for check; flash goes through the rank_store.h interface (driver in the driver list). The leaderboard screens on the handheld are done too."
         }
       },
       {
