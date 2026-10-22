@@ -2,6 +2,7 @@
 // http://127.0.0.1:<port>/... is answered from the site folder on disk by
 // Playwright's request interception, so the browser tests need no server
 // or network (they run inside the agent's no-network sandbox).
+global.PR_ROUTED = true;
 const path = require('path'), fs = require('fs');
 const SITE = path.resolve(__dirname, '..');
 const pw = require(require('child_process').execSync('npm root -g').toString().trim() + '/playwright');
