@@ -143,7 +143,8 @@
 //       [{labelKey, confirmKey, action, arg}] (S15 lists them after Quit; on
 //       confirm it sends ctx.rt(action, arg)),
 //     heartbeat: true | false | (ctx) => bool (false: the core skips MSG_INPUT
-//       while in the mode, except on pick / results screens and while paused),
+//       while in the mode, except on pick / results screens - also under a
+//       local page on top of them - and while paused),
 //     uplink(ctx, {joyX, joyY, buttons, pressure}) -> same [+]: patch each
 //       MSG_INPUT this board sends while in the mode (inputBits already ORed
 //       in; pressure is the pad, or without a pad the padLevel equivalent of
@@ -2712,7 +2713,13 @@
     if (def) {
       const hb = def.player.heartbeat;
       if (typeof hb === "function") beat = !!safe("heartbeat", () => hb(hh.ctx));
-      else if (hb === false) beat = paused(hh) || hh.screenId === "results" || /\.pick$/.test(hh.screenId || "");
+      else if (hb === false) {
+        // a local page on top (S20 / S21 on results) keeps the heartbeat going:
+        // the mode screen underneath decides, not the page
+        const under = hh.local.stack.length ? baseRoute(hh) : null;
+        const id = under ? under.id : hh.screenId;
+        beat = paused(hh) || id === "results" || /\.pick$/.test(id || "");
+      }
     }
     if (beat && now - hh.lastHeartbeat >= C.INPUT_PERIOD_MS) sendHeartbeat(hh);
     if (hh.extraInput != null && now >= hh.extraInput) { hh.extraInput = null; sendHeartbeat(hh); }
@@ -2854,6 +2861,11 @@
     const L = hh.local;
     if (!L.booted) return {id: "boot"};
     if (L.stack.length) { const top = L.stack[L.stack.length - 1]; return {id: top.id, params: top.params}; }
+    return baseRoute(hh);
+  }
+  // ui_route without the local page stack (the screen the mode itself shows)
+  function baseRoute(hh) {
+    const L = hh.local;
     if (!L.loggedIn) return {id: "login"};
     if (hh.link.inMode && hh.stateModeDef) {
       const def = hh.stateModeDef;

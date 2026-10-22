@@ -33,6 +33,7 @@
 | `gate-test.js` | 冒险：用手（距离传感器）或压力垫托住绞盘闸门：两者取大、阈值、越托越重、参数 |
 | `wave-test.js` | 竞速：挥手擦掉水花，只影响自己 |
 | `blurb-test.js` | 竞速：五条赛道的简介文字（zh/en） |
+| `s21-heartbeat-test.js` | 结算页上开着本地页面（S21 填名字、S20 排行榜）时，掌机照常发心跳（MSG_INPUT），中央板不判断线；竞速 / 对战 / 冒险各一遍（~5 s） |
 | `adv/check-w1.js` | 世界 1 的几何、物件清单、求解器可解性、用真实中央代码回放（无浏览器，~60 s） |
 | `race-test.js` | 竞速全部部件（race, fix, steer, laps3, flash, sweep）× zh/en × 1200/390 px（长，~7-8 分钟；参数 `[PORT=8961] [PARTS] [LANGS] [WIDTHS]`） |
 | `full-test.js` | 端到端：启动、登录、三种模式、设置、语言切换；8 种组合 + 30% 丢包（~2 分钟；参数 `[SITE] [PORT]`，环境变量 `ONLY=zh-1200-light` 等只跑一组） |
@@ -67,6 +68,7 @@ and exits 1 if anything failed. A single browser test: `node -r ./tests/route.js
 What each file checks (one line each): `smoke.js` every simulator fixture in zh and en;
 `input-test.js` distance-sensor input (~15 s); `gate-test.js` adventure: hand / pad holds the winch gate;
 `wave-test.js` racing: a wave wipes the splash; `blurb-test.js` racing: the five track blurbs;
+`s21-heartbeat-test.js` the heartbeat (MSG_INPUT) keeps flowing while S21 / S20 is open on top of results, so the central sees no link loss (racing, battle, adventure, ~5 s);
 `adv/check-w1.js` World 1 geometry, inventory, solver and real-central replay (no browser, ~60 s);
 `race-test.js` racing all parts × zh/en × 1200/390 px (long, ~7-8 min, args `[PORT=8961] [PARTS] [LANGS] [WIDTHS]`);
 `full-test.js` end-to-end: boot, login, all three modes, settings, language, 8 combinations plus 30 % packet
