@@ -1,11 +1,20 @@
 // Pocket Rivals handheld simulator: 双人冒险 Adventure prototype (docs/ui-design.md §4.7, §4.10, §6)
 //
-// Co-op: each player picks a different pet (the third rests on the shrine),
-// then the team clears 4 one-screen rooms (10 x 9 tiles of 12 px) with 5
-// shared hearts: 1-1 ENTRY (elemental barriers), 1-2 WINCH (one holds the
-// gate with the pad, the other passes), 1-3 LEVERS (crate on a plate, two
-// levers within 1 s), 1-4 WARDEN (boss; core strike = the attack trial,
-// DEVICE.trial, while it is stunned).
+// Co-op: the two players vote a world (adv.world), each picks a different
+// pet (the third rests on the shrine), then the team clears that world's 4
+// one-screen rooms (10 x 9 tiles of 12 px) with 5 shared hearts:
+//   World 1: 1-1 ENTRY (elemental barriers), 1-2 WINCH (one holds the gate
+//     with the pad, the other passes), 1-3 LEVERS (crate on a plate, two
+//     levers within 1 s), 1-4 WARDEN (boss; core strike = the attack trial,
+//     DEVICE.trial, while it is stunned).
+//   World 2 (shrines): 2-1 NOOKS, 2-2 TRIAD, 2-3 TRADE, 2-4 IDOL (boss: it
+//     slams whoever is nearest; only the other pet, two tiles behind it, may
+//     strike the core).
+//   World 3 (teamwork): 3-1 RELAY, 3-2 SPLIT, 3-3 SYNC, 3-4 RHINO (boss: it
+//     follows one pet's column and charges; a rock stuns it, a wall only
+//     bonks; only the pet it did not chase may strike).
+// After a world's boss: results with that world's 3 stars, A = next world
+// (REMATCH arg 1 -> carry() {next: true}), keeping the pets.
 //
 // Who computes what (§6.8): the central board simulates the whole world in
 // ADV_TICK_MS steps (C-like integer code, `central.create`); the boards only
@@ -61,6 +70,28 @@
     ["coreGraceMs", "ADV_CORE_GRACE_MS", 2500, 0, 5000, 100, "ms"],
     ["starTimeS", "ADV_STAR_TIME_S", 180, 30, 900, 10, "s"],
     ["starHearts", "ADV_STAR_HEARTS", 3, 1, 6, 1, ""],
+    // worlds 2 and 3
+    ["starTimeW2S", "ADV_STAR_TIME_W2_S", 240, 30, 900, 10, "s"],
+    ["starTimeW3S", "ADV_STAR_TIME_W3_S", 240, 30, 900, 10, "s"],
+    ["idolHp", "ADV_IDOL_HP", 80, 10, 250, 5, ""],
+    ["idolPhase2Hp", "ADV_IDOL_PHASE2_HP", 40, 0, 250, 5, ""],
+    ["idolIdleMs", "ADV_IDOL_IDLE_MS", 1000, 200, 5000, 100, "ms"],
+    ["idolLockMs", "ADV_IDOL_LOCK_MS", 1200, 300, 3000, 100, "ms"],
+    ["idolLock2Ms", "ADV_IDOL_LOCK2_MS", 900, 300, 3000, 100, "ms"],
+    ["idolStunMs", "ADV_IDOL_STUN_MS", 3000, 1000, 8000, 100, "ms"],
+    ["idolFaceMs", "ADV_IDOL_FACE_MS", 250, 50, 1000, 50, "ms"],
+    ["rhinoHp", "ADV_RHINO_HP", 72, 10, 250, 2, ""],
+    ["rhinoPhase2Hp", "ADV_RHINO_PHASE2_HP", 36, 0, 250, 2, ""],
+    ["rhinoTrackMs", "ADV_RHINO_TRACK_MS", 1000, 0, 5000, 50, "ms"],
+    ["rhinoTrackMaxMs", "ADV_RHINO_TRACK_MAX_MS", 2500, 500, 8000, 100, "ms"],
+    ["rhinoTrackStepMs", "ADV_RHINO_TRACK_STEP_MS", 250, 50, 1000, 50, "ms"],
+    ["rhinoSettleMs", "ADV_RHINO_SETTLE_MS", 500, 0, 2000, 50, "ms"],
+    ["rhinoAimMs", "ADV_RHINO_AIM_MS", 1200, 300, 3000, 100, "ms"],
+    ["rhinoAim2Ms", "ADV_RHINO_AIM2_MS", 800, 300, 3000, 100, "ms"],
+    ["rhinoChargeStepMs", "ADV_RHINO_CHARGE_STEP_MS", 100, 50, 500, 50, "ms"],
+    ["rhinoStunMs", "ADV_RHINO_STUN_MS", 3000, 1000, 8000, 100, "ms"],
+    ["rhinoBonkMs", "ADV_RHINO_BONK_MS", 600, 0, 3000, 50, "ms"],
+    ["rhinoJumpMs", "ADV_RHINO_JUMP_MS", 450, 0, 2000, 50, "ms"],
   ].map(([key, c, def, min, max, step, unit]) => ({key, c, labelKey: "dev.adv.p." + key, def, min, max, step, unit}));
   const PDEF = {};
   for (const p of PARAMS) PDEF[p.key] = p.def;
@@ -81,6 +112,14 @@
     coreStageMs: ["一击每层", "Strike stage"], coreBase: ["一击基础", "Strike base"], coreBonus: ["一击加成", "Strike bonus"],
     comboPct: ["合击倍率", "Combo"], coreGraceMs: ["一击宽限", "Strike grace"], starTimeS: ["时间星", "Star time"],
     starHearts: ["心星", "Star hearts"],
+    starTimeW2S: ["时间星2", "Star time W2"], starTimeW3S: ["时间星3", "Star time W3"],
+    idolHp: ["独眼血量", "Idol HP"], idolPhase2Hp: ["独眼二阶", "Idol phase 2"], idolIdleMs: ["独眼待机", "Idol idle"],
+    idolLockMs: ["盯人时长", "Idol lock"], idolLock2Ms: ["二阶盯人", "Idol lock 2"], idolStunMs: ["独眼喘气", "Idol stun"],
+    idolFaceMs: ["转身间隔", "Idol turn"],
+    rhinoHp: ["石犀血量", "Rhino HP"], rhinoPhase2Hp: ["石犀二阶", "Rhino phase 2"], rhinoTrackMs: ["追踪最短", "Track min"],
+    rhinoTrackMaxMs: ["追踪最长", "Track max"], rhinoTrackStepMs: ["横移一列", "Track step"], rhinoSettleMs: ["站稳计时", "Settle"],
+    rhinoAimMs: ["冲锋预警", "Charge warn"], rhinoAim2Ms: ["冲锋预警2", "Charge warn 2"], rhinoChargeStepMs: ["冲锋一行", "Charge step"],
+    rhinoStunMs: ["石犀晕倒", "Rhino stun"], rhinoBonkMs: ["撞墙震退", "Wall bonk"], rhinoJumpMs: ["扬尘跳回", "Jump back"],
   };
   const pz = {}, pe = {};
   for (const [k, [z, e]] of Object.entries(PL)) { pz["dev.adv.p." + k] = z; pe["dev.adv.p." + k] = e; }
@@ -108,6 +147,18 @@
       "dev.adv.restartRoom": "重来这一间", "dev.adv.restartAsk": "重来这一间？",
       "dev.adv.res.clear": "通关！", "dev.adv.res.gaveUp": "放弃", "dev.adv.res.time": "用时", "dev.adv.res.hearts": "剩余心",
       "dev.adv.res.coreDmg": "核心伤害", "dev.adv.res.winch": "绞盘", "dev.adv.res.gems": "宝石 {n}/{m}",
+      // worlds 2 and 3
+      "dev.adv.room5": "2-1 双口袋", "dev.adv.room6": "2-2 三色廊", "dev.adv.room7": "2-3 墙中龛", "dev.adv.room8": "2-4 独眼像",
+      "dev.adv.room9": "3-1 接力", "dev.adv.room10": "3-2 分头", "dev.adv.room11": "3-3 同步", "dev.adv.room12": "3-4 石犀",
+      "dev.adv.tip21": "分头进口袋，一起拉", "dev.adv.tip22": "先用能力，再换宠物", "dev.adv.tip23": "隔墙在神龛交换宠物",
+      "dev.adv.tip24": "被盯的人别动", "dev.adv.tip24b": "搭档绕到背后打",
+      "dev.adv.tip31": "你撑闸门，我去开门", "dev.adv.tip32": "一人进去，两边同拉", "dev.adv.tip33": "推箱开闸，分头拉杆",
+      "dev.adv.tip34": "站石头上方引它冲", "dev.adv.tip34b": "撞晕后搭档去打",
+      "dev.adv.hintBait": "诱饵",
+      "dev.adv.worldTitle": "选择世界", "dev.adv.world": "世界{n}",
+      "dev.adv.wsub1": "初次合作", "dev.adv.wsub2": "神龛元素", "dev.adv.wsub3": "机关分头",
+      "dev.adv.partnerWorld": "搭档：{world}{OK}",
+      "dev.adv.nextWorld": "下一世界：{world}", "dev.adv.partnerNext": "搭档：下一世界{OK}", "dev.adv.hintNext": "继续",
     }, pz),
     en: Object.assign({
       "dev.adv.goal1": "Team: clear {n} rooms", "dev.adv.goal2": "Hearts are shared",
@@ -131,6 +182,17 @@
       "dev.adv.restartRoom": "Retry room", "dev.adv.restartAsk": "Retry room?",
       "dev.adv.res.clear": "CLEAR!", "dev.adv.res.gaveUp": "GAVE UP", "dev.adv.res.time": "Time", "dev.adv.res.hearts": "Hearts",
       "dev.adv.res.coreDmg": "Core dmg", "dev.adv.res.winch": "Winch", "dev.adv.res.gems": "Gems {n}/{m}",
+      "dev.adv.room5": "2-1 NOOKS", "dev.adv.room6": "2-2 TRIAD", "dev.adv.room7": "2-3 TRADE", "dev.adv.room8": "2-4 IDOL",
+      "dev.adv.room9": "3-1 RELAY", "dev.adv.room10": "3-2 SPLIT", "dev.adv.room11": "3-3 SYNC", "dev.adv.room12": "3-4 RHINO",
+      "dev.adv.tip21": "A nook each, pull", "dev.adv.tip22": "Clear, then swap", "dev.adv.tip23": "Trade via shrine",
+      "dev.adv.tip24": "Bait: stand still", "dev.adv.tip24b": "Hit it from behind",
+      "dev.adv.tip31": "Hold gates in turn", "dev.adv.tip32": "Split, pull both", "dev.adv.tip33": "Crate, then split",
+      "dev.adv.tip34": "Lure it to a rock", "dev.adv.tip34b": "Stun: other hits",
+      "dev.adv.hintBait": "Bait",
+      "dev.adv.worldTitle": "PICK WORLD", "dev.adv.world": "WORLD {n}",
+      "dev.adv.wsub1": "Basics", "dev.adv.wsub2": "Shrines", "dev.adv.wsub3": "Teamwork",
+      "dev.adv.partnerWorld": "Partner: {world} {OK}",
+      "dev.adv.nextWorld": "Next world: {world}", "dev.adv.partnerNext": "Partner: next {OK}", "dev.adv.hintNext": "Next",
     }, pe),
   });
 
@@ -147,6 +209,35 @@
       ".ommleeelmmm", ".ommmllmmmmm", ".ommmmmmmmmm", "oommmmmmmooo", "ommmmmmmoccc", "ommmmmmmoccc",
       "ommmmmmmoccc", "ommmlmmmoooo", "ommmlmmmmmmm", "ommllmmmmmmm", ".ommmmmmmmmm", ".ommmmmmmmmm",
       "..ommmllmmmm", "..ommmmmmmmm", "..oommmoommm", "...ommmoommm", "...ommmo.omm", "...oooo..ooo"]]},
+    // 2-4 Idol 24 x 24: frame 0 faces down (the eye), frame 1 faces up (its back, c = core);
+    // e = pupil (danger while it locks on), w = eye white
+    "adv.idol": {w: 24, h: 24, mirror: true, map: {o: "void", m: "muted", l: "line", w: "white", e: "void", c: "line"}, frames: [
+      ["....oooooooo", "...ommmmmmmm", "..ommmmmmmmm", ".ommlmmmmmmm", ".ommmmmmmmmm", "ommmmmmmmmmm",
+        "ommmmmmooooo", "ommmmmowwwww", "ommmmowwwwww", "ommmmowwweee", "ommmmowwweee", "ommmmowwweee",
+        "ommmmowwwwww", "ommmmmowwwww", "ommmmmmooooo", "ommlmmmmmmmm", "ommmmmmmmmmm", ".ommmmmmmmmm",
+        ".ommmmllllll", ".ommmmmmmmmm", "..ommmmmmmmm", "..ommmmmmmmm", ".oooolllllll", "oooooooooooo"],
+      ["....oooooooo", "...ommmmmmmm", "..ommmmmmmmm", ".ommlmmmmmmm", ".ommmmmmmmmm", "ommmmmmmmmmm",
+        "ommmmmmmmmmm", "ommmlmmmmmmm", "ommmmmmmoooo", "ommmmmmmoccc", "ommmmmmmoccc", "ommmmmmmoccc",
+        "ommmmmmmoooo", "ommmmmmmmmmm", "ommmmmmmmlmm", "ommlmmmmmmmm", "ommmmmmmmmmm", ".ommmmmmmmmm",
+        ".ommmmmmmmmm", ".ommmmmmmmmm", "..ommmmmmmmm", "..ommmmmmmmm", ".oooolllllll", "oooooooooooo"]]},
+    // the Idol facing right (flipX = left)
+    "adv.idolSide": {w: 24, h: 24, map: {o: "void", m: "muted", l: "line", w: "white", e: "void"}, frames: [[
+      "....oooooooooooooooo....", "...ommmmmmmmmmmmmmmmo...", "..ommmmmmmmmmmmmmmmmmo..", ".ommlmmmmmmmmmmmmmmlmmo.",
+      ".ommmmmmmmmmmmmmmmmmmmo.", "ommmmmmmmmmmmmmmmmmmmmmo", "ommmmmmmmmmmmmmooooooomo", "ommmlmmmmmmmmmowwwwwwwoo",
+      "ommmmmmmmmmmmmowwweeeeoo", "ommmmmmmmmmmmmowwweeeeoo", "ommmmmmmmmmmmmowwweeeeoo", "ommmmmmmmmmmmmowwweeeeoo",
+      "ommmmmmmmmmmmmowwweeeeoo", "ommmmmmmmmmmmmowwwwwwwoo", "ommmmmmmmlmmmmmooooooomo", "ommlmmmmmmmmmmmmmmmmlmmo",
+      "ommmmmmmmmmmmmmmmmmmmmmo", ".ommmmmmmmmmmmmmmmmmmmo.", ".ommmmmmmmmmmmmmmmmmmmo.", ".ommmmmmmmmmmmmmmmmmmmo.",
+      "..ommmmmmmmmmmmmmmmmmo..", "..ommmmmmmmmmmmmmmmmmo..", ".oooolllllllllllllloooo.", "oooooooooooooooooooooooo"]]},
+    // 3-4 Rhino 24 x 24, head down; frame 1 = charging (dust lines); h = horn (gold while stunned), e = eyes
+    "adv.rhino": {w: 24, h: 24, mirror: true, map: {o: "void", m: "muted", l: "line", e: "void", n: "void", h: "white"}, frames: [
+      ["............", "..oo........", ".olmo..ooooo", ".ommmooommmm", "..ommmmmmmmm", "..ommmmmmmmm",
+        ".ommmmmmmmmm", ".ommlmmmmmmm", "ommmmmmmmmmm", "ommmmeemmmmm", "ommmmeemmmmm", "ommmmmmmmmmm",
+        "ommmmmmmmlmm", ".ommmmmmmmmm", ".ommmmmmmmmm", "..ommmmmmmoh", "..ommmmmmmoh", "...ommnmmmoh",
+        "...ommmmmmoh", "....oooooooh", "..........oh", "..........oh", "...........o", "............"],
+      [".l...l......", "..l...l.....", ".olmo..ooooo", ".ommmooommmm", "..ommmmmmmmm", "..ommmmmmmmm",
+        ".ommmmmmmmmm", ".ommlmmmmmmm", "ommmmmmmmmmm", "ommmmeemmmmm", "ommmmeemmmmm", "ommmmmmmmmmm",
+        "ommmmmmmmlmm", ".ommmmmmmmmm", ".ommmmmmmmmm", "..ommmmmmmoh", "..ommmmmmmoh", "...ommnmmmoh",
+        "...ommmmmmoh", "....oooooooh", "..........oh", "..........oh", "...........o", "............"]]},
   });
 
   D.registerSfx("adv", {
@@ -178,8 +269,10 @@
   const EV = {NONE: 0, TAKEN: 1, BLOCKED: 2, ONLY: 3, BURN: 4, DOUSE: 5, LILY: 6, PUSH: 7, PLATE: 8, GATE: 9, LEVER: 10,
     PULL_NOW: 11, DOOR: 12, LEVER_RESET: 13, GEM: 14, HURT: 15, HEART: 16, SWITCH: 17, ROOM: 18, HIT: 19, SLIME_DIE: 20,
     BOSS_HIT: 21, COMBO: 22, SLAM: 23, ROCK: 24, STUN: 25, TEAM_DOWN: 26, CLEAR: 27, PING: 28, DENY: 29, RESTART: 30,
-    GATE_CLOSE: 31, WAKE: 32};
-  const BS = {SLEEP: 0, IDLE: 1, TELE: 2, STUN: 3, ROCK_WAIT: 4, ROCK_TELE: 5, DEAD: 6};
+    GATE_CLOSE: 31, WAKE: 32, BONK: 33, WORLD: 34};
+  // boss_state bits 0-3. Warden: 1 idle, 2 slam warning. Idol: 1 idle, 2 locked on (3x3 warning).
+  // Rhino: 1 tracking a column, 2 lane warning, 7 charging, 8 bonked a wall, 9 dust before the jump back.
+  const BS = {SLEEP: 0, IDLE: 1, TELE: 2, STUN: 3, ROCK_WAIT: 4, ROCK_TELE: 5, DEAD: 6, CHARGE: 7, BONK: 8, RETURN: 9};
   // petFlags: bits 0-1 pet (3 = none), bit 3 hurt blink, bit 4 core strike running, bit 5 winching, bit 6 on exit
   const PF = {HURT: 8, BUSY: 16, WINCH: 32, EXIT: 64};
   const COLS = 10, ROWS = 9, TS = 12, OX = 4, OY = 16;
@@ -225,7 +318,7 @@
       "....#.....",
       ".2..#..L..",
       "S...#....+"]},
-    {key: "dev.adv.room4", tips: [["dev.adv.tip4"]], boss: true, map: [
+    {key: "dev.adv.room4", tips: [["dev.adv.tip4"]], boss: "warden", map: [
       "..........",
       "....BB....",
       "....BB....",
@@ -235,11 +328,108 @@
       "..........",
       "...1..2...",
       ".........."]},
+    // ---- World 2: shrines and elements ----
+    // 2-1: the left nook only lets Tide in (douse, swim), the right one only Ember (burn, walk
+    // through fire); both levers within 1 s. A team without one of them sends Sprout to the shrine.
+    {key: "dev.adv.room5", tips: [["dev.adv.tip21"]], map: [
+      "....EE....",
+      "..........",
+      ".1......2.",
+      "####..####",
+      "L.WF..VF.L",
+      "####..####",
+      "..........",
+      "....S.....",
+      "$........."]},
+    // 2-2: one corridor of vines, water, fire; two powers in the team, the third on the shrine (6,4)
+    {key: "dev.adv.room6", tips: [["dev.adv.tip22"]], map: [
+      ".1.....2..",
+      "..........",
+      "###V######",
+      "###.W.####",
+      "#####.S###",
+      "###.F.####",
+      "###.######",
+      "..........",
+      "...EE....$"]},
+    // 2-3: two pipes (vine fire water / water vine fire); the shrine (4,1) sits in the middle wall
+    // and both sides reach it: one leaves a pet, the other takes it
+    {key: "dev.adv.room7", tips: [["dev.adv.tip23"]], map: [
+      ".1..#..2..",
+      "....S.....",
+      "....#.....",
+      "#V#####W##",
+      "#.#####.##",
+      "#F#####V##",
+      "#.#####.##",
+      "#W#####F##",
+      "+...EE...$"]},
+    // 2-4: the Idol (body fixed at (4,3)-(5,4))
+    {key: "dev.adv.room8", tips: [["dev.adv.tip24"], ["dev.adv.tip24b"]], boss: "idol", map: [
+      "..........",
+      "..........",
+      "..........",
+      "....BB....",
+      "....BB....",
+      "..........",
+      "..........",
+      "...1..2...",
+      ".........."]},
+    // ---- World 3: machines and splitting up ----
+    // 3-1: three "you hold, I pass" hand-overs; one gate group (3,7)+(6,0), winch (5,4), plate (9,8)
+    {key: "dev.adv.room9", tips: [["dev.adv.tip31"]], gateBack: 3, map: [
+      ".1.#..G..E",
+      "...#..#..E",
+      "...#..#...",
+      "...#..#...",
+      "...#.R#...",
+      "...#..###W",
+      "...#..###.",
+      "F..G.2###.",
+      "$#.#..###P"]},
+    // 3-2: winch lets one in, both levers at once across the wall, the plate lets the other in
+    {key: "dev.adv.room10", tips: [["dev.adv.tip32"]], gateBack: 3, map: [
+      "......#..E",
+      ".R....#..E",
+      "......#..E",
+      "......#...",
+      "......G...",
+      "......#.P.",
+      ".1..2.#...",
+      "W#....#.#F",
+      "L#...$#.#L"]},
+    // 3-3: (shrine for Tide) douse, crate along the lane onto the plate, then one lever up, one down
+    {key: "dev.adv.room11", tips: [["dev.adv.tip33"]], gateBack: 2, map: [
+      "#L#####.EE",
+      "#V......##",
+      "######G###",
+      "#####..###",
+      "#####..###",
+      "..C.F..###",
+      "#...#..###",
+      "W+1.#$P###",
+      "L#2S######"]},
+    // 3-4: the Rhino (body starts at (4,0)-(5,1) and moves); rocks (2,8) and (7,8)
+    {key: "dev.adv.room12", tips: [["dev.adv.tip34"], ["dev.adv.tip34b"]], boss: "rhino", map: [
+      "....BB....",
+      "....BB....",
+      "..........",
+      "..........",
+      "..........",
+      "..........",
+      "..........",
+      "...1..2...",
+      "..#....#.."]},
   ];
+  const RPW = 4, WORLDS = ROOMS.length / RPW;          // rooms per world (the 4th is the boss)
+  const worldOf = ri => (ri / RPW) | 0;
+  const WORLD_ICONS = ["adv.boss", "adv.idol", "adv.rhino"];
+  const WORLD_SUBS = ["dev.adv.wsub1", "dev.adv.wsub2", "dev.adv.wsub3"];
   // Precomputed per room (the "flash" tables): objects with their obj_bits index
   const INFO = ROOMS.map((r, ri) => {
     const at = (x, y) => r.map[y][x];
     const I = {ri, key: r.key, tips: r.tips, boss: !!r.boss, gateBack: r.gateBack == null ? -1 : r.gateBack,
+      world: worldOf(ri), bossType: r.boss || null, bossMoves: r.boss === "rhino", bossTiles: [],
       objs: [], objAt: new Array(COLS * ROWS).fill(-1), spawn: [0, 0], exits: [], shrines: [], winch: -1,
       crates: [], slimes: [], plate: -1, gate: -1, levers: [], door: -1, gem: -1, heart: -1, gemPos: -1, heartPos: -1};
     const add = (o, tiles) => { o.tiles = tiles; const i = I.objs.push(o) - 1; for (const t of tiles) I.objAt[t] = i; return i; };
@@ -253,6 +443,7 @@
       else if (ch === "R") I.winch = t;
       else if (ch === "C") I.crates.push(t);
       else if (ch === "s") I.slimes.push(t);
+      else if (ch === "B") I.bossTiles.push(t);
       else if (ch === "P") I.plate = add({kind: "plate"}, [t]);
       else if (ch === "L") I.levers.push(add({kind: "lever"}, [t]));
       else if (ch === "$") { I.gem = add({kind: "gem"}, [t]); I.gemPos = t; }
@@ -282,6 +473,32 @@
   });
   const BOSS_TILES = [14, 15, 24, 25];
   const BOSS_ADJ = [13, 23, 16, 26, 4, 5, 34, 35];     // (3,1)(3,2)(6,1)(6,2)(4,0)(5,0)(4,3)(5,3)
+  // 2 x 2 body with its top-left tile at (x, y)
+  const bodyTiles = (x, y) => [y * COLS + x, y * COLS + x + 1, (y + 1) * COLS + x, (y + 1) * COLS + x + 1];
+  // the (up to) 8 tiles 4-adjacent to a 2 x 2 body, in the Warden's BOSS_ADJ order
+  function adjTiles(x, y) {
+    const out = [];
+    for (const [ax, ay] of [[x - 1, y], [x - 1, y + 1], [x + 2, y], [x + 2, y + 1], [x, y - 1], [x + 1, y - 1], [x, y + 2], [x + 1, y + 2]])
+      if (ax >= 0 && ay >= 0 && ax < COLS && ay < ROWS) out.push(ay * COLS + ax);
+    return out;
+  }
+  // Idol: the 2 tiles right behind the body (opposite the way it faces)
+  function backTiles(x, y, face) {
+    const c = face === 2 ? [[x, y - 1], [x + 1, y - 1]] : face === 0 ? [[x, y + 2], [x + 1, y + 2]]
+      : face === 1 ? [[x - 1, y], [x - 1, y + 1]] : [[x + 2, y], [x + 2, y + 1]];
+    return c.filter(([a, b]) => a >= 0 && b >= 0 && a < COLS && b < ROWS).map(([a, b]) => b * COLS + a);
+  }
+  // Idol facing toward tile t, from the body centre in half tiles (both axes odd, never 0):
+  // the larger axis wins; a tie keeps the current facing when it is one of the two, else vertical
+  function idolFace(bx, by, t, cur) {
+    const dx = 2 * (t % COLS) + 1 - (2 * bx + 2), dy = 2 * ((t / COLS) | 0) + 1 - (2 * by + 2);
+    const h = dx > 0 ? 1 : 3, v = dy > 0 ? 2 : 0;
+    if (Math.abs(dx) > Math.abs(dy)) return h;
+    if (Math.abs(dy) > Math.abs(dx)) return v;
+    return cur === h || cur === v ? cur : v;
+  }
+  // Manhattan distance from tile t to the nearest tile of a 2 x 2 body
+  const distBody = (x, y, t) => Math.min(...bodyTiles(x, y).map(b => Math.abs(b % COLS - t % COLS) + Math.abs(((b / COLS) | 0) - ((t / COLS) | 0))));
 
   const bit = (bits, i) => i >= 0 && ((bits >> i) & 1) === 1;
   const inRoom = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
@@ -297,7 +514,8 @@
   function walkable(I, bits, pet, t) {
     if (t < 0) return false;
     const ch = chAt(I, t);
-    if (ch === "#" || ch === "R" || ch === "L" || ch === "S" || ch === "B") return false;
+    if (ch === "#" || ch === "R" || ch === "L" || ch === "S") return false;
+    if (ch === "B") return I.bossMoves;                // the Rhino's start tiles are floor once it moves
     const b = BAR_TYPES.indexOf(ch);
     if (b >= 0) return bit(bits, I.objAt[t]) || passes(pet, b);
     if (ch === "G") return bit(bits, I.gate);
@@ -308,6 +526,7 @@
     if (t < 0) return false;
     const ch = chAt(I, t);
     if (".PE12Cs".includes(ch)) return true;
+    if (ch === "B") return I.bossMoves;
     if (BAR_TYPES.includes(ch)) return bit(bits, I.objAt[t]);
     if (ch === "$" || ch === "+") return bit(bits, I.objAt[t]);
     return false;
@@ -321,10 +540,14 @@
   }
   const padPct = pressure => Math.max(0, Math.min(100, Math.floor((pressure - C.CTL_PRESS_START) * 100 / (C.CTL_PRESS_FULL - C.CTL_PRESS_START))));
   const coreDamage = (P, score) => P.coreBase + Math.floor((P.coreBonus * score + 50) / 100);
-  function stars(P, phase, totalDs, hearts) {
+  // the time star has its own limit per world (ADV_STAR_TIME_S, _W2_S, _W3_S)
+  const starTime = (P, world) => [P.starTimeS, P.starTimeW2S, P.starTimeW3S][world | 0] || P.starTimeS;
+  function stars(P, phase, totalDs, hearts, world = 0) {
     if (phase !== PH.CLEAR) return [false, false, false];
-    return [true, totalDs <= P.starTimeS * 10, hearts >= P.starHearts];
+    return [true, totalDs <= starTime(P, world) * 10, hearts >= P.starHearts];
   }
+  const bossHpMax = (P, kind) => (kind === "idol" ? P.idolHp : kind === "rhino" ? P.rhinoHp : P.bossHp);
+  const bossPhase2 = (P, kind) => (kind === "idol" ? P.idolPhase2Hp : kind === "rhino" ? P.rhinoPhase2Hp : P.bossPhase2Hp);
   function trialCfg(P) {
     const bp = D.battleParams();
     return {readyMs: P.coreReadyMs, stageMs: P.coreStageMs, stages: 3, bandPct: bp.bandPct, speeds: [bp.speed1, bp.speed2, bp.speed3]};
@@ -336,7 +559,7 @@
     const P = Object.assign({}, PDEF, opts.params || {});
     const carry = opts.retryRoom && opts.carry ? opts.carry : null;
     const s = {
-      phase: PH.PICK, room: 0, t: 0, base: api.gameNow(), countdownMs: 0, roomMs: 0, totalMs: 0,
+      phase: PH.PICK, room: 0, world: NONE, wvote: [NONE, NONE], t: 0, base: api.gameNow(), countdownMs: 0, roomMs: 0, totalMs: 0,
       hearts: P.hearts, gems: 0, gemMask: 0, heartMask: 0,
       picks: [NONE, NONE], shrine: NONE,
       heroes: [0, 1].map(() => ({pos: NONE, dir: 0, steps: 0, pet: 3, nextMove: 0, hurtUntil: 0, useAt: -1e9, powerAt: -1e9, blockedAt: -1e9})),
@@ -353,8 +576,17 @@
     const I = () => INFO[s.room];
     const busy = p => !!s.inp[p] && (s.inp[p].buttons & 0x80) !== 0 && api.now() - s.inp[p].at < 1000;
 
+    // boss state (central RAM): the Warden and the Idol never move; the Rhino's top-left is (bx, by)
+    function makeBoss(R) {
+      const top = Math.min(...R.bossTiles), kind = R.bossType;
+      return {kind, hp: bossHpMax(P, kind), st: BS.SLEEP, until: s.t + 1500, round: 0, targets: [NONE, NONE], window: 0, stunEnd: -1e9,
+        graceUntil: 0, phase2: false, tgt: 0, hit: [-1, -1], hitDmg: [0, 0], stunTgt: NONE,
+        bx: top % COLS, by: (top / COLS) | 0, face: 2, faceAt: 0, area: NONE,
+        lane: -1, land: NONE, landRock: false, nextStep: 0, trackEnd: 0, alignedAt: -1};
+    }
     function enterRoom(ri, fresh) {
       s.room = ri;
+      s.world = worldOf(ri);
       const R = INFO[ri];
       s.bits = 0;
       if (R.gem >= 0 && (s.gemMask >> ri) & 1) s.bits |= 1 << R.gem;          // gems and hearts stay taken
@@ -364,8 +596,7 @@
       s.heroes.forEach((h, p) => { h.pos = R.spawn[p]; h.dir = 0; h.nextMove = 0; h.hurtUntil = 0; });
       s.needMilli = P.winchOpenPct * 1000; s.winchIdle = 0; s.winching = [false, false]; s.gateCloseAt = -1;
       s.leverUntil = 0; s.ping = 0x7f; s.pingUntil = 0; s.rocks = [NONE, NONE, NONE, NONE];
-      s.boss = R.boss ? {hp: P.bossHp, st: BS.SLEEP, until: s.t + 1500, round: 0, targets: [NONE, NONE], window: 0, stunEnd: -1e9,
-        graceUntil: 0, phase2: false, tgt: 0, hit: [-1, -1], hitDmg: [0, 0]} : null;
+      s.boss = R.boss ? makeBoss(R) : null;
       s.roomMs = 0;
       s.phase = PH.PLAY;
       if (!fresh) ev(EV.ROOM, 0, ri);
@@ -374,9 +605,16 @@
     function startPlay() {
       s.heroes.forEach((h, p) => { h.pet = s.picks[p]; });
       s.shrine = 3 - s.picks[0] - s.picks[1];
-      enterRoom(0, true);
+      enterRoom((s.world === NONE ? 0 : s.world) * RPW, true);
     }
-    if (carry) {
+    if (carry && carry.next) {
+      // next world (REMATCH arg 1 after a world's boss, §6.7): same pets, fresh hearts, time and gems
+      s.picks = carry.pets.slice(); s.shrine = carry.shrine;
+      s.heroes.forEach((h, p) => { h.pet = carry.pets[p]; });
+      s.world = carry.world;
+      enterRoom(carry.world * RPW, true);
+      s.countdownMs = P.resumeCountMs;
+    } else if (carry) {
       // retry from this room after TEAM DOWN (REMATCH arg 1, §6.7)
       s.picks = carry.pets.slice(); s.shrine = carry.shrine;
       s.heroes.forEach((h, p) => { h.pet = carry.pets[p]; });
@@ -390,7 +628,9 @@
     const heroAt = t => s.heroes.findIndex(h => h.pos === t);
     const crateAt = t => s.crates.indexOf(t);
     const slimeAt = t => s.slimes.findIndex(e => e && e.pos === t);
-    const bossAt = t => !!s.boss && s.boss.st !== BS.DEAD && BOSS_TILES.includes(t);
+    const bossTilesNow = () => (!s.boss ? [] : s.boss.kind === "rhino" ? bodyTiles(s.boss.bx, s.boss.by) : I().bossTiles);
+    const bossAt = t => !!s.boss && s.boss.st !== BS.DEAD && bossTilesNow().includes(t);
+    const freeFor = (p, t) => t >= 0 && walkable(I(), s.bits, s.heroes[p].pet, t) && !bossAt(t);
 
     function hurt(p, kdir) {
       const h = s.heroes[p];
@@ -530,9 +770,35 @@
         if (s.phase !== PH.PLAY) return;
       }
     }
-    function bossTick() {
+    // falling rocks (1-4 every other round, 2-4 / 3-4 phase 2): ADV_ROCKS tiles near the pets,
+    // never on a pet that is striking the core
+    function rocksStart() {
+      const R = I(), cand = [];
+      for (let t = 0; t < COLS * ROWS; t++) {
+        if (!floorish(R, s.bits, t) || bossAt(t)) continue;
+        if ([0, 1].some(p => busy(p) && s.heroes[p].pos === t)) continue;
+        const nearPet = [0, 1].some(p => !busy(p) && Math.abs(s.heroes[p].pos % COLS - t % COLS) <= 2 && Math.abs(((s.heroes[p].pos / COLS) | 0) - ((t / COLS) | 0)) <= 2);
+        if (nearPet) cand.push(t);
+      }
+      s.rocks = [NONE, NONE, NONE, NONE];
+      for (let k = 0; k < Math.min(P.rocks, 4) && cand.length; k++) s.rocks[k] = cand.splice(api.randInt(cand.length), 1)[0];
+    }
+    // -> false when that ended the run (team down)
+    function rocksLand() {
+      ev(EV.ROCK);
+      for (let p = 0; p < 2; p++) if (s.rocks.includes(s.heroes[p].pos)) { hurt(p, -1); if (s.phase !== PH.PLAY) return false; }
+      s.rocks = [NONE, NONE, NONE, NONE];
+      return true;
+    }
+    function stunStart(ms) {
       const b = s.boss;
-      if (!b) return;
+      b.st = BS.STUN; b.until = s.t + ms; b.stunEnd = b.until; b.stunTgt = b.tgt;
+      b.window = (b.window + 1) & 0xff; s.trialSeed = api.randInt(256);
+      ev(EV.STUN, 0, b.window);
+    }
+    // 1-4 Stone Warden (§6.6)
+    function wardenTick() {
+      const b = s.boss;
       const tele = b.phase2 ? P.bossTele2Ms : P.bossTeleMs;
       if (b.st === BS.SLEEP && s.t >= b.until) { b.st = BS.IDLE; b.until = s.t + P.bossIdleMs; ev(EV.WAKE); }
       else if (b.st === BS.IDLE && s.t >= b.until) {
@@ -553,25 +819,158 @@
         if (rocks && P.rocks > 0) { b.st = BS.ROCK_WAIT; b.graceUntil = s.t + P.coreGraceMs; }
         else { b.st = BS.IDLE; b.until = s.t + P.bossIdleMs; }
       } else if (b.st === BS.ROCK_WAIT && ((!busy(0) && !busy(1)) || s.t >= b.graceUntil)) {
-        // ADV_ROCKS tiles near the pets, never on a pet that is striking the core
-        const R = I(), cand = [];
-        for (let t = 0; t < COLS * ROWS; t++) {
-          if (!floorish(R, s.bits, t) || bossAt(t)) continue;
-          if ([0, 1].some(p => busy(p) && s.heroes[p].pos === t)) continue;
-          const nearPet = [0, 1].some(p => !busy(p) && Math.abs(s.heroes[p].pos % COLS - t % COLS) <= 2 && Math.abs(((s.heroes[p].pos / COLS) | 0) - ((t / COLS) | 0)) <= 2);
-          if (nearPet) cand.push(t);
-        }
-        s.rocks = [NONE, NONE, NONE, NONE];
-        for (let k = 0; k < Math.min(P.rocks, 4) && cand.length; k++) s.rocks[k] = cand.splice(api.randInt(cand.length), 1)[0];
+        rocksStart();
         b.st = BS.ROCK_TELE; b.until = s.t + P.rockTeleMs;
       } else if (b.st === BS.ROCK_TELE && s.t >= b.until) {
-        ev(EV.ROCK);
-        for (let p = 0; p < 2; p++) if (s.rocks.includes(s.heroes[p].pos)) { hurt(p, -1); if (s.phase !== PH.PLAY) return; }
-        s.rocks = [NONE, NONE, NONE, NONE];
+        if (!rocksLand()) return;
         b.st = BS.IDLE; b.until = s.t + P.bossIdleMs;
       } else if (b.st === BS.DEAD && s.t >= b.until) {
         s.phase = PH.CLEAR; ev(EV.CLEAR); api.nextStep();
       }
+    }
+    // 2-4 Idol: idle -> lock on the nearest pet (3x3 around it) -> slam -> stun (only the
+    // other pet, on one of the 2 tiles behind it, may strike); it turns toward the target
+    // every ADV_IDOL_FACE_MS while locking and stunned. Phase 2: shorter lock + rocks after each stun.
+    function idolTick() {
+      const b = s.boss;
+      if ((b.st === BS.TELE || b.st === BS.STUN) && s.t >= b.faceAt) {
+        b.faceAt = s.t + P.idolFaceMs; b.face = idolFace(b.bx, b.by, s.heroes[b.tgt].pos, b.face);
+      }
+      if (b.st === BS.SLEEP && s.t >= b.until) { b.st = BS.IDLE; b.until = s.t + P.idolIdleMs; ev(EV.WAKE); }
+      else if (b.st === BS.IDLE && s.t >= b.until) {
+        const d0 = distBody(b.bx, b.by, s.heroes[0].pos), d1 = distBody(b.bx, b.by, s.heroes[1].pos);
+        if (b.round === 0) b.tgt = d1 < d0 ? 1 : 0;
+        else if (d0 !== d1) b.tgt = d0 < d1 ? 0 : 1;               // a tie keeps the last target
+        b.round++;
+        b.face = idolFace(b.bx, b.by, s.heroes[b.tgt].pos, b.face); b.faceAt = s.t + P.idolFaceMs;
+        b.area = s.heroes[b.tgt].pos;                               // fixed when the lock starts
+        b.st = BS.TELE; b.until = s.t + (b.phase2 ? P.idolLock2Ms : P.idolLockMs);
+      } else if (b.st === BS.TELE && s.t >= b.until) {
+        const c = b.area;
+        ev(EV.SLAM);
+        for (let p = 0; p < 2; p++) {
+          const t = s.heroes[p].pos;
+          if (Math.abs(c % COLS - t % COLS) <= 1 && Math.abs(((c / COLS) | 0) - ((t / COLS) | 0)) <= 1) { hurt(p, -1); if (s.phase !== PH.PLAY) return; }
+        }
+        b.area = NONE;
+        stunStart(P.idolStunMs);
+      } else if (b.st === BS.STUN && s.t >= b.until) {
+        if (b.phase2 && P.rocks > 0) { b.st = BS.ROCK_WAIT; b.graceUntil = s.t + P.coreGraceMs; }
+        else { b.st = BS.IDLE; b.until = s.t + P.idolIdleMs; }
+      } else if (b.st === BS.ROCK_WAIT && ((!busy(0) && !busy(1)) || s.t >= b.graceUntil)) {
+        rocksStart();
+        b.st = BS.ROCK_TELE; b.until = s.t + P.rockTeleMs;
+      } else if (b.st === BS.ROCK_TELE && s.t >= b.until) {
+        if (!rocksLand()) return;
+        b.st = BS.IDLE; b.until = s.t + P.idolIdleMs;
+      } else if (b.st === BS.DEAD && s.t >= b.until) {
+        s.phase = PH.CLEAR; ev(EV.CLEAR); api.nextStep();
+      }
+    }
+    // 3-4 Rhino: track the target's column (1 column per ADV_RHINO_TRACK_STEP_MS until that
+    // column is under its body) -> lane warning -> charge down 1 row per ADV_RHINO_CHARGE_STEP_MS
+    // -> rock: stun / wall: bonk -> dust, jump back to row 0 -> next round (the other pet).
+    function startTrack() {
+      const b = s.boss;
+      if (b.round > 0) b.tgt ^= 1;
+      b.round++;
+      b.st = BS.IDLE; b.until = s.t + P.rhinoTrackMs; b.trackEnd = s.t + P.rhinoTrackMaxMs; b.alignedAt = -1; b.nextStep = s.t;
+      b.lane = -1; b.land = NONE; b.landRock = false;
+    }
+    function rhinoTick() {
+      const b = s.boss, R = I();
+      if (b.st === BS.SLEEP) { if (s.t >= b.until) { ev(EV.WAKE); startTrack(); } return; }
+      if (b.st === BS.IDLE) {
+        if (s.t >= b.nextStep) {
+          b.nextStep = s.t + P.rhinoTrackStepMs;
+          const tx = s.heroes[b.tgt].pos % COLS;
+          const d = tx < b.bx ? -1 : tx > b.bx + 1 ? 1 : 0;
+          if (d) {
+            const nx = d > 0 ? b.bx + 2 : b.bx - 1, nt = [b.by * COLS + nx, (b.by + 1) * COLS + nx];
+            let ok = nt.every(t => chAt(R, t) !== "#");
+            // a pet in the two tiles it moves into: 1 heart, pushed 1 tile on; cannot be pushed -> it waits
+            for (let p = 0; p < 2 && ok; p++) {
+              if (!nt.includes(s.heroes[p].pos)) continue;
+              const push = stepTile(s.heroes[p].pos, d > 0 ? 1 : 3);
+              hurt(p, -1);
+              if (s.phase !== PH.PLAY) return;
+              if (freeFor(p, push)) s.heroes[p].pos = push; else ok = false;
+            }
+            if (ok) b.bx += d;
+          }
+        }
+        // lock once lined up for ADV_RHINO_SETTLE_MS after ADV_RHINO_TRACK_MS, or at TRACK_MAX_MS anyway
+        const tx = s.heroes[b.tgt].pos % COLS, aligned = tx === b.bx || tx === b.bx + 1;
+        if (!aligned) b.alignedAt = -1; else if (b.alignedAt < 0) b.alignedAt = s.t;
+        if ((aligned && s.t >= b.until && s.t - b.alignedAt >= P.rhinoSettleMs) || s.t >= b.trackEnd) {
+          b.st = BS.TELE; b.lane = b.bx;
+          // landing: scan down until the next row has a rock (#) in the lane or is outside the room (wall)
+          let y = b.by;
+          while (y + 2 < ROWS && chAt(R, (y + 2) * COLS + b.lane) !== "#" && chAt(R, (y + 2) * COLS + b.lane + 1) !== "#") y++;
+          b.land = y * COLS + b.lane; b.landRock = y + 2 < ROWS;
+          b.until = s.t + (b.phase2 ? P.rhinoAim2Ms : P.rhinoAimMs);
+        }
+        return;
+      }
+      if (b.st === BS.TELE && s.t >= b.until) { b.st = BS.CHARGE; b.nextStep = s.t; }
+      if (b.st === BS.CHARGE) {
+        if (s.t < b.nextStep) return;
+        b.nextStep = s.t + P.rhinoChargeStepMs;
+        if (b.by * COLS + b.bx === b.land) {
+          b.land = NONE;
+          if (b.landRock) { ev(EV.SLAM); stunStart(P.rhinoStunMs); }
+          else { b.st = BS.BONK; b.until = s.t + P.rhinoBonkMs; ev(EV.BONK); }
+          return;
+        }
+        b.by++;
+        // pets in the new bottom row (or under the body): 1 heart, knocked out of the lane
+        // (left column -> left first, right column -> right first; neither free -> stays)
+        const row = [(b.by + 1) * COLS + b.bx, (b.by + 1) * COLS + b.bx + 1], body = bossTilesNow();
+        for (let p = 0; p < 2; p++) {
+          const h = s.heroes[p];
+          if (!row.includes(h.pos) && !body.includes(h.pos)) continue;
+          hurt(p, -1);
+          if (s.phase !== PH.PLAY) return;
+          const y = (h.pos / COLS) | 0;
+          const l = b.bx - 1 >= 0 ? y * COLS + b.bx - 1 : -1, r = b.bx + 2 < COLS ? y * COLS + b.bx + 2 : -1;
+          const to = (h.pos % COLS === b.bx ? [l, r] : [r, l]).find(t => t >= 0 && freeFor(p, t));
+          if (to != null) h.pos = to;
+        }
+        return;
+      }
+      if (b.st === BS.STUN && s.t >= b.until) {
+        if (b.phase2 && P.rocks > 0) { b.st = BS.ROCK_WAIT; b.graceUntil = s.t + P.coreGraceMs; }
+        else { b.st = BS.RETURN; b.until = s.t + P.rhinoJumpMs; }
+      } else if (b.st === BS.BONK && s.t >= b.until) { b.st = BS.RETURN; b.until = s.t + P.rhinoJumpMs; }
+      else if (b.st === BS.ROCK_WAIT && ((!busy(0) && !busy(1)) || s.t >= b.graceUntil)) {
+        rocksStart();
+        b.st = BS.ROCK_TELE; b.until = s.t + P.rockTeleMs;
+      } else if (b.st === BS.ROCK_TELE && s.t >= b.until) {
+        if (!rocksLand()) return;
+        b.st = BS.RETURN; b.until = s.t + P.rhinoJumpMs;
+      } else if (b.st === BS.RETURN && s.t >= b.until) {
+        // jump back to row 0 (same columns); a pet on the 4 new body tiles goes straight down to row 2+ (no damage)
+        b.by = 0;
+        const body = bossTilesNow();
+        for (let p = 0; p < 2; p++) {
+          const h = s.heroes[p];
+          if (!body.includes(h.pos)) continue;
+          const x = h.pos % COLS;
+          let y = 2;
+          while (y < ROWS - 1 && !freeFor(p, y * COLS + x)) y++;
+          h.pos = y * COLS + x;
+        }
+        startTrack();
+      } else if (b.st === BS.DEAD && s.t >= b.until) {
+        s.phase = PH.CLEAR; ev(EV.CLEAR); api.nextStep();
+      }
+    }
+    function bossTick() {
+      const b = s.boss;
+      if (!b) return;
+      if (b.kind === "idol") idolTick();
+      else if (b.kind === "rhino") rhinoTick();
+      else wardenTick();
     }
     function exits() {
       const R = I();
@@ -600,27 +999,41 @@
     }
 
     function snapshot() {
-      const R = I(), b = s.boss;
+      const R = I(), b = s.boss, pick = s.phase === PH.PICK;
       const heroes = s.heroes.map((h, p) => {
-        let f = (s.phase === PH.PICK ? (s.picks[p] === NONE ? 3 : s.picks[p]) : h.pet) & 3;
+        let f = (pick ? (s.picks[p] === NONE ? 3 : s.picks[p]) : h.pet) & 3;
         if (s.t < h.hurtUntil) f |= PF.HURT;
         if (busy(p)) f |= PF.BUSY;
         if (s.winching[p]) f |= PF.WINCH;
-        if (R.exits.includes(h.pos)) f |= PF.EXIT;
-        return {pos: s.phase === PH.PICK ? NONE : h.pos, dirAnim: (h.dir & 3) | ((h.steps & 63) << 2), petFlags: f};
+        if (!pick && R.exits.includes(h.pos)) f |= PF.EXIT;
+        // PICK: dir_anim = this player's world vote + 1 (0 = none)
+        const dirAnim = pick ? (s.wvote[p] === NONE ? 0 : s.wvote[p] + 1) : (h.dir & 3) | ((h.steps & 63) << 2);
+        return {pos: pick ? NONE : h.pos, dirAnim, petFlags: f};
       });
       const enemies = s.slimes.map(e => e ? {pos: e.pos, hpType: 0x10 | Math.min(15, e.hp), state: (e.dir & 3) | ((e.steps & 63) << 2)} : {pos: NONE, hpType: 0, state: 0});
-      let bossState = 0;
+      let bossState = 0, bossTarget = NONE;
       if (b) {
-        if (b.st === BS.TELE && b.targets[1] !== NONE) enemies[0] = {pos: b.targets[1], hpType: 0x20, state: 0};
+        if (b.kind === "warden") {
+          if (b.st === BS.TELE && b.targets[1] !== NONE) enemies[0] = {pos: b.targets[1], hpType: 0x20, state: 0};
+          bossTarget = b.st === BS.TELE ? b.targets[0] : NONE;
+        } else if (b.kind === "idol") {
+          // enemies[3] = the Idol: top-left, 0x50 | target, facing
+          enemies[3] = {pos: b.by * COLS + b.bx, hpType: 0x50 | (b.tgt & 1), state: b.face & 3};
+          bossTarget = b.st === BS.TELE ? b.area : NONE;
+        } else {
+          // enemies[3] = the Rhino: top-left, 0x40 | target, lane column | rock ahead (bit 4)
+          enemies[3] = {pos: b.by * COLS + b.bx, hpType: 0x40 | (b.tgt & 1), state: (b.lane >= 0 ? b.lane & 15 : 0) | (b.landRock ? 16 : 0)};
+          bossTarget = b.st === BS.TELE || b.st === BS.CHARGE ? b.land : NONE;
+        }
         const left = Math.max(0, b.until - s.t);
         bossState = b.st | (Math.min(7, Math.ceil(left / 500)) << 4) | (b.phase2 ? 0x80 : 0);
       }
       return {
-        phase: s.phase, flags: 0, room: s.room, countdownDs: Math.min(255, Math.ceil(s.countdownMs / 100)),
+        phase: s.phase, flags: 0, room: pick ? (s.world === NONE ? NONE : s.world * RPW) : s.room,
+        countdownDs: Math.min(255, Math.ceil(s.countdownMs / 100)),
         roomMs10: ((s.roomMs / 10) | 0) & 0xffff, totalDs: Math.min(65535, (s.totalMs / 100) | 0), hearts: s.hearts,
         heroes, shrinePet: s.shrine === NONE ? NONE : s.shrine, objBits: s.bits & 0xffff, cratePos: s.crates.slice(),
-        enemies, bossHp: b ? b.hp : 0, bossState, bossTarget: b && b.st === BS.TELE ? b.targets[0] : NONE,
+        enemies, bossHp: b ? b.hp : 0, bossState, bossTarget,
         bossWindow: b ? b.window : 0, rocks: s.rocks.slice(), trialSeed: s.trialSeed,
         winchNeed: R.winch >= 0 ? Math.floor(s.needMilli / 1000) : 0,
         leverMs10: s.leverUntil ? Math.min(255, Math.ceil((s.leverUntil - s.t) / 10)) : 0,
@@ -633,6 +1046,17 @@
     function act(p, action, arg, data) {
       if (action === A.ADV_PICK) {
         if (s.phase !== PH.PICK) return false;
+        // ADV_PICK(0x10 + world): vote for a world (0x1f = take the vote back); the same vote from both starts the pet pick
+        if (arg !== NONE && (arg & 0xf0) === 0x10) {
+          if (s.world !== NONE) return false;
+          const w = arg & 0x0f;
+          if (w === 0x0f) { s.wvote[p] = NONE; return true; }
+          if (w >= WORLDS) return false;
+          s.wvote[p] = w;
+          if (s.wvote[0] === s.wvote[1]) { s.world = w; ev(EV.WORLD, p, w); api.nextStep(); }
+          return true;
+        }
+        if (s.world === NONE) return false;
         if (arg === NONE) { s.picks[p] = NONE; return true; }
         if (arg > 2) return false;
         if (s.picks[1 - p] === arg) { ev(EV.TAKEN, p, arg); return false; }   // first come, first served
@@ -705,12 +1129,14 @@
       else ev(EV.HIT, p, sl.hp);
     }
     // ACT_ADV_CORE(arg = score, data[0] = stun window): accepted while stunned or
-    // up to ADV_CORE_GRACE_MS after the stun, once per player per window; also while paused
+    // up to ADV_CORE_GRACE_MS after the stun, once per player per window; also while paused.
+    // Idol / Rhino: never from the pet that was the target of that window.
     function core(p, score, w) {
       const b = s.boss;
       if (!b || b.st === BS.DEAD || s.phase !== PH.PLAY || score > 100) return false;
       if (w !== b.window || b.hit[p] === w) return false;
       if (!(b.st === BS.STUN || s.t <= b.stunEnd + P.coreGraceMs)) return false;
+      if (b.kind !== "warden" && p === b.stunTgt) return false;
       let dmg = coreDamage(P, score), extra = 0;
       const q = 1 - p;
       if (b.hit[q] === w) {
@@ -723,8 +1149,11 @@
       s.coreDmg[p] += dmg; s.coreDmg[q] += extra;
       b.hp = Math.max(0, b.hp - dmg - extra);
       ev(EV.BOSS_HIT, p, dmg + extra);
-      if (!b.phase2 && b.hp <= P.bossPhase2Hp) b.phase2 = true;
-      if (b.hp === 0) { b.st = BS.DEAD; b.until = s.t + 1200; b.targets = [NONE, NONE]; s.rocks = [NONE, NONE, NONE, NONE]; }
+      if (!b.phase2 && b.hp <= bossPhase2(P, b.kind)) b.phase2 = true;
+      if (b.hp === 0) {
+        b.st = BS.DEAD; b.until = s.t + 1200; b.targets = [NONE, NONE]; s.rocks = [NONE, NONE, NONE, NONE];
+        b.area = NONE; b.land = NONE; b.lane = -1;
+      }
       return true;
     }
 
@@ -752,7 +1181,7 @@
       snapshot,
       over() {
         if (s.phase === PH.CLEAR || s.phase === PH.TEAM_DOWN || s.phase === PH.GAVE_UP) {
-          const st = stars(P, s.phase, (s.totalMs / 100) | 0, s.hearts).filter(Boolean).length;
+          const st = stars(P, s.phase, (s.totalMs / 100) | 0, s.hearts, s.world === NONE ? 0 : s.world).filter(Boolean).length;
           return {winner: null, coop: true, quit: s.phase === PH.GAVE_UP ? s.quitBy : null,
             res: [st, s.gems, s.hearts, Math.min(255, (s.totalMs / 10000) | 0)]};
         }
@@ -767,15 +1196,27 @@
         if (s.phase === PH.PLAY) s.countdownMs = P.resumeCountMs;
       },
       quit(p) { s.quitBy = p; s.phase = PH.GAVE_UP; api.nextStep(); api.broadcast(); },
-      carry: () => ({room: s.room, totalMs: s.totalMs, gems: s.gems, gemMask: s.gemMask, heartMask: s.heartMask,
-        pets: s.heroes.map(h => h.pet), shrine: s.shrine, coreDmg: s.coreDmg.slice(), winchMs: s.winchMs.slice()}),
+      // REMATCH arg 1: after a world's boss -> the next world (same pets); otherwise retry this room
+      carry: () => (s.phase === PH.CLEAR && s.world !== NONE && s.world + 1 < WORLDS
+        ? {next: true, world: s.world + 1, pets: s.heroes.map(h => h.pet), shrine: s.shrine}
+        : {room: s.room, totalMs: s.totalMs, gems: s.gems, gemMask: s.gemMask, heartMask: s.heartMask,
+          pets: s.heroes.map(h => h.pet), shrine: s.shrine, coreDmg: s.coreDmg.slice(), winchMs: s.winchMs.slice()}),
       // DEVICE.debug(cmd, arg): fixtures and tests
       debug(cmd, arg) {
         if (cmd === "room" && s.phase !== PH.PICK) { s.phase = PH.PLAY; enterRoom(arg | 0, false); }
-        else if (cmd === "pick") { s.picks = [arg >> 4 & 3, arg & 3]; startPlay(); }
+        else if (cmd === "world") {
+          // PICK: both vote world arg; in a room: jump to that world's first room
+          const w = Math.max(0, Math.min(WORLDS - 1, arg | 0));
+          if (s.phase === PH.PICK) { s.wvote = [w, w]; s.world = w; api.nextStep(); }
+          else { s.phase = PH.PLAY; enterRoom(w * RPW, false); }
+        }
+        else if (cmd === "pick") { if (s.world === NONE) s.world = 0; s.picks = [arg >> 4 & 3, arg & 3]; startPlay(); }
         else if (cmd === "hearts") s.hearts = arg | 0;
         else if (cmd === "bossHp" && s.boss) s.boss.hp = arg | 0;
-        else if (cmd === "stun" && s.boss) { s.boss.st = BS.TELE; s.boss.until = s.t; s.boss.targets = [NONE, NONE]; }
+        else if (cmd === "stun" && s.boss) {
+          if (s.boss.kind === "warden") { s.boss.st = BS.TELE; s.boss.until = s.t; s.boss.targets = [NONE, NONE]; }
+          else { s.boss.land = NONE; s.boss.area = NONE; stunStart(s.boss.kind === "idol" ? P.idolStunMs : P.rhinoStunMs); }
+        }
         else if (cmd === "clear") { s.phase = PH.CLEAR; api.nextStep(); }
         else if (cmd === "down") { s.hearts = 0; s.phase = PH.TEAM_DOWN; api.nextStep(); }
         else if (cmd === "place") { s.heroes[arg >> 8 & 1].pos = arg & 0xff; }
@@ -807,11 +1248,38 @@
   function bossInfo(st) {
     return {st: st.bossState & 15, left: (st.bossState >> 4) & 7, phase2: (st.bossState & 0x80) !== 0};
   }
+  // the boss as the state shows it: kind, top-left tile, target (Idol / Rhino), facing, lane
+  function bossView(st) {
+    const I = INFO[st.room], kind = I.bossType || "warden", e = st.enemies[3];
+    const own = e && (e.hpType >> 4) === (kind === "idol" ? 5 : 4);
+    const pos = kind !== "warden" && own ? e.pos : Math.min(...I.bossTiles);
+    return {kind, pos, x: pos % COLS, y: (pos / COLS) | 0, tgt: kind !== "warden" && own ? e.hpType & 1 : NONE,
+      face: own ? e.state & 3 : 2, lane: own ? e.state & 15 : -1, rock: own && (e.state & 16) !== 0};
+  }
+  // tiles from which a core strike may start (Warden: the 8 around it; Idol: the 2 behind it;
+  // Rhino: the 8 around it except rocks)
+  function strikeTiles(st) {
+    const v = bossView(st), I = INFO[st.room];
+    if (v.kind === "warden") return BOSS_ADJ;
+    if (v.kind === "idol") return backTiles(v.x, v.y, v.face);
+    return adjTiles(v.x, v.y).filter(t => chAt(I, t) !== "#");
+  }
+  const bossTilesOf = st => { const v = bossView(st); return bodyTiles(v.x, v.y); };
   function canStrike(ctx) {
     const m = ctx.m, st = ctx.state;
     if (!m || !st || st.phase !== PH.PLAY || st.countdownDs > 0 || m.trial || !INFO[st.room].boss) return false;
-    const b = bossInfo(st);
-    return b.st === BS.STUN && BOSS_ADJ.includes(st.heroes[ctx.p].pos) && m.struckWindow !== st.bossWindow;
+    const b = bossInfo(st), v = bossView(st);
+    if (v.kind !== "warden" && v.tgt === ctx.p) return false;      // the bait never strikes
+    return b.st === BS.STUN && strikeTiles(st).includes(st.heroes[ctx.p].pos) && m.struckWindow !== st.bossWindow;
+  }
+  // Idol / Rhino: I am the one it is after (hint "Bait")
+  function amBait(ctx) {
+    const st = ctx.state;
+    if (!st || st.phase !== PH.PLAY || !INFO[st.room].boss) return false;
+    const v = bossView(st), b = bossInfo(st);
+    if (v.kind === "warden" || v.tgt !== ctx.p) return false;
+    return v.kind === "idol" ? b.st === BS.TELE || b.st === BS.STUN
+      : b.st === BS.IDLE || b.st === BS.TELE || b.st === BS.CHARGE || b.st === BS.STUN;
   }
   function startStrike(ctx) {
     const m = ctx.m, st = ctx.state, P = params(ctx);
@@ -918,6 +1386,9 @@
   }
 
   function drawBoss(g, ctx, st) {
+    const kind = INFO[st.room].bossType;
+    if (kind === "idol") return drawIdol(g, ctx, st);
+    if (kind === "rhino") return drawRhino(g, ctx, st);
     const b = bossInfo(st), x = tileX(14), y = tileY(14);
     if (b.st === BS.DEAD) {
       if (blink(ctx, 6)) g.sprite("adv.boss", x, y, {color: "line"});
@@ -936,6 +1407,60 @@
     const P = params(ctx);
     D.ui.hpBar(g, x - 6, OY + 2, 36, st.bossHp, P.bossHp, {h: 4});
     if (b.st === BS.STUN) g.hline(x - 5, OY + 7, Math.round(34 * Math.min(1, b.left * 500 / P.bossStunMs)), "gold");
+  }
+  // 2-4 Idol: 3 frames (down = the eye, up = its back, side mirrored); the 2 tiles behind it
+  // get a gold frame while it is stunned (static, redrawn when it turns: <= 4 Hz)
+  function drawIdol(g, ctx, st) {
+    const b = bossInfo(st), v = bossView(st), x = tileX(v.pos), y = tileY(v.pos), P = params(ctx);
+    const side = v.face === 1 || v.face === 3;
+    const spr = side ? "adv.idolSide" : "adv.idol", base = {frame: v.face === 0 ? 1 : 0, flipX: v.face === 3};
+    if (b.st === BS.DEAD) {
+      if (blink(ctx, 6)) g.sprite(spr, x, y, Object.assign({color: "line"}, base));
+      return;
+    }
+    const map = {};
+    if (b.st === BS.TELE) map.e = "danger";
+    if (b.st === BS.SLEEP || b.st === BS.STUN) { map.e = "line"; map.w = "muted"; }
+    if (b.st === BS.STUN) map.c = blink(ctx, 3) ? "gold" : "fire";
+    g.sprite(spr, x, y, Object.assign({map}, base));
+    if (b.phase2) { g.px(x + 6, y + 4, "void"); g.px(x + 7, y + 5, "void"); g.px(x + 7, y + 6, "void"); g.px(x + 17, y + 17, "void"); g.px(x + 16, y + 18, "void"); }
+    if (b.st === BS.STUN) {
+      for (const t of backTiles(v.x, v.y, v.face)) g.frame(tileX(t), tileY(t), TS, TS, "gold");
+      g.text(x + 12, y - 12, "z", {font: "s", c: "gold", align: "c"});
+    }
+    D.ui.hpBar(g, x - 6, OY + 2, 36, st.bossHp, P.idolHp, {h: 4});
+    if (b.st === BS.STUN) g.hline(x - 5, OY + 7, Math.round(34 * Math.min(1, b.left * 500 / P.idolStunMs)), "gold");
+  }
+  // 3-4 Rhino: tweens 250 ms per column while tracking, 100 ms per row while charging, jumps back
+  // in one go. The lane is drawn once (static dither), only the 2 x 2 landing blinks at 4 Hz.
+  function drawRhino(g, ctx, st) {
+    const b = bossInfo(st), v = bossView(st), P = params(ctx), m = ctx.m, now = ctx.now();
+    const dur = b.st === BS.CHARGE ? P.rhinoChargeStepMs : b.st === BS.IDLE ? P.rhinoTrackStepMs : 0;
+    let [x, y] = tweenPos(m, "boss", v.pos, now, dur);
+    if ((b.st === BS.TELE || b.st === BS.CHARGE) && st.bossTarget !== NONE) {
+      const ly = (st.bossTarget / COLS) | 0, lx = st.bossTarget % COLS;
+      for (let ry = v.y + 2; ry <= ly + 1 && ry < ROWS; ry++) for (let cx = lx; cx <= lx + 1; cx++) {
+        if (ry >= ly) { if (blink(ctx, 4)) g.dither(OX + cx * TS, OY + ry * TS, TS, TS, "danger", null); }
+        else g.dither(OX + cx * TS, OY + ry * TS, TS, TS, "danger", null);
+      }
+    }
+    if (b.st === BS.DEAD) {
+      if (blink(ctx, 6)) g.sprite("adv.rhino", x, y, {color: "line"});
+      return;
+    }
+    const map = {};
+    if (b.st === BS.TELE || b.st === BS.CHARGE) map.e = "danger";
+    if (b.st === BS.SLEEP || b.st === BS.STUN || b.st === BS.BONK) map.e = "line";
+    if (b.st === BS.STUN) map.h = blink(ctx, 3) ? "gold" : "fire";
+    if (b.st === BS.BONK) x += blink(ctx, 8) ? 1 : -1;
+    g.sprite("adv.rhino", x, y, {map, frame: b.st === BS.CHARGE ? 1 : 0});
+    if (b.phase2) { g.px(x + 6, y + 6, "void"); g.px(x + 7, y + 7, "void"); g.px(x + 17, y + 12, "void"); g.px(x + 16, y + 13, "void"); }
+    if (b.st === BS.RETURN && blink(ctx, 4)) g.dither(x, y, 24, 24, "muted", null);
+    if (b.st === BS.STUN || b.st === BS.BONK) g.text(x + 12, y + 1, "z", {font: "s", c: "gold", align: "c"});
+    // HP bar in row 8 between the rocks (the body starts in rows 0-1)
+    const hx = OX + 3 * TS, hy = OY + 8 * TS + 7;
+    D.ui.hpBar(g, hx, hy, 48, st.bossHp, P.rhinoHp, {h: 4});
+    if (b.st === BS.STUN) g.hline(hx + 1, hy - 2, Math.round(46 * Math.min(1, b.left * 500 / P.rhinoStunMs)), "gold");
   }
 
   function drawRoom(g, ctx) {
@@ -987,7 +1512,7 @@
     // boss telegraph (3x3, 4 Hz) and rocks
     if (I.boss) {
       const b = bossInfo(st);
-      if (b.st === BS.TELE && blink(ctx, 4)) {
+      if (b.st === BS.TELE && blink(ctx, 4) && I.bossType !== "rhino") {
         const centers = [st.bossTarget].concat(st.enemies.filter(e => (e.hpType >> 4) === 2).map(e => e.pos));
         for (const c of centers) {
           if (c === NONE) continue;
@@ -1069,6 +1594,7 @@
     const f = faceTile(me.pos, me.dirAnim & 3);
     let first = ["A", "dev.adv.hintUse", "white"];
     if (canStrike(ctx)) first = ["PAD", "dev.adv.hintStrike", "gold"];
+    else if (amBait(ctx)) first = ["STICK", "dev.adv.hintBait", "gold"];
     else if (f >= 0 && f === I.winch) first = ["PAD", "dev.adv.hintHold", "white"];
     else if (f >= 0) {
       const b = BAR_TYPES.indexOf(chAt(I, f));
@@ -1118,6 +1644,63 @@
 
   /* ================= screens ================= */
 
+  // S11a world vote (before the pet pick): like S07, each player votes, the same vote from both
+  // starts that world; S = take the partner's vote. Cards show this profile's best stars per world.
+  const WCARD_Y = [16, 50, 84];
+  const voteOf = (st, p) => (st.heroes[p].dirAnim > 0 && st.heroes[p].dirAnim <= WORLDS ? st.heroes[p].dirAnim - 1 : NONE);
+  function bestStars(ctx) {
+    const cur = ctx.profiles && ctx.profiles.current ? ctx.profiles.current() : null, pr = cur ? cur.profile : null;
+    if (!pr) return [0, 0, 0];
+    const w = Array.isArray(pr.advW) ? pr.advW : [pr.advStars | 0, 0, 0];      // before worlds: advStars was World 1
+    return [0, 1, 2].map(i => Math.min(3, w[i] | 0));
+  }
+  D.registerScreen("adv.world", {
+    fps: 10,
+    toastY: 128,
+    enter(ctx) {
+      const st = ctx.state, mine = st ? voteOf(st, ctx.p) : NONE;
+      ctx.s.sel = mine !== NONE ? mine : 0;
+    },
+    input(ctx, ev) {
+      const st = ctx.state;
+      if (!st || st.phase !== PH.PICK || st.room !== NONE) return;
+      if (ev.type !== "down" && ev.type !== "repeat") return;
+      if (ev.btn === "UP" || ev.btn === "DOWN") { ctx.s.sel = (ctx.s.sel + (ev.btn === "UP" ? -1 : 1) + WORLDS) % WORLDS; ctx.sfx("ui_move"); return; }
+      if (ev.type !== "down") return;
+      const mine = voteOf(st, ctx.p), theirs = voteOf(st, 1 - ctx.p);
+      if (ev.btn === "A") {
+        if (mine === ctx.s.sel) return;
+        ctx.rt(A.ADV_PICK, 0x10 | ctx.s.sel); ctx.sfx("ui_ok");
+      } else if (ev.btn === "SKILL") {
+        if (theirs === NONE || theirs === mine) return;
+        ctx.s.sel = theirs; ctx.rt(A.ADV_PICK, 0x10 | theirs); ctx.sfx("ui_ok");
+      } else if (ev.btn === "B" && mine !== NONE) { ctx.rt(A.ADV_PICK, 0x1f); ctx.sfx("ui_back"); }
+    },
+    draw(ctx, g) {
+      const st = ctx.state;
+      D.ui.topBar(g, ctx, "dev.adv.worldTitle", {signal: false});
+      if (!st) return;
+      const mine = voteOf(st, ctx.p), theirs = voteOf(st, 1 - ctx.p), best = bestStars(ctx);
+      const myC = ctx.color(), cols = teamColors(ctx), rvC = cols[1 - ctx.p];
+      for (let w = 0; w < WORLDS; w++) {
+        const y = WCARD_Y[w];
+        g.frame(4, y, 120, 32, "line");
+        if ((ctx.s.sel | 0) === w) g.frame(4, y, 120, 32, "accent", 2);
+        g.sprite(WORLD_ICONS[w], 9, y + 4);
+        g.text(38, y + 3, ctx.t("dev.adv.world", {n: w + 1}), {w: 60, key: "dev.adv.world"});
+        g.text(38, y + 17, ctx.t(WORLD_SUBS[w]), {w: 56, c: "muted", key: WORLD_SUBS[w]});
+        for (let k = 0; k < 3; k++) g.sprite("icon.STAR", 96 + 9 * k, y + 21, {color: k < best[w] ? "gold" : "line"});
+        if (mine === w) g.sprite("icon.OK", 102, y + 5, {color: myC});
+        if (theirs === w) g.sprite("icon.OK", 112, y + 5, {color: rvC});
+      }
+      const name = theirs !== NONE ? ctx.t("dev.adv.world", {n: theirs + 1}) : "";
+      if (theirs !== NONE) g.text(4, 118, ctx.t("dev.adv.partnerWorld", {world: name}), {w: 120, c: "muted", key: "dev.adv.partnerWorld"});
+      else g.text(4, 118, ctx.t("dev.adv.partnerPicking"), {w: 120, c: "muted", key: "dev.adv.partnerPicking"});
+      D.ui.hintBar(g, ctx, [["A", "dev.menu.hintVote"], theirs !== NONE && theirs !== mine ? ["S", "dev.menu.hintAgree"] : null,
+        mine !== NONE ? ["B", "dev.menu.hintUndo"] : null]);
+    },
+  });
+
   // S11 adventure pick: public, first come first served (§4.7)
   D.registerScreen("adv.pick", {
     fps: 15,
@@ -1148,6 +1731,7 @@
       const statusKey = shrine < 3 ? "dev.adv.shrineIs" : theirs === 3 ? "dev.adv.partnerPicking" : null;
       D.ui.pickScreen(g, ctx, {
         titleKey: "dev.adv.pickTitle", noteKey: "dev.adv.pickNote", sel, locked: ctx.s.locked, cards,
+        badgeKey: st.room !== NONE ? "dev.adv.world" : null, badgeVars: {n: st.room !== NONE ? worldOf(st.room) + 1 : 1},
         info: [["dev.adv.passes", {bar: ctx.t(BAR_KEYS[PASS[sel]])}], ["dev.adv.blockedBy", {bar: ctx.t(BAR_KEYS[3 - PASS[sel] - CLEARS[sel]])}]],
         statusKey, statusVars: {pet: shrine < 3 ? petName(ctx, shrine) : ""},
         hints: ctx.s.locked ? [null, null, ["B", "dev.adv.hintUnlock"]] : [["LR", "dev.adv.hintPick"], ["A", "dev.adv.hintLock"], ["B", "dev.ui.next"]],
@@ -1174,7 +1758,7 @@
         if (ev.btn === "A" && !ev.fromStick) {
           if (canStrike(ctx)) { startStrike(ctx); return; }
           const me = st.heroes[ctx.p], f = faceTile(me.pos, me.dirAnim & 3);
-          if (INFO[st.room].boss && BOSS_TILES.includes(f) && bossInfo(st).st !== BS.STUN) ctx.sfx("ui_deny");
+          if (INFO[st.room].boss && bossTilesOf(st).includes(f) && bossInfo(st).st !== BS.STUN) ctx.sfx("ui_deny");
           ctx.rt(A.ADV_USE);
         } else if (ev.btn === "SKILL") ctx.rt(A.ADV_POWER);
         else if (ev.btn === "B") ctx.rt(A.ADV_PING);
@@ -1245,6 +1829,8 @@
       case EV.PING: ctx.sfx("ping"); break;
       case EV.DENY: if (mine) ctx.sfx("ui_deny"); break;
       case EV.RESTART: ctx.fx.wipe(); break;
+      case EV.BONK: ctx.hw.shake(); ctx.sfx("ui_deny"); break;
+      case EV.WORLD: ctx.sfx("ui_ok"); break;
       default: break;
     }
   }
@@ -1326,7 +1912,7 @@
     route(ctx) {
       const st = ctx.state, m = ctx.m;
       if (!st) return "adv.pick";
-      if (st.phase === PH.PICK) return "adv.pick";
+      if (st.phase === PH.PICK) return st.room === NONE ? "adv.world" : "adv.pick";
       if (st.phase === PH.GAVE_UP) return "results";
       if (st.phase === PH.TEAM_DOWN || st.phase === PH.CLEAR) return m && m.endAt && ctx.now() - m.endAt < 1500 ? "adv.room" : "results";
       return "adv.room";
@@ -1345,13 +1931,20 @@
       const st = ctx.state, P = params(ctx);
       const phase = st ? st.phase : PH.GAVE_UP;
       const totalDs = st ? st.totalDs : 0, hearts = st ? st.hearts : 0;
-      const got = stars(P, phase, totalDs, hearts);
+      const world = st && st.room !== NONE && st.room < INFO.length ? worldOf(st.room) : 0;
+      const got = stars(P, phase, totalDs, hearts, world);
       const n = got.filter(Boolean).length;
       const secs = (totalDs / 10) | 0;
       const time = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
       const cd = st ? st.coreDmg : [0, 0], wd = st ? st.winchDs : [0, 0];
       const title = phase === PH.CLEAR ? "dev.adv.res.clear" : phase === PH.TEAM_DOWN ? "dev.adv.teamDown" : "dev.adv.res.gaveUp";
-      const totalGems = INFO.filter(I => I.gem >= 0).length;
+      const totalGems = INFO.filter(I => I.world === world && I.gem >= 0).length;
+      // after a world's boss: A = next world (REMATCH arg 1, the central's carry() says next: true)
+      const next = phase === PH.CLEAR && world + 1 < WORLDS;
+      const again = phase === PH.TEAM_DOWN ? {labelKey: "dev.res.hintRetry", kind: "retryRoom"}
+        : next ? {labelKey: "dev.adv.hintNext", kind: "retryRoom", partnerKey: "dev.adv.partnerNext",
+          lineKey: "dev.adv.nextWorld", lineVars: {world: ctx.t("dev.adv.world", {n: world + 2})}}
+        : {labelKey: "dev.ui.again", kind: "rematch"};
       return {
         titleKey: title, titleColor: phase === PH.CLEAR ? "gold" : phase === PH.TEAM_DOWN ? "danger" : "muted",
         scoreText: "{STAR}".repeat(n),
@@ -1365,8 +1958,8 @@
           {labelKey: "dev.adv.res.coreDmg", you: String(cd[ctx.p]), other: String(cd[1 - ctx.p])},
           {labelKey: "dev.adv.res.winch", you: ((wd[ctx.p] / 10) | 0) + "s", other: ((wd[1 - ctx.p] / 10) | 0) + "s"},
         ],
-        again: phase === PH.TEAM_DOWN ? {labelKey: "dev.res.hintRetry", kind: "retryRoom"} : {labelKey: "dev.ui.again", kind: "rematch"},
-        stats: phase === PH.CLEAR ? {advStars: n} : {},
+        again,
+        stats: phase === PH.CLEAR ? {advStars: n, advWorld: world} : {},
         win: phase === PH.CLEAR ? true : phase === PH.TEAM_DOWN ? false : null,
         sfx: phase === PH.CLEAR ? "adv_clear" : phase === PH.TEAM_DOWN ? "team_down" : undefined,
       };
@@ -1374,6 +1967,59 @@
   };
 
   /* ================= bot: a co-op partner that only reads its own board ================= */
+
+  // PLANS-BEGIN (generated from the judge's solver paths: levels/adv/impl/make_plans.js)
+  const PLANS = {
+    4: {   // dev.adv.room5
+      "10": "m22|m27 m23|m26 m24|m25 m34|m35 m44|m45 a3@44|a1@45 m43|m46 m42|m47 m41|m48 a3@41|a1@48 m42|m47 m43|m46 m44|m45 m34|m35 m24|m25 m14|m15 m4|m5",
+      "12": "m22|m27 m23|m26 m24|m25 m34|m35 m44|m45 m54|m55 m64|m65 s@64|m64 m54|s@64 m44|m54 m45|m44 a1@45|a3@44 m46|m43 m47|m42 m48|m41 a1@48|a3@41 m47|m42 m46|m43 m45|m44 m35|m34 m25|m24 m15|m14 m5|m4",
+      "20": "m22|. m23|. m24|. m34|. m44|. m54|m27 m64|m26 s@64|m25 m54|m35 m44|m45 a3@44|a1@45 m43|m46 m42|m47 m41|m48 a3@41|a1@48 m42|m47 m43|m46 m44|m45 m34|m35 m24|m25 m14|m15 m4|m5",
+      "21": "m22|. m23|. m24|. m34|. m44|. m54|m27 m64|m26 s@64|m25 m54|m35 m44|m45 m45|m44 a1@45|a3@44 m46|m43 m47|m42 m48|m41 a1@48|a3@41 m47|m42 m46|m43 m45|m44 m35|m34 m25|m24 m15|m14 m5|m4",
+      "01": "m22|m27 m23|m26 m24|m25 m25|m35 m35|m45 m45|m44 a1@45|a3@44 m46|m43 m47|m42 m48|m41 a1@48|a3@41 m47|m42 m46|m43 m45|m44 m35|m34 m25|m24 m15|m14 m5|m4",
+      "02": ".|m27 .|m26 .|m25 .|m35 .|m45 m22|m55 m23|m65 m24|m64 m25|s@64 m35|m54 m45|m44 a1@45|a3@44 m46|m43 m47|m42 m48|m41 a1@48|a3@41 m47|m42 m46|m43 m45|m44 m35|m34 m25|m24 m15|m14 m5|m4",
+    },
+    5: {   // dev.adv.room6
+      "10": ".|m17 .|m16 .|m15 m2|m14 m3|m13 m13|a2@13 m23|. m33|. m34|. m35|. m45|. s@45|. m35|m23 a3@35|m33 m45|m34 s@45|m35 m55|m45 a3@55|m55 m54|m54 m53|m53 m63|m63 m73|m73 m83|m83",
+      "12": ".|m17 .|m16 .|m15 .|m14 .|m13 .|m23 .|m33 .|a1@33 .|m34 .|m35 .|m45 .|s@45 .|m35 m2|m34 m3|m33 m13|a0@33 m23|. m33|. m34|. m35|m34 m45|m35 m55|m45 a3@55|m55 m54|m54 m53|m53 m63|m63 m73|m73 m83|m83",
+      "20": "m2|m17 m3|m16 m13|m15 m23|m14 m33|m13 a1@33|a2@13 m34|m23 m35|m33 m45|m34 s@45|m35 m55|m45 a3@55|m55 m54|m54 m53|m53 m63|m63 m73|m73 m83|m83",
+      "21": "m2|. m3|. m13|. m23|. m33|. a1@33|. m34|. m35|. m45|. s@45|m17 m35|m16 m34|m15 m33|m14 a0@33|m13 .|m23 .|m33 .|m34 m34|m35 m35|m45 m45|m55 m55|a3@55 m54|m54 m53|m53 m63|m63 m73|m73 m83|m83",
+      "01": ".|m17 m2|m16 m3|m15 m13|m14 a2@13|m13 .|m23 .|m33 .|m34 .|m35 .|m45 .|s@45 m23|m35 m33|a3@35 m34|m45 m35|s@45 m45|m55 m55|a3@55 m54|m54 m53|m53 m63|m63 m73|m73 m83|m83",
+      "02": ".|m17 .|m16 .|m15 .|m14 m2|m13 m3|m23 m13|m33 a2@13|a1@33 m23|m34 m33|m35 m34|m45 m35|s@45 m45|m55 m55|a3@55 m54|m54 m53|m53 m63|m63 m73|m73 m83|m83",
+    },
+    6: {   // dev.adv.room7
+      "10": ".|m17 m2|m16 m3|m15 m13|s@15 s@13|. m23|. m22|m16 m21|m17 a2@21|m27 m11|a2@27 m12|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 m31|m27 m41|m37 a2@41|m47 m51|a2@47 m61|m57 m71|m67 m81|m77 m82|m87 m83|m86 m84|m85",
+      "12": "m2|. m3|. m13|. s@13|. m23|. m22|. m21|m17 a2@21|m27 m11|a2@27 m12|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 m31|m27 m41|m37 a2@41|m47 m51|a2@47 m61|m57 m71|m67 m81|m77 m82|m87 m83|m86 m84|m85",
+      "20": ".|m17 m2|m16 m3|m15 m13|s@15 s@13|. m23|s@15 m22|m16 m21|m17 a2@21|m27 m11|a2@27 m12|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 m31|m27 m41|m37 a2@41|m47 m51|a2@47 m61|m57 m71|m67 m81|m77 m82|m87 m83|m86 m84|m85",
+      "21": "m2|. m3|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 a2@21|m27 m11|a2@27 m12|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 m31|m27 m41|m37 a2@41|m47 m51|a2@47 m61|m57 m71|m67 m81|m77 m82|m87 m83|m86 m84|m85",
+      "01": ".|m17 .|m16 .|m15 .|s@15 m11|m16 m21|m17 a2@21|m27 m11|a2@27 m12|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 m31|m27 m41|m37 a2@41|m47 m51|a2@47 m61|m57 m71|m67 m81|m77 m82|m87 m83|m86 m84|m85",
+      "02": "m11|. m21|m17 a2@21|m27 m11|a2@27 m12|m17 m13|m16 s@13|m15 m23|s@15 m22|m16 m21|m17 m31|m27 m41|m37 a2@41|m47 m51|a2@47 m61|m57 m71|m67 m81|m77 m82|m87 m83|m86 m84|m85",
+    },
+    8: {   // dev.adv.room9
+      "10": "m2|. m12|. m22|. m32|. m42|. m52|m65 m62|m55 m72|h0@55 m73|. m74|. m64|. m54|. m44|. m34|. m24|. m14|. m4|. m5|h0@55 m6|. m7|. m8|. m9|. m19|. m29|. m39|m54 m49|m44 m59|m34 m69|m24 m79|m14 m89|m4 m79|m5 m69|m6 m59|m7 m49|. m39|. m29|m8 m19|m9",
+      "12": "m2|. m12|. m22|. m32|. m42|m65 m52|m55 m62|h0@55 m72|m54 m73|m44 m74|m34 m64|m24 m54|m14 m44|m4 h1@44|m5 .|m6 .|m7 .|m8 .|m9 .|m19 .|m29 .|m39 .|m49 .|a2@49 m34|m59 m24|m69 m14|m79 m4|m89 m5|m79 m6|m69 m7|m59 .|m49 .|m39 m8|m29 m9|m19",
+      "20": "m2|. m12|. m22|. m32|. m42|. m52|m65 m62|m55 m72|h0@55 m73|. m74|. m64|. m54|. m44|. m34|. m24|. m14|. m4|. m5|h0@55 m6|. m7|. m8|. m9|. m19|. m29|. m39|. m49|m54 a2@49|m44 m59|m34 m69|m24 m79|m14 m89|m4 m79|m5 m69|m6 m59|m7 m49|. m39|. m29|m8 m19|m9",
+      "21": "m2|. m12|. m22|. m32|. m42|m65 m52|m55 m62|h0@55 m72|m54 m73|m44 m74|m34 m64|m24 m54|m14 m44|m4 h1@44|m5 .|m6 .|m7 .|m8 .|m9 .|m19 .|m29 .|m39 .|m49 m34|m59 m24|m69 m14|m79 m4|m89 m5|m79 m6|m69 m7|m59 .|m49 .|m39 m8|m29 m9|m19",
+      "01": "m2|. m12|. m22|. m32|. m42|m65 m52|m55 m62|h0@55 m72|m54 m73|m44 m74|m34 m64|m24 m54|m14 m44|m4 h1@44|m5 .|m6 .|m7 .|m8 .|m9 .|m19 .|m29 .|m39 .|m49 m34|m59 m24|m69 m14|m79 m4|m89 m5|m79 m6|m69 m7|m59 .|m49 .|m39 m8|m29 m9|m19",
+      "02": "m2|. m12|. m22|. m32|. m42|m65 m52|m55 m62|h0@55 m72|m54 m73|m44 m74|m34 m64|m24 m54|m14 m44|m4 h1@44|m5 .|m6 .|m7 .|m8 .|m9 .|m19 .|m29 .|m39 .|m49 .|a2@49 m34|m59 m24|m69 m14|m79 m4|m89 m5|m79 m6|m69 m7|m59 .|m49 .|m39 m8|m29 m9|m19",
+    },
+    9: {   // dev.adv.room10
+      "10": "m51|. m41|. m31|. m21|m54 h0@21|m44 m31|m45 m41|m46 m51|m47 m61|. m60|. m70|m48 a2@70|m49 m60|m59 m50|m69 m40|m79 m41|a2@79 m42|. m43|m69 m44|m59 m45|m58 m46|. m47|. m37|m48 m27|m38 m28|m28 m29|m29",
+      "12": ".|m54 .|m44 .|m34 m51|m24 m41|m23 m42|m22 m43|m21 m44|h0@21 m45|m31 m46|m41 m47|m51 .|m61 .|m60 m48|a2@60 m49|m70 m59|a2@70 m69|m60 a2@69|m50 m79|m40 a2@79|m41 .|m42 m69|m43 m59|m44 m58|m45 .|m46 .|m47 m48|m37 m38|m27 m28|m28 m29|m29",
+      "20": "m51|. m41|. m31|. m21|m54 h0@21|m44 m31|m45 m41|m46 m51|m47 m61|. m60|. a2@60|. m70|m48 a2@70|m49 m60|m59 m50|m69 m40|m79 m41|a2@79 m42|. m43|m69 m44|m59 m45|m58 m46|. m47|. m37|m48 m27|m38 m28|m28 m29|m29",
+      "21": "m51|. m41|. m31|. m21|m54 h0@21|m44 m31|m45 m41|m46 m51|m47 m61|. m60|. a2@60|m48 m70|m49 a2@70|m59 m60|m69 m50|a2@69 m40|m79 m41|a2@79 m42|. m43|m69 m44|m59 m45|m58 m46|. m47|. m37|m48 m27|m38 m28|m28 m29|m29",
+      "01": ".|m54 .|m44 .|m34 m51|m24 m41|m23 m42|m22 m43|m21 m44|h0@21 m45|m31 m46|m41 m47|m51 .|m61 .|m60 m48|m70 m49|a2@70 m59|m60 m69|m50 m79|m40 a2@79|m41 .|m42 m69|m43 m59|m44 m58|m45 .|m46 .|m47 m48|m37 m38|m27 m28|m28 m29|m29",
+      "02": ".|m54 .|m44 .|m34 m51|m24 m41|m23 m42|m22 m43|m21 m44|h0@21 m45|m31 m46|m41 m47|m51 .|m61 .|m60 .|a2@60 m48|m70 m49|a2@70 m59|m60 m69|m50 m79|m40 a2@79|m41 .|m42 m69|m43 m59|m44 m58|m45 .|m46 .|m47 m48|m37 m38|m27 m28|m28 m29|m29",
+    },
+    10: {   // dev.adv.room11
+      "10": "m62|m72 m63|m62 m53|m61 a1@53|m51 m54|m52 m55|m53 m45|m54 m46|m55 m56|m56 m55|m66 m54|m56 m53|m46 m63|m36 m73|m26 m72|m16 m71|m15 m70|m14 a2@70|m13 m71|m12 m61|a3@12 m51|m11 m52|a0@11 m53|. m54|. m55|. m45|m12 m35|m13 m36|m14 m26|m15 m16|m16 m17|m17 m7|m7 m8|m8",
+      "12": "m62|m72 m63|m62 m53|m61 a1@53|m51 m54|m52 m55|m53 m45|m54 m46|m55 m56|. m55|m56 m54|m66 m53|m56 m63|m46 m73|m36 m72|m26 m71|m16 m70|m15 a2@70|m14 m71|m13 m61|m12 m51|m11 m52|a0@11 m53|. m54|. m55|. m45|m12 m35|m13 m36|m14 m26|m15 m16|m16 m17|m17 m7|m7 m8|m8",
+      "20": "m73|. s@73|m72 m63|m62 m53|m61 a1@53|m51 m54|m52 m55|m53 m45|m54 m46|m55 m56|m56 m55|m66 m54|m56 m53|m46 m63|m36 m73|m26 m72|m16 m71|m15 m70|m14 a2@70|m13 m71|m12 m61|a3@12 m51|m11 m52|a0@11 m53|. m54|. m55|. m45|m12 m35|m13 m36|m14 m26|m15 m16|m16 m17|m17 m7|m7 m8|m8",
+      "21": ".|m72 .|m62 .|m63 m62|m53 m61|a1@53 m51|m54 m52|m55 m53|m45 m54|m46 m55|m56 m56|m55 m66|m54 m56|m53 m46|m63 m36|m73 m26|m72 m16|m71 m15|m70 m14|a2@70 m13|m71 m12|m61 m11|m51 a0@11|m52 .|m53 .|m54 .|m55 m12|m45 m13|m35 m14|m36 m15|m26 m16|m16 m17|m17 m7|m7 m8|m8",
+      "01": "m73|m72 s@73|m62 m63|m63 m62|m53 m61|a1@53 m51|m54 m52|m55 m53|m45 m54|m46 m55|m56 m56|m55 m66|m54 m56|m53 m46|m63 m36|m73 m26|m72 m16|m71 m15|m70 m14|a2@70 m13|m71 m12|m61 m11|m51 a0@11|m52 .|m53 .|m54 .|m55 m12|m45 m13|m35 m14|m36 m15|m26 m16|m16 m17|m17 m7|m7 m8|m8",
+      "02": "m73|. s@73|m72 m63|m62 m53|m61 a1@53|m51 m54|m52 m55|m53 m45|m54 m46|m55 m56|. m55|m56 m54|m66 m53|m56 m63|m46 m73|m36 m72|m26 m71|m16 m70|m15 a2@70|m14 m71|m13 m61|m12 m51|m11 m52|a0@11 m53|. m54|. m55|. m45|m12 m35|m13 m36|m14 m26|m15 m16|m16 m17|m17 m7|m7 m8|m8",
+    },
+  };
+  // PLANS-END
 
   function bfs(start, passFn, goalFn) {
     if (start === NONE) return null;
@@ -1409,16 +2055,21 @@
     const danger = new Set();
     if (I.boss) {
       const b = bossInfo(st);
-      if (b.st === BS.TELE) {
+      if (b.st === BS.TELE && I.bossType !== "rhino") {
         const centers = [st.bossTarget].concat(st.enemies.filter(e => (e.hpType >> 4) === 2).map(e => e.pos));
         for (const c of centers) if (c !== NONE) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
           const x = c % COLS + dx, y = ((c / COLS) | 0) + dy;
           if (inRoom(x, y)) danger.add(y * COLS + x);
         }
       }
+      if (I.bossType === "rhino" && (b.st === BS.TELE || b.st === BS.CHARGE) && st.bossTarget !== NONE) {
+        const v = bossView(st), ly = (st.bossTarget / COLS) | 0, lx = st.bossTarget % COLS;
+        for (let y = v.y; y <= ly + 1 && y < ROWS; y++) { danger.add(y * COLS + lx); danger.add(y * COLS + lx + 1); }
+      }
       if (b.st === BS.ROCK_TELE || b.st === BS.ROCK_WAIT) for (const r of st.rocks) if (r !== NONE) danger.add(r);
     }
-    const free = t => walkable(I, bits, pet, t) && !crates.includes(t) && !slimes.includes(t) && !(I.boss && BOSS_TILES.includes(t));
+    const bossNow = I.boss ? bossTilesOf(st) : [];
+    const free = t => walkable(I, bits, pet, t) && !crates.includes(t) && !slimes.includes(t) && !bossNow.includes(t);
     const safe = t => free(t) && !danger.has(t);
     // movement toward any goal tile; uncleared barriers this pet can clear are allowed (cleared on the way)
     const clearable = t => { const b = BAR_TYPES.indexOf(chAt(I, t)); return b >= 0 && !bit(bits, I.objAt[t]) && clears(pet, b); };
@@ -1440,6 +2091,9 @@
     };
     const wait = () => ({});
 
+    if (I.bossType === "idol") return idolBot(ctx, B, st, I, {pos, free, go});
+    if (I.bossType === "rhino") return rhinoBot(ctx, B, st, I, {pos, free, go});
+    if (PLANS[I.ri]) return planBot(ctx, B, st, I, {pos, dir, free, go});
     if (I.ri === 0) {
       if (I.exits.includes(pos)) return wait();
       return attackNear() || go(t => I.exits.includes(t), true) || wait();
@@ -1527,11 +2181,181 @@
     return go(t => t === home, false) || wait();
   }
 
+  // World 2 / 3 puzzle rooms: PLANS[ri][pets] is a joint solution (the designers' solver, replayed
+  // in this central code), one slot per 200 ms step, "P1|P2" tokens:
+  //   .  wait        mNN  walk (or push) to tile NN        aD@NN  at NN face D, press (lever A, barrier S)
+  //   hD@NN  at NN face D and hold the winch               s@NN  swap at the shrine from NN
+  // Each bot follows its own list. An instruction starts once the partner has finished everything
+  // that comes before it (earlier slots; in the same slot presses before steps, P1's step before
+  // P2's), read from the state (position, pet, bits, winching flag). The earliest unfinished
+  // instruction of the two can always start, so the two lists never wait for each other forever.
+  const PLAN_GATE_SLOTS = 3;
+  function compilePlan(I, pets) {
+    const src = PLANS[I.ri] && PLANS[I.ri]["" + pets[0] + pets[1]];
+    if (!src) return null;
+    const ins = [[], []], pet = pets.slice();
+    let shrine = 3 - pets[0] - pets[1];
+    src.split(" ").forEach((slot, k) => slot.split("|").forEach((tok, p) => {
+      if (!tok || tok === ".") return;
+      const c = tok[0], [a, b] = tok.slice(1).split("@");
+      if (c === "m") ins[p].push({k, t: "m", tile: +a});
+      else if (c === "s") { const was = pet[p]; pet[p] = shrine; shrine = was; ins[p].push({k, t: "s", at: +b, pet: pet[p]}); }
+      else {
+        const dir = +a, at = +b, f = stepTile(at, dir), oi = f >= 0 ? I.objAt[f] : -1;
+        ins[p].push({k, t: c, dir, at, oi, lever: oi >= 0 && I.objs[oi].kind === "lever"});
+      }
+    }));
+    // the solver lets go of the winch / steps off the plate just before the partner reaches the
+    // gate (it falls ADV_GATE_CLOSE_MS later); a bot keeps holding / standing PLAN_GATE_SLOTS
+    // slots longer instead. (Delaying one's own instructions can never deadlock the two lists.)
+    const plate = I.plate >= 0 ? I.objs[I.plate].tiles[0] : -1;
+    for (let p = 0; p < 2; p++) {
+      const list = ins[p];
+      for (let j = 1; j < list.length; j++) {
+        const x = list[j], prev = list[j - 1];
+        if (prev.t === "h" && x.t !== "h") x.k = Math.max(x.k, prev.k + 1 + PLAN_GATE_SLOTS);
+        else if (prev.t === "m" && prev.tile === plate && x.t === "m") x.k += PLAN_GATE_SLOTS;
+        x.k = Math.max(x.k, prev.k);
+      }
+    }
+    // both levers in the same slot (the later one): the 1 s window then never runs out on a bot
+    const lv = ins.map(list => list.findIndex(x => x.t === "a" && x.lever));
+    if (lv[0] >= 0 && lv[1] >= 0) {
+      const K = Math.max(ins[0][lv[0]].k, ins[1][lv[1]].k);
+      for (let p = 0; p < 2; p++) for (let j = lv[p]; j < ins[p].length; j++) ins[p][j].k = Math.max(ins[p][j].k, K);
+    }
+    // order inside a slot as the central runs it: both presses first, then P1's step, then P2's step
+    for (let p = 0; p < 2; p++) for (const x of ins[p]) x.key = 4 * x.k + (x.t === "m" ? 1 + p : 0);
+    return ins;
+  }
+  function planBot(ctx, B, st, I, L) {
+    const p = ctx.p, q = 1 - p, bits = st.objBits;
+    if (!B.plan || B.plan.ri !== I.ri || st.roomMs10 < B.plan.ms) {
+      B.plan = {ri: I.ri, ins: compilePlan(I, [petOf(st.heroes[0]), petOf(st.heroes[1])]), ptr: [0, 0], ms: 0};
+    }
+    const PL = B.plan;
+    PL.ms = st.roomMs10;
+    if (!PL.ins) return {};
+    const done = (who, x) => {
+      const h = st.heroes[who];
+      if (x.t === "m") return h.pos === x.tile;
+      if (x.t === "s") return petOf(h) === x.pet;
+      if (x.t === "h") return (h.petFlags & PF.WINCH) !== 0;
+      return bit(bits, x.oi) || (x.lever && bit(bits, I.door));
+    };
+    for (const who of [p, q]) {
+      const list = PL.ins[who];
+      // a lever that sprang back (the other came too late): go back and pull it again
+      const back = list.findIndex((x, j) => j < PL.ptr[who] && x.t === "a" && x.lever && !bit(bits, x.oi) && !bit(bits, I.door));
+      if (back >= 0) PL.ptr[who] = back;
+      while (PL.ptr[who] < list.length && done(who, list[PL.ptr[who]])) PL.ptr[who]++;
+      // one step seen late (a lost state): it already stands on the step after the next one
+      const h = st.heroes[who], j = PL.ptr[who], pv = j > 0 ? list[j - 1] : null;
+      const cur = pv ? (pv.t === "m" ? pv.tile : pv.at) : I.spawn[who];
+      if (j + 1 < list.length && list[j].t === "m" && list[j + 1].t === "m" && list[j + 1].tile === h.pos && list[j + 1].tile !== cur
+        && near4(list[j].tile, h.pos)) PL.ptr[who] = j + 2;
+    }
+    const list = PL.ins[p], i = PL.ptr[p];
+    const nextKey = who => (PL.ptr[who] < PL.ins[who].length ? PL.ins[who][PL.ptr[who]].key : 1e9);
+    const goTo = t => {
+      if (L.pos === t) return null;
+      const d = dirTo(L.pos, t);
+      if (d >= 0) return {move: d};                        // also pushes a crate
+      return L.go(x => x === t, false) || {};
+    };
+    const hold = x => goTo(x.at) || (L.dir !== x.dir ? {move: x.dir} : {hold: true});
+    if (i >= list.length) return {};
+    const x = list[i], prev = i > 0 ? list[i - 1] : null;
+    if (nextKey(q) < x.key) return prev && prev.t === "h" ? hold(prev) : {};     // partner not there yet: keep holding
+    if (x.t === "m") return goTo(x.tile) || {};
+    if (x.t === "h") return hold(x);
+    if (x.t === "s") return goTo(x.at) || {act: "MENU"};
+    return goTo(x.at) || (L.dir !== x.dir ? {move: x.dir} : {act: x.lever ? "A" : "SKILL"});
+  }
+  const man = (a, b) => Math.abs(a % COLS - b % COLS) + Math.abs(((a / COLS) | 0) - ((b / COLS) | 0));
+  const firstStep = (pos, path) => (path && path.length >= 2 ? {move: dirTo(pos, path[1])} : null);
+  // 2-4 Idol (the judge's eye bot): the bait stands 2 tiles from the body and dodges along its
+  // facing axis (so the back stays toward the partner); the other waits farther away, one step
+  // from a back tile, and strikes from there while it is stunned
+  function idolBot(ctx, B, st, I, L) {
+    const p = ctx.p, b = bossInfo(st), v = bossView(st), pos = L.pos;
+    if (b.st === BS.DEAD || b.st === BS.SLEEP) return {};
+    const danger = new Set();
+    if (b.st === BS.TELE && st.bossTarget !== NONE) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = st.bossTarget % COLS + dx, y = ((st.bossTarget / COLS) | 0) + dy;
+      if (inRoom(x, y)) danger.add(y * COLS + x);
+    }
+    if (b.st === BS.ROCK_TELE || b.st === BS.ROCK_WAIT) for (const r of st.rocks) if (r !== NONE) danger.add(r);
+    if (danger.has(pos)) {
+      const keep = p === v.tgt;
+      return firstStep(pos, bfs(pos, L.free, t => !danger.has(t) && (!keep || idolFace(v.x, v.y, t, v.face) === v.face)))
+        || firstStep(pos, bfs(pos, L.free, t => !danger.has(t))) || {};
+    }
+    if (b.st === BS.STUN && p !== v.tgt && ctx.m.struckWindow !== st.bossWindow) {
+      const tiles = backTiles(v.x, v.y, v.face);
+      if (tiles.includes(pos)) return {strike: true};
+      return L.go(t => tiles.includes(t), false) || {};
+    }
+    if (b.st !== BS.IDLE) return {};                       // the bait holds still while it is stunned
+    if (st.bossWindow === 0 ? p === 0 : p === v.tgt) {
+      const sp = [64, 65, 14, 15, 32, 47].filter(t => L.free(t)).sort((a, c) => man(a, pos) - man(c, pos))[0];   // (4,6) (5,6) (4,1) (5,1) (2,3) (7,4)
+      return sp == null || pos === sp ? {} : L.go(t => t === sp, false) || {};
+    }
+    const bt = st.heroes[1 - p].pos, back = backTiles(v.x, v.y, idolFace(v.x, v.y, bt, v.face)), db = distBody(v.x, v.y, bt);
+    const cand = [];
+    for (let t = 0; t < COLS * ROWS; t++) {
+      const d = distBody(v.x, v.y, t);
+      if (L.free(t) && d > db && d <= 3 && back.some(k => near4(k, t)) && !back.includes(t)) cand.push(t);
+    }
+    const w = cand.sort((a, c) => man(a, pos) - man(c, pos))[0];
+    return w == null || pos === w ? {} : L.go(t => t === w, false) || {};
+  }
+  // 3-4 Rhino (the judge's rhino bot): the one it chases stands over a rock (column 2 or 7,
+  // rows 2-5) and steps out of the lane when it lights up; the other waits 2 columns beside
+  // that rock and strikes from any tile next to the stunned body
+  function rhinoBot(ctx, B, st, I, L) {
+    const p = ctx.p, b = bossInfo(st), v = bossView(st), pos = L.pos;
+    if (b.st === BS.DEAD || b.st === BS.SLEEP) return {};
+    const danger = new Set();
+    if ((b.st === BS.TELE || b.st === BS.CHARGE) && st.bossTarget !== NONE) {
+      const ly = (st.bossTarget / COLS) | 0, lx = st.bossTarget % COLS;
+      for (let y = v.y; y <= ly + 1 && y < ROWS; y++) { danger.add(y * COLS + lx); danger.add(y * COLS + lx + 1); }
+    }
+    if (b.st === BS.ROCK_TELE || b.st === BS.ROCK_WAIT) for (const r of st.rocks) if (r !== NONE) danger.add(r);
+    if (danger.has(pos)) return firstStep(pos, bfs(pos, L.free, t => !danger.has(t))) || {};
+    const rockCols = [];
+    for (let x = 0; x < COLS; x++) if (chAt(I, (ROWS - 1) * COLS + x) === "#") rockCols.push(x);
+    const nearest = x => rockCols.slice().sort((a, c) => Math.abs(a - x) - Math.abs(c - x))[0];
+    if (b.st === BS.STUN && p !== v.tgt && ctx.m.struckWindow !== st.bossWindow) {
+      const tiles = adjTiles(v.x, v.y).filter(t => chAt(I, t) !== "#");
+      if (tiles.includes(pos)) return {strike: true};
+      return L.go(t => tiles.includes(t), false) || {};
+    }
+    if (p === v.tgt) {
+      if (b.st !== BS.IDLE) return {};
+      const good = t => rockCols.includes(t % COLS) && ((t / COLS) | 0) >= 2 && ((t / COLS) | 0) <= 5;
+      if (good(pos)) return {};
+      if (!rockCols.includes(pos % COLS)) {                // sideways first, toward the nearest rock column
+        const d = nearest(pos % COLS) > pos % COLS ? 1 : 3, n = stepTile(pos, d);
+        if (n >= 0 && L.free(n) && !danger.has(n)) return {move: d};
+      }
+      return L.go(good, false) || {};
+    }
+    if (b.st === BS.IDLE || b.st === BS.TELE || b.st === BS.CHARGE) {
+      const rc = nearest(st.heroes[v.tgt].pos % COLS);
+      const spots = [[rc - 2, 6], [rc + 2, 6], [rc - 2, 5], [rc + 2, 5]].filter(([x]) => x >= 0 && x < COLS)
+        .map(([x, y]) => y * COLS + x).filter(t => L.free(t) && !danger.has(t));
+      const w = spots.sort((a, c) => man(a, pos) - man(c, pos))[0];
+      return w == null || pos === w ? {} : L.go(t => t === w, false) || {};
+    }
+    return {};
+  }
+
   function bot(ctx, ctl) {
     const st = ctx.state, m = ctx.m;
     if (!st || !m) return;
     const now = ctx.now();
-    const B = m.bot || (m.bot = {next: 0, actAt: 0, stick: -2, pressure: -1, role: null, since: 0, struck: -1, jit: 0, jitAt: 0, seen: 0});
+    const B = m.bot || (m.bot = {next: 0, actAt: 0, stick: -2, pressure: -1, role: null, since: 0, struck: -1, jit: 0, jitAt: 0, seen: 0, world: 0});
     // the core lets go of everything when a bot is switched off: re-send after a gap
     if (now - B.seen > 100) { B.stick = -2; B.pressure = -1; }
     B.seen = now;
@@ -1547,6 +2371,17 @@
     }
     if (now < B.next) return;
     B.next = now + 40;
+    if (st.phase === PH.PICK && st.room === NONE) {
+      // world vote: follow the partner's vote; P1 (or P2 after 1.5 s alone) votes B.world (World 1)
+      if (now - B.actAt < 300 || !ctx.s || ctx.screenId !== "adv.world") return;
+      const mine = voteOf(st, ctx.p), theirs = voteOf(st, 1 - ctx.p);
+      if (!B.wsince) B.wsince = now;
+      const want = theirs !== NONE ? theirs : ctx.p === 0 || now - B.wsince > 1500 ? (B.world | 0) : -1;
+      if (want < 0 || mine === want) return;
+      B.actAt = now;
+      if ((ctx.s.sel | 0) !== want) ctl.press("DOWN", 60); else ctl.press("A", 60);
+      return;
+    }
     if (st.phase === PH.PICK) {
       const mine = petOf(st.heroes[ctx.p]), theirs = petOf(st.heroes[1 - ctx.p]);
       if (mine < 3 || now - B.actAt < 300 || !ctx.s || ctx.screenId !== "adv.pick") return;
@@ -1579,8 +2414,9 @@
     coop: true, status: "prototype", needsStick: true, stateMsg: "adv.state",
     params: PARAMS,
     rules: {ROOMS, INFO, PH, EV, BS, PF, PASS, CLEARS, passes, clears, walkable, floorish, quantize, padPct, coreDamage, stars,
-      trialCfg, stepTile, faceTile, near4, exitOpen, BOSS_TILES, BOSS_ADJ, bfs},
-    lobby: {badgeKey: "dev.lobby.rooms", badgeVars: () => ({n: ROOMS.length}), goals: ["dev.adv.goal1", "dev.adv.goal2"],
+      trialCfg, stepTile, faceTile, near4, exitOpen, BOSS_TILES, BOSS_ADJ, bfs,
+      RPW, WORLDS, worldOf, starTime, bodyTiles, adjTiles, backTiles, idolFace, distBody, PLANS, compilePlan},
+    lobby: {badgeKey: "dev.lobby.rooms", badgeVars: () => ({n: RPW}), goals: ["dev.adv.goal1", "dev.adv.goal2"],
       keys: [["STICK", "dev.adv.k1n", "dev.adv.k1"], ["A", "dev.adv.k2n", "dev.adv.k2"], ["S", "dev.adv.k3n", "dev.adv.k3"],
         ["PAD", "dev.adv.k4n", "dev.adv.k4"], ["M", "dev.adv.k5n", "dev.adv.k5"]]},
     central: {periodMs: 100, create: createCentral},
@@ -1605,5 +2441,81 @@
     T.bot(0, false); T.bot(1, false);
     T.log("phase " + s.phase + " room " + s.room + " hearts " + s.hearts + " time " + s.totalDs / 10 + " s");
     T.assert(s.phase === PH.CLEAR, "bots should clear the Warden (phase " + s.phase + ", room " + s.room + ")");
+  }});
+
+  // Gallery / regression: two bots clear World 2 (Ember + Tide) or World 3 (Tide + Sprout), key
+  // frames of every room and of the boss (warning, stun, core strike); World 2's results then go
+  // on to World 3 with the same pets (REMATCH arg 1 -> carry {next: true})
+  const PROFILES = [{name: "ANNA", avatar: 3, color: 0}, {name: "BENJI", avatar: 5, color: 4}];
+  const roomId = ri => (worldOf(ri) + 1) + "-" + (ri % RPW + 1);
+  for (const [id, w, pets] of [["adv.w2", 1, 0x01], ["adv.w3", 2, 0x12]]) D.registerFixture(id, {titleKey: "dev.menu.adv", async run(T) {
+    T.reset({seed: 5, skipBoot: true, mode: "adventure", profiles: PROFILES});
+    T.step(1500);
+    const snap = () => { const c = T.central(); return c.mode && c.mode.snapshot; };
+    T.step(300);
+    T.shot("world vote");
+    T.debug("world", w); T.step(400);
+    T.shot("pick, " + (w + 1));
+    T.debug("pick", pets); T.step(300);
+    T.bot(0, true); T.bot(1, true);
+    let room = -1, seen = {};
+    for (let i = 0; i < 1600; i++) {
+      T.step(125);
+      const s = snap();
+      if (!s) continue;
+      if (s.phase === PH.PLAY && s.room !== room) { room = s.room; T.step(700); T.shot("room " + roomId(room)); continue; }
+      if (s.phase === PH.PLAY && INFO[s.room].boss) {
+        const b = bossInfo(s), tag = b.st + (b.phase2 ? "p2" : "");
+        const strike = [0, 1].some(p => T.hh(p).m && T.hh(p).m.trial && T.hh(p).m.trial.phase === 1);
+        if (b.st === BS.TELE && !seen[tag]) { seen[tag] = 1; T.step(250); T.shot(INFO[s.room].bossType === "rhino" ? "lane" + (b.phase2 ? " 2" : "") : "lock-on" + (b.phase2 ? " 2" : "")); }
+        else if (b.st === BS.CHARGE && !seen.c) { seen.c = 1; T.shot("charge"); }
+        else if (b.st === BS.STUN && !seen.s) { seen.s = 1; T.step(150); T.shot("stunned"); }
+        else if (strike && !seen.k) { seen.k = 1; T.step(400); T.shot("core strike"); }
+        else if (b.st === BS.ROCK_TELE && !seen.r) { seen.r = 1; T.shot("rocks"); }
+      }
+      if (s.phase >= PH.TEAM_DOWN) break;
+    }
+    let s = snap();
+    T.log("phase " + s.phase + " room " + s.room + " hearts " + s.hearts + " time " + s.totalDs / 10 + " s gems " + s.gems);
+    T.assert(s.phase === PH.CLEAR && s.room === w * RPW + 3, "bots should clear world " + (w + 1) + " (phase " + s.phase + ", room " + s.room + ")");
+    T.step(1700);
+    T.shot("results");
+    if (w + 1 < WORLDS) {
+      // the results bots press A: both -> REMATCH arg 1 -> next world, same pets
+      const pets0 = s.heroes.map(h => h.petFlags & 3).join();
+      for (let i = 0; i < 40 && !(snap() && snap().room === (w + 1) * RPW && snap().phase === PH.PLAY); i++) T.step(250);
+      s = snap();
+      T.step(600);
+      T.shot("next world");
+      T.assert(s.phase === PH.PLAY && s.room === (w + 1) * RPW && s.heroes.map(h => h.petFlags & 3).join() === pets0 && s.hearts === PDEF.hearts,
+        "next world: room " + s.room + " pets " + s.heroes.map(h => h.petFlags & 3) + " hearts " + s.hearts);
+    }
+    T.bot(0, false); T.bot(1, false);
+  }});
+
+  // Regression: every World 2 / 3 room with every pet assignment (P1/P2 both ways), bots only
+  D.registerFixture("adv.pairs", {titleKey: "dev.menu.adv", async run(T) {
+    const fails = [];
+    for (let ri = RPW; ri < ROOMS.length; ri++) for (const [a, b] of [[0, 1], [1, 0], [0, 2], [2, 0], [1, 2], [2, 1]]) {
+      T.reset({seed: 5 + ri, skipBoot: true, mode: "adventure", profiles: PROFILES});
+      T.step(1500);
+      T.debug("world", worldOf(ri)); T.step(200);
+      T.debug("pick", (a << 4) | b); T.step(200);
+      if (ri % RPW) { T.debug("room", ri); T.step(300); }
+      T.bot(0, true); T.bot(1, true);
+      const boss = INFO[ri].boss, c0 = T.central().mode.snapshot.totalDs;
+      let s = null;
+      for (let i = 0; i < (boss ? 1200 : 400); i++) {
+        T.step(250);
+        s = T.central().mode.snapshot;
+        if (!boss && (s.phase === PH.ROOM_CLEAR || s.room !== ri)) break;
+        if (s.phase >= PH.TEAM_DOWN) break;
+      }
+      T.bot(0, false); T.bot(1, false);
+      const ok = boss ? s.phase === PH.CLEAR : s.phase === PH.ROOM_CLEAR || s.room === ri + 1;
+      T.log(roomId(ri) + " " + a + b + ": " + (ok ? "clear" : "FAIL") + " " + (s.totalDs - c0) / 10 + " s, hearts " + s.hearts);
+      if (!ok) fails.push(ri + "/" + a + b);
+    }
+    T.assert(!fails.length, "not cleared: " + fails.join(" "));
   }});
 })();

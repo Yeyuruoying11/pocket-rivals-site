@@ -156,8 +156,8 @@
 //       catches up; under heavy loss it can be, so rebuild m from the state).
 //     results(ctx) -> {titleKey, titleColor, scoreText, drawArt(g, ctx, x, y, w, h),
 //       rows: [{labelKey, you, other} | {labelKey, shared, star}], noteKey,
-//       noteVars, again: {labelKey, kind: "rematch"|"retryRoom"},
-//       stats [+]: {battleWins, bestLapCs, advStars} for this board's profile:
+//       noteVars, again: {labelKey, kind: "rematch"|"retryRoom", partnerKey [+], lineKey [+], lineVars [+]},
+//       stats [+]: {battleWins, bestLapCs, advStars, advWorld} for this board's profile:
 //       the results screen passes it once to ctx.profiles.bumpStats after the
 //       1.5 s lock. Decide noteKey ("NEW BEST!") before that and keep it in
 //       ctx.m: after the bump the profile already holds the new record.
@@ -2058,6 +2058,13 @@
           let newBest = false;
           if (o.battleWins) s.wins = (s.wins || 0) + o.battleWins;
           if (o.bestLapCs && (!s.bestLapCs || o.bestLapCs < s.bestLapCs)) { s.bestLapCs = o.bestLapCs; newBest = true; }
+          // [+] adventure worlds: best stars per world (advW[0..2]); before worlds, advStars was World 1
+          if (o.advStars && o.advWorld != null && o.advWorld >= 0 && o.advWorld < 3) {
+            const w = Array.isArray(s.advW) ? s.advW.slice(0, 3) : [s.advStars || 0, 0, 0];
+            while (w.length < 3) w.push(0);
+            if (o.advStars > (w[o.advWorld] | 0)) w[o.advWorld] = o.advStars;
+            s.advW = w;
+          }
           if (o.advStars && o.advStars > (s.advStars || 0)) { s.advStars = o.advStars; newBest = true; }
           writeFlash(hh);
           return {newBest};
