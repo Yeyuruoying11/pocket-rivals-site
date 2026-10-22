@@ -96,6 +96,34 @@ I18N.add({
     "app.pin.clickAny": "点击任意 pin。",
     "app.pin.now": "当前：{use}",
     "app.pin.builtin": "板载功能：{b}",
+    "app.pin.clickAny3d": "把鼠标移到上面的 pin、线或模块上（手机上点一下），这里显示它的用途。",
+
+    "p3d.loading": "正在加载 3D 视图…",
+    "p3d.failed": "图加载失败，请看下面的 pin 表。",
+    "p3d.hint3d": "拖动旋转 · 滚轮 / 双指缩放 · 悬停或点按 pin、线、模块看用途",
+    "p3d.hint2d": "平面图 · 悬停或点按 pin、线、模块看用途",
+    "p3d.reset": "重置视角",
+    "p3d.aria": "micro:bit V2 边缘连接器的 pin 分配示意图",
+    "p3d.kind.sensor": "传感器", "p3d.kind.actuator": "执行器", "p3d.kind.comms": "通讯", "p3d.kind.other": "其它",
+    "p3d.back": "背面",
+    "p3d.matrix": "板载 LED 点阵",
+    "p3d.matrixBusy": "占用 {pins}",
+    "p3d.matrixOff": "已停用 · 空出 {pins}",
+    "p3d.mic": "麦克风",
+    "p3d.logo": "触摸 logo",
+    "p3d.internalI2c": "内部 I2C",
+    "p3d.chain": "I2C · Qwiic 串接（{pins}）",
+    "p3d.legend.used": "已分配（颜色 = 部件）",
+    "p3d.legend.busy": "板载占用",
+    "p3d.legend.free": "空闲",
+    "p3d.legend.power": "电源 3V / GND",
+    "p3d.legend.planned": "计划中",
+    "p3d.legend.nfc": "NFC 引脚，要改配置",
+    "p3d.pins": "引脚：",
+    "p3d.noPins": "不占边缘引脚",
+    "p3d.matrixOnDetail": "5×5 点阵用 {pins} 扫描各列（行在板内）。玩家板用 TFT 显示，打开上面的「停用板载 LED 点阵」就能空出这些 pin。",
+    "p3d.matrixOffDetail": "点阵已停用，{pins} 空出来，可以接别的外设。",
+    "p3d.viaChain": "通过 {name} 的 Qwiic 线共用 {pins}",
 
     "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。 数据来自本仓库的 <code>status.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。",
   },
@@ -191,6 +219,34 @@ I18N.add({
     "app.pin.clickAny": "Click any pin.",
     "app.pin.now": "Current use: {use}",
     "app.pin.builtin": "On-board function: {b}",
+    "app.pin.clickAny3d": "Hover over a pin, wire or module above (tap on a phone) to see what it does.",
+
+    "p3d.loading": "Loading the 3D view…",
+    "p3d.failed": "The diagram couldn't load; see the pin table below.",
+    "p3d.hint3d": "Drag to rotate · scroll or pinch to zoom · hover or tap a pin, wire or module for details",
+    "p3d.hint2d": "Flat view · hover or tap a pin, wire or module for details",
+    "p3d.reset": "Reset view",
+    "p3d.aria": "Pin assignment diagram of the micro:bit V2 edge connector",
+    "p3d.kind.sensor": "Sensor", "p3d.kind.actuator": "Actuator", "p3d.kind.comms": "Comms", "p3d.kind.other": "Other",
+    "p3d.back": "back",
+    "p3d.matrix": "On-board LED matrix",
+    "p3d.matrixBusy": "uses {pins}",
+    "p3d.matrixOff": "disabled · frees {pins}",
+    "p3d.mic": "Microphone",
+    "p3d.logo": "Touch logo",
+    "p3d.internalI2c": "internal I2C",
+    "p3d.chain": "I2C · chained over Qwiic ({pins})",
+    "p3d.legend.used": "Assigned (colour = part)",
+    "p3d.legend.busy": "Used on-board",
+    "p3d.legend.free": "Free",
+    "p3d.legend.power": "Power 3V / GND",
+    "p3d.legend.planned": "Planned",
+    "p3d.legend.nfc": "NFC pin, needs a config change",
+    "p3d.pins": "Pins: ",
+    "p3d.noPins": "No edge pins used",
+    "p3d.matrixOnDetail": "The 5×5 matrix scans its columns on {pins} (the rows are on-board). Player boards display on the TFT, so turning on “Disable the on-board LED matrix” above frees these pins.",
+    "p3d.matrixOffDetail": "The matrix is disabled, so {pins} are free for other parts.",
+    "p3d.viaChain": "Shares {pins} over the {name}'s Qwiic cable",
 
     "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu, Binqi Liu, Yihao Tao. Data comes from <code>status.json</code> and <code>pins.json</code> in this repository; guestbook entries come from this repository's Issues.",
   },
@@ -246,6 +302,7 @@ const state = {
   board: "player",
   noMatrix: false,
   selPin: null,
+  sel: null,      // {pin} or {part}: what the pin map highlights and the detail box shows
 };
 let D = null;  // loaded data
 
@@ -289,6 +346,7 @@ function showTab(name) {
   $$(".tab[data-tab]").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
   window.currentTab = name;
   if (location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
+  if (name === "hardware" && typeof startPinView === "function") startPinView();
 }
 
 $$(".tab[data-tab]").forEach(t => t.addEventListener("click", () => { showTab(t.dataset.tab); window.scrollTo({top: 0}); }));
@@ -575,6 +633,7 @@ function pinInfo(p) {
 function renderPins() {
   const list = D.pins.pins;
   let used = 0, free = 0;
+  const lit = selectedPins();
   $("#pins").innerHTML = list.map(p => {
     const i = pinInfo(p);
     if (i.kind === "used") used++;
@@ -582,7 +641,7 @@ function renderPins() {
     const color = i.part ? PIN_PARTS[i.part].color : "";
     const dim = state.member && i.part && D.status.components.player.find(c => c.id === i.part)?.owner !== state.member;
     const warn = L(p, "warn");
-    return `<button class="pin ${i.kind}${state.selPin === p.pin ? " sel" : ""}" data-pin="${p.pin}"
+    return `<button class="pin ${i.kind}${lit.includes(p.pin) ? " sel" : ""}" data-pin="${p.pin}"
         style="${color ? `--c:${color};` : ""}${dim ? "opacity:.35" : ""}">
       ${warn && i.kind !== "busy" ? `<span class="warn" title="${esc(warn)}">⚠</span>` : ""}
       <div class="p">${p.pin}</div><div class="u">${esc(i.use)}</div></button>`;
@@ -599,9 +658,16 @@ function renderPins() {
   renderPinDetail();
 }
 
+// pins lit by the current selection (a part lights all of its pins)
+function selectedPins() {
+  if (state.sel?.part) return pinView.view?.info().lit?.pins || D.pins.pins.filter(p => pinInfo(p).part === state.sel.part).map(p => p.pin);
+  return state.selPin ? [state.selPin] : [];
+}
+
 function renderPinDetail() {
+  if (state.sel?.part) return renderPartDetail(state.sel.part);
   const p = D.pins.pins.find(x => x.pin === state.selPin);
-  if (!p) { $("#pin-detail").innerHTML = `<span class="muted">${esc(tr("app.pin.clickAny"))}</span>`; return; }
+  if (!p) { $("#pin-detail").innerHTML = `<span class="muted">${esc(tr(pinView.view ? "app.pin.clickAny3d" : "app.pin.clickAny"))}</span>`; return; }
   const i = pinInfo(p);
   const warn = L(p, "warn");
   $("#pin-detail").innerHTML = `<b>${p.pin}</b><span class="muted mono">${p.nrf}</span>
@@ -611,20 +677,114 @@ function renderPinDetail() {
     ${warn ? `<div style="font-size:13px;color:var(--doing);margin-top:4px">⚠ ${esc(warn)}</div>` : ""}`;
 }
 
+// A part (module) in the detail box: what it is, which pins it uses, the notes
+function renderPartDetail(id) {
+  const info = pinView.view?.info();
+  const pins = (info?.lit?.pins || []).map(pin => D.pins.pins.find(p => p.pin === pin)).filter(Boolean);
+  const pinList = pins.length ? `<div style="margin-top:6px">${esc(tr("p3d.pins"))}${pins.map(p =>
+    `<span class="tag" style="margin-right:4px">${esc(p.pin)} · ${esc(pinInfo(p).use)}</span>`).join("")}</div>` : "";
+  if (id === "@matrix") {
+    const ledPins = D.pins.pins.filter(p => (p.builtin || "").startsWith("LED")).map(p => p.pin).join(" ");
+    $("#pin-detail").innerHTML = `<b>${esc(tr("p3d.matrix"))}</b><span class="tag">${esc(tr("app.kind.actuator"))}</span>
+      <div class="muted" style="margin-top:6px;font-size:13px">${esc(tr(state.noMatrix ? "p3d.matrixOffDetail" : "p3d.matrixOnDetail", {pins: ledPins}))}</div>${pinList}`;
+    return;
+  }
+  const c = (D.status.components[state.board] || []).find(x => x.id === id);
+  if (!c) { $("#pin-detail").innerHTML = `<span class="muted">${esc(tr("app.pin.clickAny3d"))}</span>`; return; }
+  const link = info?.links.find(l => l.part === id && l.pins.length);
+  const via = link ? `<div style="margin-top:6px">${esc(tr("p3d.viaChain", {name: L(D.status.components[state.board].find(x => x.id === link.from), "name"), pins: link.pins.join(" / ")}))}</div>` : "";
+  const none = !pins.length && !link ? `<div style="margin-top:6px" class="muted">${esc(tr("p3d.noPins"))}</div>` : "";
+  $("#pin-detail").innerHTML = `<b>${esc(L(c, "name"))}</b><span class="tag">${esc(tr("app.kind." + (c.kind || "other")))}</span>
+    <span class="tag">${esc(c.iface)}</span>${c.planned ? ` <span class="tag">${esc(tr("app.kind.planned"))}</span>` : ""}
+    <span class="muted" style="margin-left:8px;font-size:13px">${esc(tr("app.owner", {name: ownerFull(c.owner)}))}</span>
+    ${via || (pins.length ? pinList : none)}
+    ${L(c, "detail") ? `<div class="muted" style="margin-top:6px;font-size:13px">${esc(L(c, "detail"))}</div>` : ""}`;
+}
+
+// One selection for the grid, the detail box and the pin map
+function selectPin(sel) {
+  state.sel = sel || null;
+  state.selPin = sel?.pin || null;
+  pinView.view?.setSel(state.sel);
+  renderPins();
+}
+
 $("#pins").addEventListener("click", e => {
   const b = e.target.closest("[data-pin]");
   if (!b) return;
-  state.selPin = b.dataset.pin;
-  renderPins();
+  selectPin({pin: b.dataset.pin});
 });
 $("#board-seg").addEventListener("click", e => {
   const b = e.target.closest("button");
   if (!b) return;
   state.board = b.dataset.b;
   $$("#board-seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  renderPins();
+  if (state.sel?.part) state.sel = null;   // parts differ between the boards
+  pinView.view?.update();
+  selectPin(state.sel);
 });
-$("#no-matrix").addEventListener("change", e => { state.noMatrix = e.target.checked; renderPins(); });
+$("#no-matrix").addEventListener("change", e => {
+  state.noMatrix = e.target.checked;
+  pinView.view?.update();
+  selectPin(state.sel);
+});
+
+/* ---------------- pin map (3D, or 2D SVG fallback) ---------------- */
+
+// Loaded the first time the hardware tab is shown. 3D needs WebGL and the
+// vendored three.js; with reduced motion, no WebGL, or a failed load the same
+// diagram is drawn as a flat SVG (pinmap-2d.js). ?pinmap=2d forces the SVG.
+const pinView = {started: false, view: null, mode: "", ms: 0, reason: ""};
+
+function webglAvailable() {
+  try {
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl2") || c.getContext("webgl");
+    if (!gl) return false;
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return true;
+  } catch { return false; }
+}
+
+function startPinView() {
+  if (!D || pinView.started || window.currentTab !== "hardware") return;
+  pinView.started = true;
+  const stage = $("#p3d-stage");
+  const t0 = performance.now();
+  const api = {D, state, pinInfo, tr, L, esc, select: selectPin};
+  const forced2d = new URLSearchParams(location.search).get("pinmap") === "2d";
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const want3d = !forced2d && !reduced && webglAvailable();
+  pinView.reason = forced2d ? "forced" : reduced ? "reduced-motion" : want3d ? "" : "no-webgl";
+  const mount2d = () => { stage.replaceChildren(); return import("./pinmap-2d.js").then(m => m.mount(stage, api)); };
+  (want3d ? import("./pinmap-3d.js").then(m => { stage.querySelector(".p3d-loading")?.remove(); return m.mount(stage, api); }) : Promise.reject(null))
+    .catch(err => {
+      if (err) pinView.reason = "3d-failed: " + (err.message || err);
+      return mount2d();
+    })
+    .then(view => {
+      pinView.view = view;
+      pinView.mode = view.mode;
+      pinView.ms = Math.round(performance.now() - t0);
+      $("#p3d").dataset.mode = view.mode;
+      $("#p3d-hint").textContent = tr(view.mode === "3d" ? "p3d.hint3d" : "p3d.hint2d");
+      $("#p3d-reset").hidden = view.mode !== "3d";
+      view.setSel(state.sel);
+      renderPins();
+    })
+    .catch(() => {
+      stage.replaceChildren();
+      stage.insertAdjacentHTML("beforeend", `<div class="p3d-loading">${esc(tr("p3d.failed"))}</div>`);
+    });
+}
+
+$("#p3d-reset").addEventListener("click", () => pinView.view?.resetView());
+$("#p3d-legend").innerHTML = [
+  ["used", "background:linear-gradient(90deg,var(--c-tft),var(--c-audio),var(--c-joy),var(--c-btn),var(--c-fsr))"],
+  ["busy", "background:#5d5a52"], ["free", "background:#a9a9ae"], ["power", "background:#d9ad45"],
+  ["planned", "background:transparent;outline:1.5px dashed var(--muted);outline-offset:-1.5px"],
+].map(([k, st]) => `<span><i style="${st}"></i>${esc(tr("p3d.legend." + k))}</span>`).join("") +
+  `<span><i class="tri"></i>${esc(tr("p3d.legend.nfc"))}</span>`;
 
 /* ---------------- boot ---------------- */
 
@@ -645,9 +805,10 @@ Promise.all([load("status.json"), load("pins.json")])
   .then(([status, pins]) => {
     D = {status, pins};
     renderAll();
+    startPinView();
   })
   .catch(err => {
     $("main").insertAdjacentHTML("afterbegin", `<div class="card" style="border-color:var(--danger)">${esc(tr("app.loadFailed", {msg: err.message}))}</div>`);
   });
 
-window.PR = {toast, copyText, store};
+window.PR = {toast, copyText, store, pinView};
