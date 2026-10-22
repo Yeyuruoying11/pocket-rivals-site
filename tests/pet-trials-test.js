@@ -487,7 +487,7 @@ async function phone(browser) {
       const r = await page.evaluate(() => {
         const D = window.DEVICE;
         const ev = new Event('devicemotion');
-        ev.accelerationIncludingGravity = {x: -3.0, y: 0, z: 9};
+        ev.accelerationIncludingGravity = {x: 3.0, y: 0, z: -9};   // iOS, right side down (iOS reports gravity: +x)
         window.dispatchEvent(ev);
         return {acc: D.caps(0).acc, note: !document.querySelector('.dv-hh[data-p="0"] .dv-tilt-note').hidden, mg: D.tilt(0)};
       });

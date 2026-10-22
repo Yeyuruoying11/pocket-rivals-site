@@ -1284,7 +1284,8 @@
         dir = clamp(dir, -1, 1);
         if (dir) {
           if (tl.active !== "keys") tl.kbd = tl.mg;
-          tl.kbd = clamp(tl.kbd + dir * 2.8 * F * (t1 - t0) / 1000, -1000, 1000);
+          // keys stop at a full turn (+-F): no dead time past the end when turning back
+          tl.kbd = clamp(tl.kbd + dir * 2.8 * F * (t1 - t0) / 1000, -F, F);
           setTilt(hh, "keys", tl.kbd);
         }
         if (src.pad.x !== tl.padX) { tl.padX = src.pad.x; setTilt(hh, "pad", src.pad.x / 100 * 1.2 * F); }
@@ -3978,8 +3979,10 @@
   }
 
   // Phone motion (ui-design §8.6): only in phone mode (P1 + the computer), never
-  // on a desktop. accelerationIncludingGravity.x -> mg, right side down = +
-  // (iOS reports the other sign); landscape uses y. iOS needs
+  // on a desktop. accelerationIncludingGravity is the "up" reaction in the W3C
+  // spec (Android: flat, screen up = z +9.8), so right side down gives a
+  // negative x: mg = -x (landscape: the screen's right is -y at angle 90, +y at
+  // 270). iOS reports the other sign (gravity itself), so it is flipped back. iOS needs
   // DeviceMotionEvent.requestPermission() inside a tap on https: the "enable
   // tilt" button. Refused -> a note, and this handheld plays without the
   // accelerometer (Tide's trial falls back to hold A).
@@ -3993,7 +3996,7 @@
       const hh = world.hh[h.p];
       const so = window.screen && window.screen.orientation;
       const ang = so && typeof so.angle === "number" ? so.angle : (window.orientation || 0);
-      let v = ang === 90 ? g.y : ang === -90 || ang === 270 ? -g.y : g.x;
+      let v = ang === 90 ? g.y : ang === -90 || ang === 270 ? -g.y : -g.x;
       if (typeof v !== "number" || !isFinite(v)) return;
       let mg = v / 9.80665 * 1000;
       if (ios) mg = -mg;

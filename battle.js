@@ -861,7 +861,8 @@
   }
   function tiltAdvance(T, ms) {
     const rate = 2.8 * P.tiltFullMg / 1000, dir = tiltDir(T);
-    const turn = to => { T.mg = Math.max(-1000, Math.min(1000, T.mg + dir * rate * (to - T.mgMs))); T.mgMs = to; };
+    // stops at a full turn (+-TILT_FULL_MG): no dead time past the end when turning back
+    const turn = to => { T.mg = Math.max(-P.tiltFullMg, Math.min(P.tiltFullMg, T.mg + dir * rate * (to - T.mgMs))); T.mgMs = to; };
     while (T.nextSample <= ms) {
       turn(T.nextSample);
       T.levelM = PT.tilt.step(T.levelM, PT.tilt.quantize(T.mg), false, P.tiltFullMg, P.tiltSmoothPct);

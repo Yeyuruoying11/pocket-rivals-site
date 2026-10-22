@@ -672,7 +672,7 @@
         "file": "lib/trial.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "三层越来越快的追踪光带：光带位置只由种子和时间决定，和网页原型逐点一致；按在带内的时间比例给分。 每只宠物一种测试（焰灵光带、潮影倾斜、叶芽节拍）的规格和模拟器已经做好，固件里潮影的倾斜和叶芽的节拍（beat.c）等试玩后再移植。",
+        "detail": "三层越来越快的追踪光带：光带位置只由种子和时间决定，和网页原型逐点一致；按在带内的时间比例给分。每只宠物一种测试（焰灵光带、潮影倾斜、叶芽节拍）的规格和模拟器已经做好，固件里潮影的倾斜和叶芽的节拍（beat.c）等试玩后再移植。",
         "en": {
           "name": "Attack trial",
           "detail": "Three tracking stages, each faster than the last: the band's position depends only on the seed and time, matching the web prototype point for point; the score is the share of time the pointer stays inside the band. One trial per pet (Ember the band, Tide tilting, Sprout the beat) is specified and playable in the simulator; Tide's tilt and Sprout's beat (beat.c) come to the firmware after the playtest."
