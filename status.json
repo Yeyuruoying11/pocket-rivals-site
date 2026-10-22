@@ -696,10 +696,10 @@
         "file": "lib/gfx.c · ui.c · ui_battle.c · ui_t1.c · scr_*.c",
         "owner": "harvey",
         "status": "doing",
-        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面、T1 会话画面（连接、选模式、大厅、暂停、信号）和排行榜画面（排行榜、名字缩写、结算的\"今日第N名\"）都已经和模拟器逐像素一致；设置、资料和赛车 / 冒险画面还没做。TFT 屏驱动见驱动清单。",
+        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面、T1 会话画面（连接、选模式、大厅、暂停、信号）、排行榜画面和赛车画面（选赛道 / 车手、比赛、结算）都已经和模拟器逐像素一致；设置、资料和冒险画面还没做。TFT 屏驱动见驱动清单。",
         "en": {
           "name": "Drawing core and screens",
-          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens, the T1 session screens (connect, mode select, lobby, pause, signal) and the leaderboard screens (rankings, initials, the \"today's #N\" badge on results) match the simulator pixel for pixel; settings, profiles and the racing / adventure screens are still to do. The TFT driver is in the driver list."
+          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens, the T1 session screens (connect, mode select, lobby, pause, signal), the leaderboard screens and the racing screens (track / driver pick, race, results) match the simulator pixel for pixel; settings, profiles and the adventure screens are still to do. The TFT driver is in the driver list."
         }
       },
       {
@@ -793,13 +793,13 @@
       {
         "id": "race",
         "name": "赛车核心",
-        "file": "lib/race_core.c · race_track.c",
+        "file": "lib/race_core.c · race_track.c · race_msg.c · scr_race.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "双人赛车的物理、计圈、宠物特性（玩家板）和倒计时、比赛时钟、冲线顺序、技能（中央板），覆盖模拟器的 5 条赛道（经典 + 4 条 32×32：斜线、交叉口、沙地、加速板），和模拟器逐步完全一致（约 60 万项对照检查）；赛道表和参数都从模拟器自动导出。还没接到两块板的主程序里，画面也还没做。",
+        "detail": "双人赛车的物理、计圈、宠物特性（玩家板）和倒计时、比赛时钟、冲线顺序、技能（中央板），覆盖模拟器的 5 条赛道（经典 + 4 条 32×32：斜线、交叉口、沙地、加速板），和模拟器逐步完全一致（约 60 万项对照检查）；已经接进两块板：race.input / race.state 两条消息和模拟器逐字节一致，中央板像对抗一样托管赛车（选赛道、暗选车手、再来一局由输的人重选赛道），选择页、比赛画面（俯视，大赛道镜头跟车）和结算都上了屏，和模拟器逐像素一致。0% / 30% / 60% 丢包下都能跑完。编译时加 MODES=battle,race。",
         "en": {
           "name": "Racing core",
-          "detail": "Two-player racing physics, laps and pet traits (player board) plus countdown, race clock, finish order and skills (central board) on all five of the simulator's tracks (Classic plus four 32×32 tracks with diagonals, crossings, sand and boost pads), step-for-step identical to the simulator (about 600,000 parity checks); the track table and parameters are exported from the simulator. Not yet wired into either board's main program, and no screens yet."
+          "detail": "Two-player racing physics, laps and pet traits (player board) plus countdown, race clock, finish order and skills (central board) on all five of the simulator's tracks (Classic plus four 32×32 tracks with diagonals, crossings, sand and boost pads), step-for-step identical to the simulator (about 600,000 parity checks). Now wired into both boards: the race.input / race.state messages match the simulator byte for byte, the central hosts racing like the battle (track pick, secret driver pick, the loser picks the track for a rematch), and the pick page, the race view (top-down; the camera follows the kart on the big tracks) and the results are on the screen, pixel for pixel like the simulator. Races finish at 0% / 30% / 60% packet loss. Build with MODES=battle,race."
         }
       },
       {
