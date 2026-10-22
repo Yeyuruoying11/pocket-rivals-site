@@ -280,6 +280,22 @@ table.drivers { border-collapse: collapse; width: 100%; min-width: 980px; font-s
 .drivers tr.plan td:first-child { background: repeating-linear-gradient(180deg, var(--todo) 0 4px, transparent 4px 8px) left / 2px 100% no-repeat; padding-left: 10px; }
 .drivers tr.plan .st { background: transparent; box-shadow: none; outline: 1px dashed var(--muted); outline-offset: -1px; }
 .drivers tr.dim { opacity: .3; }
+/* phone: each driver becomes a stacked card (name, owner, status on top; the rest labelled below) */
+@media (max-width: 640px) {
+  table.drivers { min-width: 0; }
+  .drivers thead { display: none; }
+  .drivers tbody, .drivers tr.grp, .drivers tr.grp td { display: block; }
+  .drivers tr.drv { display: grid; grid-template-columns: 1fr auto auto; column-gap: 8px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .drivers tr.drv td { border: 0; padding: 2px 0; width: auto; }
+  .drivers tr.drv td.nm { grid-column: 1; grid-row: 1; font-size: 14px; }
+  .drivers tr.drv td.own { grid-column: 2; grid-row: 1; }
+  .drivers tr.drv td.stc { grid-column: 3; grid-row: 1; }
+  .drivers tr.drv td[data-l] { grid-column: 1 / -1; }
+  .drivers tr.drv td[data-l]::before { content: attr(data-l) "："; color: var(--muted); font-size: 12px; }
+  :root[lang^="en"] .drivers tr.drv td[data-l]::before { content: attr(data-l) ": "; }
+  .drivers tr.plan { background: repeating-linear-gradient(180deg, var(--todo) 0 4px, transparent 4px 8px) left / 2px 100% no-repeat; padding-left: 10px; }
+  .drivers tr.plan td:first-child { background: none; padding-left: 0; }
+}
 ul.notes { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
 
 /* ---------- forms ---------- */

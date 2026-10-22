@@ -524,10 +524,12 @@ function renderDrivers() {
       const owner = d.owner && D.status.members[d.owner]
         ? `<span class="dot" style="--c:${memberColor(d.owner)}"></span>${esc(memberName(d.owner))}`
         : esc(tr("app.drv.tbd"));
+      // data-l: column label, shown in front of the cell when the table stacks on a phone
+      const lb = c => `data-l="${esc(tr("app.drv.col." + c))}"`;
       html += `<tr class="drv${d.plan ? " plan" : ""}${dim ? " dim" : ""}" data-drv="${esc(d.id)}" data-board="${b}" data-owner="${esc(d.owner)}">
-        <td class="nm">${esc(L(d, "name"))}</td><td class="if">${esc(L(d, "iface"))}</td><td class="pn">${esc(L(d, "pins"))}</td>
-        <td class="use">${esc(L(d, "use"))}</td><td class="own">${owner}</td>
-        <td><span class="st ${esc(d.status)}">${esc(tr("app.drv.st." + d.status))}</span></td><td class="vf">${esc(L(d, "verify"))}</td></tr>`;
+        <td class="nm">${esc(L(d, "name"))}</td><td class="if" ${lb("iface")}>${esc(L(d, "iface"))}</td><td class="pn" ${lb("pins")}>${esc(L(d, "pins"))}</td>
+        <td class="use" ${lb("use")}>${esc(L(d, "use"))}</td><td class="own">${owner}</td>
+        <td class="stc"><span class="st ${esc(d.status)}">${esc(tr("app.drv.st." + d.status))}</span></td><td class="vf" ${lb("verify")}>${esc(L(d, "verify"))}</td></tr>`;
     });
   });
   $("#drivers").innerHTML = html + "</tbody>";
