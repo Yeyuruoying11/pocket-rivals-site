@@ -1171,7 +1171,8 @@
             s.raceMs += dt;
             for (const v of s.vines) if (v.tile >= 0 && s.raceMs >= v.until) { v.tile = -1; api.broadcast(); }
             if (s.phase === PH.FINISH && s.raceMs - s.firstFinishMs >= P.finishWaitMs) endRace();
-            else if (s.raceMs >= P.timeLimitS * 1000) endRace();
+            // the limit is set for Classic (464 px a lap); longer tracks get it in proportion
+            else if (s.raceMs >= trunc(P.timeLimitS * 1000 * max(TRACKS[0].LEN, T().LEN) / TRACKS[0].LEN)) endRace();
           }
         }
         // one event at a time, each on the air for at least 200 ms
