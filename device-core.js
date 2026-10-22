@@ -1621,6 +1621,13 @@
     }
     const recOf = (bid, e) => [K.REC_ENTRY, bid, e.value, e.ini[0] || "", e.ini[1] || "", e.look[0], e.look[1], e.seq];
     function persist() { rankSave(world, {fmt: 1, rules, pageSeq: rk.pageSeq, epoch: rk.pageEpoch, recs: rk.recs}); }
+    const iniOk = s => typeof s === "string" && s.length === 3 && [...s].every(ch => DEVICE.RANK_CHARS.includes(ch));
+    const byteOk = x => Number.isInteger(x) && x >= 0 && x <= 255;
+    function recOk(b, value, i0, i1, l0, l1) {
+      if (value < 1 || (b.valid && !safe("rank valid", () => b.valid(value)))) return false;
+      if (!iniOk(i0) || !byteOk(l0) || !byteOk(l1)) return false;
+      return b.coop ? iniOk(i1) : i1 === "";
+    }
     function replay() {
       for (const b of boards) { rk.rows[b.id] = []; rk.rev[b.id] = (rk.rev[b.id] + 1) & 0xff; }
       rk.epoch = rk.pageEpoch;
@@ -1631,9 +1638,12 @@
         const [type, board, value, i0, i1, l0, l1, seq] = r;
         if (!Number.isInteger(seq) || seq <= last || !Number.isInteger(value) || value < 0 || value > 65535) continue;
         if (type === K.REC_ENTRY) {
-          last = seq;
           const b = byId.get(board);
-          if (b) insert(b, {ini: [String(i0 || "").slice(0, 3), String(i1 || "").slice(0, 3)], look: [l0 & 255, l1 & 255], value, seq});
+          // [review] a record that could never have been written (initials outside A-Z 0-9 space, a look
+          // that is not a byte, an impossible value) counts as unreadable, like a CRC error in rank_store.c
+          if (b && !recOk(b, value, i0, i1, l0, l1)) continue;
+          last = seq;
+          if (b) insert(b, {ini: [i0, b.coop ? i1 : ""], look: [l0, b.coop ? l1 : K.LOOK_NONE], value, seq});
         } else if (type === K.REC_CLEAR) {
           last = seq;
           for (const b of boards) rk.rows[b.id] = [];
@@ -1726,7 +1736,8 @@
       for (const bid of w.boards) queue(bid, 0xff);
       if (recs.length) io.log("rank: " + recs.length + " record(s) written, match " + w.match);
     }
-    const freshMatch = () => ({match: c.match, bot: [false, false], pausedAny: false, pauseMs: 0, pauseFrom: null, resumes: 0, submitted: false});
+    const freshMatch = () => ({match: c.match, bot: [false, false], pausedAny: false, pauseMs: 0, pauseFrom: null, resumes: 0, submitted: false,
+      tuned: [], tunedSeen: -1});
     // the host's own exclusions (§9.2): bots, tuned parameters (not with reset({rankTest}))
     function tuned(b) {
       if (world.opts.rankTest) return false;
@@ -1749,7 +1760,7 @@
         cands = Array.isArray(cands) ? cands : [];
         if (!b) return cands.map(() => 0);        // a test track / a world without a board
         const now = world.clock;
-        const hostEx = tuned(b) ? "params" : null;
+        const hostEx = tuned(b) || m.tuned.includes(b.id) ? "params" : null;
         const pauseEx = b.pause === "exclude" && m.pausedAny ? "pause" : null;
         let add = 0;
         if (b.pause === "add") {
@@ -1763,7 +1774,7 @@
           const who = (Array.isArray(cd && cd.who) ? cd.who : []).filter(p => p === 0 || p === 1).slice(0, b.coop ? 2 : 1);
           let value = Math.round(+cd.value || 0) + add;
           if (b.better === "low") value = Math.min(65535, value);
-          const ok = who.length && Number.isInteger(value) && value > 0 && value <= 65535 && (!b.valid || !!safe("rank valid", () => b.valid(value)));
+          const ok = who.length === (b.coop ? 2 : 1) && Number.isInteger(value) && value > 0 && value <= 65535 && (!b.valid || !!safe("rank valid", () => b.valid(value)));
           if (!ok) { out.push(0); continue; }
           const r = rankIf(b, value);
           if (!r) { out.push(0); continue; }
@@ -1839,12 +1850,19 @@
         if (rk.win) settle();
         rk.pend = [null, null];
         const keep = opts && opts.retryRoom && rk.m;
-        rk.m = keep ? Object.assign({}, rk.m, {submitted: false, pauseFrom: null}) : freshMatch();
+        // [review] "retry this room" keeps the match record; a pause still open at that moment is added, not lost
+        if (keep && rk.m.pauseFrom != null) rk.m.pauseMs += world.clock - rk.m.pauseFrom;
+        rk.m = keep ? Object.assign({}, rk.m, {submitted: false, pauseFrom: null, tunedSeen: -1}) : freshMatch();
       },
       started() { if (rk.m) rk.m.match = c.match; },
       tick(now) {
         const m = rk.m;
         if (c.mode && m) {
+          // [review] the parameters this match started with count too (tuned, then set back before the end)
+          if (m.tunedSeen !== c.match) {
+            m.tunedSeen = c.match;
+            for (const b of boards) if (b.mode === c.mode.def.id && !m.tuned.includes(b.id) && tuned(b)) m.tuned.push(b.id);
+          }
           for (const h of world.hh || []) if (h.bot) m.bot[h.p] = true;
           if (c.paused && m.pauseFrom == null && !m.submitted) { m.pauseFrom = now; m.pausedAny = true; }
           else if (!c.paused && m.pauseFrom != null) { m.pauseMs += now - m.pauseFrom; m.pauseFrom = null; m.resumes++; }
@@ -1872,7 +1890,9 @@
           const bid = +k;
           for (const it of list || []) {
             const ini = String(it.ini || "AAA").toUpperCase().slice(0, 3).padEnd(3, " ");
-            const ini2 = it.ini2 != null ? String(it.ini2).toUpperCase().slice(0, 3).padEnd(3, " ") : "";
+            const coop = byId.has(bid) && byId.get(bid).coop;
+            // a single-player board keeps no second initials (the store would refuse the record)
+            const ini2 = !coop ? "" : it.ini2 != null ? String(it.ini2).toUpperCase().slice(0, 3).padEnd(3, " ") : "P2 ";
             const look = DEVICE.rankLook(it.pet == null ? 3 : it.pet, it.color == null ? 0 : it.color, it.avatar == null ? 3 : it.avatar);
             const look2 = ini2 ? DEVICE.rankLook(it.pet2 == null ? 3 : it.pet2, it.color2 == null ? 4 : it.color2, it.avatar2 == null ? 4 : it.avatar2) : K.LOOK_NONE;
             append([K.REC_ENTRY, bid, it.value | 0, ini, ini2, look, look2, rk.nextSeq++]);
