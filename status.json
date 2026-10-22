@@ -851,5 +851,244 @@
         }
       }
     ]
-  }
+  },
+  "drivers": [
+    {
+      "id": "tft",
+      "board": "player",
+      "name": "TFT 屏驱动 ST7735S",
+      "iface": "SPIM2 + EasyDMA，8 MHz",
+      "pins": "P13 SCK、P15 MOSI、P16 CS、P8 DC（P8 是 NFC 引脚，要开 CONFIG_NFCT_PINS_AS_GPIOS）",
+      "use": "所有画面：绘图核心只调用「设窗口 + 写像素」两个函数",
+      "owner": "harvey",
+      "status": "todo",
+      "verify": "开机测试卡：四边 1 px 边框、16 色色条顺序正确、整屏约 41 ms",
+      "en": {
+        "name": "TFT driver (ST7735S)",
+        "iface": "SPIM2 + EasyDMA, 8 MHz",
+        "pins": "P13 SCK, P15 MOSI, P16 CS, P8 DC (P8 is an NFC pin; needs CONFIG_NFCT_PINS_AS_GPIOS)",
+        "use": "Every screen: the drawing core only calls two functions, set window and write pixels",
+        "verify": "Boot test card: 1 px border on all four edges, 16 colour bars in order, full screen in about 41 ms"
+      }
+    },
+    {
+      "id": "buttons",
+      "board": "player",
+      "name": "按钮驱动",
+      "iface": "GPIO + GPIOTE 中断 + 去抖",
+      "pins": "P5 A、P11 B、P2 S、P9 M（P9 是 NFC 引脚）",
+      "use": "确认、格挡（记下按下时刻，精确到 1 ms）、技能、菜单",
+      "owner": "yihao",
+      "status": "todo",
+      "verify": "串口打印按下时刻：4 个键都能触发中断，抖动小于 10 ms",
+      "en": {
+        "name": "Buttons",
+        "iface": "GPIO + GPIOTE interrupts + debounce",
+        "pins": "P5 A, P11 B, P2 S, P9 M (P9 is an NFC pin)",
+        "use": "Confirm, block (press time recorded to 1 ms), skill, menu",
+        "verify": "Print press times over serial: all 4 buttons raise an interrupt, jitter under 10 ms"
+      }
+    },
+    {
+      "id": "joystick",
+      "board": "player",
+      "name": "摇杆驱动 Qwiic Joystick",
+      "iface": "I2C（TWIM），地址 0x20",
+      "pins": "P19 SCL、P20 SDA",
+      "use": "菜单移动、赛车转向、冒险走格子",
+      "owner": "yihao",
+      "status": "todo",
+      "verify": "读出 X / Y / 按下；拔掉摇杆时不卡死",
+      "en": {
+        "name": "Joystick (Qwiic)",
+        "iface": "I2C (TWIM), address 0x20",
+        "pins": "P19 SCL, P20 SDA",
+        "use": "Menu movement, racing steering, adventure grid moves",
+        "verify": "Reads X / Y / press; doesn't hang when the joystick is unplugged"
+      }
+    },
+    {
+      "id": "fsr",
+      "board": "player",
+      "name": "压力垫驱动 FSR",
+      "iface": "SAADC（AIN1）",
+      "pins": "P1",
+      "use": "焰灵攻击测试、赛车油门、冒险绞盘",
+      "owner": "yihao",
+      "status": "todo",
+      "verify": "松开和用力捏的读数，校准后输出 0–100",
+      "en": {
+        "name": "Pressure pad (FSR)",
+        "iface": "SAADC (AIN1)",
+        "pins": "P1",
+        "use": "Ember's attack trial, racing throttle, adventure winch",
+        "verify": "Readings when released and squeezed hard; 0–100 after calibration"
+      }
+    },
+    {
+      "id": "speaker",
+      "board": "player",
+      "name": "板载喇叭驱动",
+      "iface": "PWM",
+      "pins": "P0.00（板内）",
+      "use": "界面音、节奏音、引擎声",
+      "owner": "harvey",
+      "status": "todo",
+      "verify": "开机提示音，各音量档位都正常",
+      "en": {
+        "name": "On-board speaker",
+        "iface": "PWM",
+        "pins": "P0.00 (on-board)",
+        "use": "UI sounds, rhythm beeps, engine sound",
+        "verify": "Boot chime; every volume level works"
+      }
+    },
+    {
+      "id": "dfplayer",
+      "board": "player",
+      "name": "DFPlayer 驱动",
+      "iface": "UARTE 9600 8N1",
+      "pins": "P0 发送 → DFPlayer RX；P3 ← DFPlayer TX（可选）",
+      "use": "音效（48 个 mp3）",
+      "owner": "harvey",
+      "status": "todo",
+      "verify": "开机播放 0001.mp3，自检读到模块状态",
+      "en": {
+        "name": "DFPlayer",
+        "iface": "UARTE 9600 8N1",
+        "pins": "P0 TX → DFPlayer RX; P3 ← DFPlayer TX (optional)",
+        "use": "Sound effects (48 mp3 files)",
+        "verify": "Plays 0001.mp3 at boot; self-test reads the module status"
+      }
+    },
+    {
+      "id": "accel",
+      "board": "player",
+      "name": "加速度计驱动（计划）",
+      "iface": "板内 I2C，LSM303AGR",
+      "pins": "不占边缘引脚",
+      "use": "潮影攻击测试（倾斜掌机）",
+      "owner": "",
+      "status": "todo",
+      "verify": "装进机壳后的轴向，舒适的倾斜角度",
+      "plan": "planned",
+      "en": {
+        "name": "Accelerometer (planned)",
+        "iface": "On-board I2C, LSM303AGR",
+        "pins": "No edge pins used",
+        "use": "Tide's attack trial (tilt the handheld)",
+        "verify": "Axis directions once in the case; a comfortable tilt range"
+      }
+    },
+    {
+      "id": "distance",
+      "board": "player",
+      "name": "距离传感器驱动（计划）",
+      "iface": "I2C，VL53L4CD 地址 0x29，Qwiic 串在摇杆后面",
+      "pins": "P19 / P20",
+      "use": "赛车挥手擦浪花、冒险手托升降门",
+      "owner": "",
+      "status": "todo",
+      "verify": "5–30 cm 的读数，每 20 ms 一次",
+      "plan": "planned",
+      "en": {
+        "name": "Distance sensor (planned)",
+        "iface": "I2C, VL53L4CD at 0x29, chained on Qwiic after the joystick",
+        "pins": "P19 / P20",
+        "use": "Racing: wave to wipe off spray; adventure: hold up the lift gate",
+        "verify": "Readings from 5–30 cm, one every 20 ms"
+      }
+    },
+    {
+      "id": "clock",
+      "board": "player",
+      "name": "毫秒时钟",
+      "iface": "TIMER",
+      "pins": "板内",
+      "use": "所有计时：攻击测试、格挡、按键时刻",
+      "owner": "yihao",
+      "status": "todo",
+      "verify": "和串口时间戳对照",
+      "en": {
+        "name": "Millisecond clock",
+        "iface": "TIMER",
+        "pins": "On-board",
+        "use": "All timing: attack trial, blocks, button press times",
+        "verify": "Compare against serial timestamps"
+      }
+    },
+    {
+      "id": "radio",
+      "board": "both",
+      "name": "无线链路",
+      "iface": "RADIO 802.15.4（建在 Nordic 的 802.15.4 驱动上）",
+      "pins": "板内",
+      "use": "三块板之间的所有消息",
+      "owner": "yihao",
+      "status": "todo",
+      "verify": "用 radio_test 固件看丢包率和往返延迟",
+      "en": {
+        "name": "Radio link",
+        "iface": "RADIO 802.15.4 (built on Nordic's 802.15.4 driver)",
+        "pins": "On-board",
+        "use": "Every message between the three boards",
+        "verify": "radio_test firmware: packet loss and round-trip latency"
+      }
+    },
+    {
+      "id": "matrix",
+      "board": "central",
+      "name": "LED 点阵驱动",
+      "iface": "GPIO 行列扫描 + TIMER",
+      "pins": "板内",
+      "use": "连接状态、无线实测的收包率柱、排行榜新纪录动画",
+      "owner": "binqi",
+      "status": "todo",
+      "verify": "5 列收包率柱显示正确",
+      "en": {
+        "name": "LED matrix",
+        "iface": "GPIO row / column scan + TIMER",
+        "pins": "On-board",
+        "use": "Connection status, packet-rate bars for the radio test, new-record animation",
+        "verify": "The 5 packet-rate bars are correct"
+      }
+    },
+    {
+      "id": "flash",
+      "board": "central",
+      "name": "闪存存储（今日排行榜）",
+      "iface": "NVMC",
+      "pins": "板内",
+      "use": "排行榜关机不丢",
+      "owner": "",
+      "status": "todo",
+      "verify": "断电重启后纪录还在，写坏的页会被忽略",
+      "en": {
+        "name": "Flash storage (leaderboard)",
+        "iface": "NVMC",
+        "pins": "On-board",
+        "use": "Keeps the leaderboard through power-off",
+        "verify": "Records survive a power cycle; a corrupted page is ignored"
+      }
+    },
+    {
+      "id": "backlight",
+      "board": "player",
+      "name": "背光 PWM（可选）",
+      "iface": "PWM + 三极管",
+      "pins": "P10",
+      "use": "设置里调亮度",
+      "owner": "binqi",
+      "status": "todo",
+      "verify": "3 档亮度",
+      "plan": "optional",
+      "en": {
+        "name": "Backlight PWM (optional)",
+        "iface": "PWM + transistor",
+        "pins": "P10",
+        "use": "Brightness setting",
+        "verify": "3 brightness levels"
+      }
+    }
+  ]
 }

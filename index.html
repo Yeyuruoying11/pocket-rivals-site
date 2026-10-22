@@ -37,7 +37,6 @@
       <button class="tab" role="tab" data-tab="timeline" data-i18n="app.tab.timeline">时间线</button>
       <button class="tab" role="tab" data-tab="hardware" data-i18n="app.tab.hardware">硬件与 Pin</button>
       <button class="tab" role="tab" data-tab="battle" data-i18n="app.tab.battle">玩法原型</button>
-      <button class="tab" role="tab" data-tab="updates" data-i18n="app.tab.updates">进展</button>
       <button class="tab" role="tab" data-tab="reviews" data-i18n="app.tab.reviews">留言</button>
       <a class="tab tab-out" href="device.html" data-sim-link data-i18n="app.tab.device">掌机模拟器 ↗</a>
     </div>
@@ -63,10 +62,6 @@
 
     <h2><span data-i18n="app.overview.team">团队分工</span> <small data-i18n="app.overview.teamHint">点击成员只看 TA 的任务</small></h2>
     <div class="team" id="team"></div>
-
-    <h2 data-i18n="app.overview.latest">最新进展</h2>
-    <div id="latest"></div>
-    <a href="#updates" data-goto="updates" data-i18n="app.overview.seeAll">查看全部进展 →</a>
   </section>
 
   <!-- ================= 时间线 ================= -->
@@ -94,6 +89,12 @@
 
   <!-- ================= 硬件 ================= -->
   <section class="panel" data-panel="hardware" hidden>
+    <h2 data-i18n="app.drv.title">驱动程序（我们自己写）</h2>
+    <div class="card">
+      <p class="muted drv-intro" data-i18n="app.drv.intro">这是微控制器课程，下面这些外设驱动由我们自己动手写。游戏逻辑、画面和模拟器都用同一套接口，每个驱动写好就能直接接上。</p>
+      <div class="scroll drv-scroll"><table class="drivers" id="drivers"></table></div>
+    </div>
+
     <h2 data-i18n="app.hw.parts">采购清单</h2>
     <div class="card">
       <div class="toolbar" id="part-filter"></div>
@@ -167,37 +168,6 @@
     </div>
   </section>
 
-  <!-- ================= 进展 ================= -->
-  <section class="panel" data-panel="updates" hidden>
-    <h2 data-i18n="app.updates.all">全部进展</h2>
-    <div class="toolbar">
-      <input class="search" id="search" type="search" placeholder="搜索标题或内容…" data-i18n-attr="placeholder:app.updates.search;aria-label:app.updates.search">
-    </div>
-    <div class="toolbar" id="area-filter"></div>
-    <div id="update-list"></div>
-
-    <h2><span data-i18n="app.composer.title">写一条进展</span> <small data-i18n="app.composer.hint">填好后复制，粘贴到 GitHub 上的 updates.json</small></h2>
-    <div class="card">
-      <form class="composer" id="composer" onsubmit="return false">
-        <label><span data-i18n="app.composer.date">日期</span><input type="date" name="date" required></label>
-        <label><span data-i18n="app.composer.author">作者</span><select name="author"></select></label>
-        <label><span data-i18n="app.composer.area">分类</span><input name="area" list="areas" placeholder="例如：无线、显示、硬件" data-i18n-attr="placeholder:app.composer.areaPh"><datalist id="areas"></datalist></label>
-        <label class="full"><span data-i18n="app.composer.titleLbl">标题</span><input name="title" placeholder="一句话说明做了什么" data-i18n-attr="placeholder:app.composer.titlePh"></label>
-        <label class="full"><span data-i18n="app.composer.bodyLbl">内容</span><textarea name="body" rows="3" placeholder="细节、遇到的问题、下一步计划" data-i18n-attr="placeholder:app.composer.bodyPh"></textarea></label>
-        <label class="full"><span data-i18n="app.composer.titleEnLbl">英文标题（可选）</span><input name="titleEn" lang="en" placeholder="英文界面显示的标题，可以不填" data-i18n-attr="placeholder:app.composer.titleEnPh"></label>
-        <label class="full"><span data-i18n="app.composer.bodyEnLbl">英文内容（可选）</span><textarea name="bodyEn" lang="en" rows="3" placeholder="不填的话，英文界面显示中文内容" data-i18n-attr="placeholder:app.composer.bodyEnPh"></textarea></label>
-      </form>
-      <div class="muted" style="font-size:12px;margin-top:12px" data-i18n="app.composer.preview">预览</div>
-      <div id="compose-preview" style="margin-top:8px"></div>
-      <pre class="snippet mono" id="compose-json"></pre>
-      <div class="row">
-        <button class="btn primary" id="copy-json" data-i18n="app.composer.copy">复制</button>
-        <a class="btn" href="https://github.com/Yeyuruoying11/pocket-rivals-site/edit/main/updates.json" target="_blank" rel="noopener" data-i18n="app.composer.edit">去 GitHub 编辑 updates.json ↗</a>
-      </div>
-      <p class="muted" style="font-size:12px;margin:10px 0 0" data-i18n-html="app.composer.howto">粘贴到文件第一行的 <code>[</code> 后面，然后点 Commit changes。大约一分钟后网站会更新。需要先被加为仓库的协作者。</p>
-    </div>
-  </section>
-
   <!-- ================= 留言 ================= -->
   <section class="panel" data-panel="reviews" hidden>
     <h2><span data-i18n="reviews.title">留言板</span> <small data-i18n="reviews.subtitle">玩过原型或者看过 demo？留下你对游戏的评价，也可以回复别人的评价</small></h2>
@@ -236,7 +206,7 @@
 <div class="wrap">
   <footer data-i18n-html="app.footer">
     Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。
-    数据来自本仓库的 <code>status.json</code>、<code>updates.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。
+    数据来自本仓库的 <code>status.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。
   </footer>
 </div>
 

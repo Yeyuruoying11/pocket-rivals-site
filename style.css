@@ -131,6 +131,7 @@ h2 .sim-link { font-size: 13px; font-weight: 500; margin-left: 10px; white-space
 
 /* ---------- layout ---------- */
 main { padding: 28px 0 80px; }
+main.wrap { padding-bottom: 40px; }
 .panel[hidden] { display: none; }
 h2 { font-size: 20px; margin: 36px 0 12px; letter-spacing: -0.01em; }
 h2:first-child { margin-top: 0; }
@@ -258,14 +259,30 @@ table.gantt { border-collapse: collapse; width: 100%; min-width: 720px; font-siz
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 2px; background: var(--surface); }
 .seg button { border: 0; background: transparent; padding: 4px 12px; border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+/* ---------- drivers ---------- */
+.drv-intro { margin: 0 0 10px; font-size: 13px; }
+.st.done { background: color-mix(in srgb, var(--done) 15%, transparent); color: var(--done); }
+.st.doing { background: color-mix(in srgb, var(--doing) 16%, transparent); color: var(--doing); }
+.st.todo { box-shadow: inset 0 0 0 1px var(--todo); }
+table.drivers { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 13px; }
+.drivers th, .drivers td { border-bottom: 1px solid var(--line); padding: 8px 8px; text-align: left; vertical-align: top; }
+.drivers th { font-weight: 500; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.drivers td.nm { font-weight: 600; width: 15%; }
+.drivers td.if { width: 15%; }
+.drivers td.pn { width: 16%; font-size: 12px; }
+.drivers td.use { width: 19%; }
+.drivers td.own { white-space: nowrap; color: var(--muted); font-size: 12px; }
+.drivers td.own .dot { margin-right: 5px; vertical-align: 0; }
+.drivers td.vf { width: 21%; font-size: 12px; color: var(--muted); }
+.drivers tr.grp td { font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 14px; border-bottom: 1px solid var(--line); background: transparent; }
+.drivers tr.plan td { color: var(--muted); }
+.drivers tr.plan td.nm { font-weight: 500; }
+.drivers tr.plan td:first-child { background: repeating-linear-gradient(180deg, var(--todo) 0 4px, transparent 4px 8px) left / 2px 100% no-repeat; padding-left: 10px; }
+.drivers tr.plan .st { background: transparent; box-shadow: none; outline: 1px dashed var(--muted); outline-offset: -1px; }
+.drivers tr.dim { opacity: .3; }
 ul.notes { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
 
-/* ---------- updates ---------- */
-.update { border-left: 3px solid var(--c, var(--accent)); padding: 2px 0 2px 14px; margin-bottom: 22px; }
-.update .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.update h3 { margin: 3px 0 4px; font-size: 16px; }
-.update p { margin: 0; white-space: pre-line; }
-.search { flex: 1; min-width: 180px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 10px; }
+/* ---------- forms ---------- */
 .empty { color: var(--muted); font-size: 14px; padding: 12px 0; }
 .composer { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .composer label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }

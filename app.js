@@ -1,4 +1,4 @@
-// Pocket Rivals progress site: tabs, member filter, timeline, hardware, updates
+// Pocket Rivals progress site: tabs, member filter, timeline, hardware (drivers, parts, pins)
 
 /* ---------------- strings (中文 / English) ---------------- */
 
@@ -11,7 +11,7 @@ I18N.add({
     "app.cd.d": "天", "app.cd.h": "时", "app.cd.m": "分", "app.cd.s": "秒",
     "app.cd.cap": "距离 Final demo（12 月 7 日）",
     "app.tab.overview": "总览", "app.tab.timeline": "时间线", "app.tab.hardware": "硬件与 Pin",
-    "app.tab.battle": "玩法原型", "app.tab.updates": "进展", "app.tab.reviews": "留言",
+    "app.tab.battle": "玩法原型", "app.tab.reviews": "留言",
     "app.tab.device": "掌机模拟器 ↗", "app.simLink": "在掌机模拟器里看 →",
     "app.who.label": "按成员看：",
     "app.all": "全部",
@@ -25,8 +25,6 @@ I18N.add({
     "app.overview.archIntro": "两块玩家板负责输入和显示，中央板负责战斗逻辑，三块板之间用 802.15.4 无线通信。每块板按传感器（输入）和执行器（输出）分组，虚线框是计划中的部件。",
     "app.overview.team": "团队分工",
     "app.overview.teamHint": "点击成员只看 TA 的任务",
-    "app.overview.latest": "最新进展",
-    "app.overview.seeAll": "查看全部进展 →",
     "app.stats.current": "当前",
     "app.stats.notStarted": "未开学",
     "app.stats.ended": "已结束",
@@ -66,6 +64,13 @@ I18N.add({
     "app.gantt.owner": "负责人",
     "app.gantt.empty": "没有符合条件的任务。",
 
+    "app.drv.title": "驱动程序（我们自己写）",
+    "app.drv.intro": "这是微控制器课程，下面这些外设驱动由我们自己动手写。游戏逻辑、画面和模拟器都用同一套接口，每个驱动写好就能直接接上。",
+    "app.drv.col.name": "驱动", "app.drv.col.iface": "外设与接口", "app.drv.col.pins": "引脚", "app.drv.col.use": "用在哪",
+    "app.drv.col.owner": "负责人", "app.drv.col.status": "状态", "app.drv.col.verify": "怎么验证",
+    "app.drv.board.player": "玩家板", "app.drv.board.both": "玩家板和中央板共用", "app.drv.board.central": "中央板",
+    "app.drv.tbd": "待定",
+    "app.drv.st.todo": "待写", "app.drv.st.doing": "在写", "app.drv.st.done": "已完成",
     "app.hw.parts": "采购清单",
     "app.hw.pinMap": "Pin 分配图",
     "app.hw.pinHint": "点击 pin 查看详情",
@@ -92,33 +97,7 @@ I18N.add({
     "app.pin.now": "当前：{use}",
     "app.pin.builtin": "板载功能：{b}",
 
-    "app.updates.all": "全部进展",
-    "app.updates.search": "搜索标题或内容…",
-    "app.updates.allAreas": "全部分类",
-    "app.updates.none": "还没有进展。",
-    "app.updates.noMatch": "没有找到相关进展。",
-    "app.composer.title": "写一条进展",
-    "app.composer.hint": "填好后复制，粘贴到 GitHub 上的 updates.json",
-    "app.composer.date": "日期",
-    "app.composer.author": "作者",
-    "app.composer.area": "分类",
-    "app.composer.areaPh": "例如：无线、显示、硬件",
-    "app.composer.titleLbl": "标题",
-    "app.composer.titlePh": "一句话说明做了什么",
-    "app.composer.bodyLbl": "内容",
-    "app.composer.bodyPh": "细节、遇到的问题、下一步计划",
-    "app.composer.titleEnLbl": "英文标题（可选）",
-    "app.composer.titleEnPh": "英文界面显示的标题，可以不填",
-    "app.composer.bodyEnLbl": "英文内容（可选）",
-    "app.composer.bodyEnPh": "不填的话，英文界面显示中文内容",
-    "app.composer.preview": "预览",
-    "app.composer.copy": "复制",
-    "app.composer.edit": "去 GitHub 编辑 updates.json ↗",
-    "app.composer.howto": "粘贴到文件第一行的 <code>[</code> 后面，然后点 Commit changes。大约一分钟后网站会更新。需要先被加为仓库的协作者。",
-    "app.composer.defaultArea": "其他",
-    "app.composer.phTitle": "（标题）",
-    "app.composer.phBody": "（内容）",
-    "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。 数据来自本仓库的 <code>status.json</code>、<code>updates.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。",
+    "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu、Binqi Liu、Yihao Tao。 数据来自本仓库的 <code>status.json</code>、<code>pins.json</code>，留言来自本仓库的 Issues。",
   },
   en: {
     "app.title": "Pocket Rivals Project Progress",
@@ -127,7 +106,7 @@ I18N.add({
     "app.cd.d": "days", "app.cd.h": "hrs", "app.cd.m": "min", "app.cd.s": "sec",
     "app.cd.cap": "until the final demo (Dec 7)",
     "app.tab.overview": "Overview", "app.tab.timeline": "Timeline", "app.tab.hardware": "Hardware & pins",
-    "app.tab.battle": "Battle prototype", "app.tab.updates": "Updates", "app.tab.reviews": "Guestbook",
+    "app.tab.battle": "Battle prototype", "app.tab.reviews": "Guestbook",
     "app.tab.device": "Handheld simulator ↗", "app.simLink": "See it on the handheld simulator →",
     "app.who.label": "By member:",
     "app.all": "All",
@@ -141,8 +120,6 @@ I18N.add({
     "app.overview.archIntro": "The two player boards handle input and display, the central board runs the battle logic, and the three boards talk to each other over 802.15.4 radio. Each board lists its sensors (input) and actuators (output); dashed parts are planned.",
     "app.overview.team": "Team roles",
     "app.overview.teamHint": "Click a member to see only their tasks",
-    "app.overview.latest": "Latest updates",
-    "app.overview.seeAll": "See all updates →",
     "app.stats.current": "This week",
     "app.stats.notStarted": "Not started",
     "app.stats.ended": "Ended",
@@ -182,6 +159,13 @@ I18N.add({
     "app.gantt.owner": "Owner",
     "app.gantt.empty": "No matching tasks.",
 
+    "app.drv.title": "Drivers (written by us)",
+    "app.drv.intro": "This is a microcontroller course, so we write these peripheral drivers by hand. The game logic, screens and simulator all use the same interfaces, so each driver plugs in as soon as it's done.",
+    "app.drv.col.name": "Driver", "app.drv.col.iface": "Peripheral & interface", "app.drv.col.pins": "Pins", "app.drv.col.use": "Used for",
+    "app.drv.col.owner": "Owner", "app.drv.col.status": "Status", "app.drv.col.verify": "How we test it",
+    "app.drv.board.player": "Player board", "app.drv.board.both": "Player and central boards", "app.drv.board.central": "Central board",
+    "app.drv.tbd": "TBD",
+    "app.drv.st.todo": "To do", "app.drv.st.doing": "In progress", "app.drv.st.done": "Done",
     "app.hw.parts": "Parts list",
     "app.hw.pinMap": "Pin map",
     "app.hw.pinHint": "Click a pin for details",
@@ -208,33 +192,7 @@ I18N.add({
     "app.pin.now": "Current use: {use}",
     "app.pin.builtin": "On-board function: {b}",
 
-    "app.updates.all": "All updates",
-    "app.updates.search": "Search titles and text…",
-    "app.updates.allAreas": "All categories",
-    "app.updates.none": "No updates yet.",
-    "app.updates.noMatch": "No matching updates.",
-    "app.composer.title": "Write an update",
-    "app.composer.hint": "Fill it in, copy it and paste it into updates.json on GitHub",
-    "app.composer.date": "Date",
-    "app.composer.author": "Author",
-    "app.composer.area": "Category",
-    "app.composer.areaPh": "e.g. Wireless, Display, Hardware",
-    "app.composer.titleLbl": "Title (Chinese)",
-    "app.composer.titlePh": "One sentence on what was done",
-    "app.composer.bodyLbl": "Details (Chinese)",
-    "app.composer.bodyPh": "Details, problems you ran into, next steps",
-    "app.composer.titleEnLbl": "Title in English (optional)",
-    "app.composer.titleEnPh": "Shown in the English interface",
-    "app.composer.bodyEnLbl": "Details in English (optional)",
-    "app.composer.bodyEnPh": "If left empty, the English interface shows the Chinese details",
-    "app.composer.preview": "Preview",
-    "app.composer.copy": "Copy",
-    "app.composer.edit": "Edit updates.json on GitHub ↗",
-    "app.composer.howto": "Paste it right after the <code>[</code> on the first line of the file, then click Commit changes. The site updates in about a minute. You need to be added as a collaborator on the repository first.",
-    "app.composer.defaultArea": "Other",
-    "app.composer.phTitle": "(title)",
-    "app.composer.phBody": "(details)",
-    "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu, Binqi Liu, Yihao Tao. Data comes from <code>status.json</code>, <code>updates.json</code> and <code>pins.json</code> in this repository; guestbook entries come from this repository's Issues.",
+    "app.footer": "Pocket Rivals · CE346 Fall 2026 · Harvey Lu, Binqi Liu, Yihao Tao. Data comes from <code>status.json</code> and <code>pins.json</code> in this repository; guestbook entries come from this repository's Issues.",
   },
 });
 
@@ -279,16 +237,6 @@ const PIN_PARTS = {
 };
 for (const [k, p] of Object.entries(PIN_PARTS)) p.name = tr("app.pinPart." + k);
 
-// Update categories: data keeps whatever was typed (usually Chinese); known
-// ones show in the current language whichever language they were typed in
-const AREAS = {"无线": "Wireless", "网站": "Website", "玩法": "Gameplay", "硬件": "Hardware",
-               "显示": "Display", "音效": "Audio", "规划": "Planning", "其他": "Other"};
-const AREA_BY_EN = Object.fromEntries(Object.entries(AREAS).map(([zh, en]) => [en.toLowerCase(), zh]));
-const areaKey = a => { const s = String(a ?? "").trim(); return AREA_BY_EN[s.toLowerCase()] || s; };
-const areaName = a => { const k = areaKey(a); return I18N.lang === "en" ? (AREAS[k] || String(a ?? "").trim()) : k; };
-const areaEn = a => AREAS[areaKey(a)] || String(a ?? "").trim();
-const updateArea = u => areaName(L(u, "area"));
-
 const state = {
   member: store.get("pr.member") || "",
   archView: store.get("pr.archView") === "sw" ? "sw" : "hw",
@@ -298,8 +246,6 @@ const state = {
   board: "player",
   noMatrix: false,
   selPin: null,
-  area: "",
-  query: "",
 };
 let D = null;  // loaded data
 
@@ -335,7 +281,7 @@ async function copyText(text) {
 
 /* ---------------- tabs ---------------- */
 
-const TABS = ["overview", "timeline", "hardware", "battle", "updates", "reviews"];
+const TABS = ["overview", "timeline", "hardware", "battle", "reviews"];
 
 function showTab(name) {
   if (!TABS.includes(name)) name = "overview";
@@ -506,21 +452,6 @@ function renderTeam() {
   }).join("");
 }
 
-function updateCard(u) {
-  return `<div class="update" style="--c:${memberColor(u.author)}">
-    <div class="meta"><span>${esc(u.date)}</span><span>·</span><span>${esc(memberName(u.author))}</span><span class="tag">${esc(updateArea(u))}</span></div>
-    <h3>${esc(L(u, "title"))}</h3><p>${esc(L(u, "body"))}</p></div>`;
-}
-
-function memberUpdates() {
-  return D.updates.filter(u => !state.member || u.author === state.member || u.author === "all");
-}
-
-function renderLatest() {
-  const list = memberUpdates().slice(0, 3);
-  $("#latest").innerHTML = list.length ? list.map(updateCard).join("") : `<div class="empty">${esc(tr("app.updates.none"))}</div>`;
-}
-
 /* ---------------- timeline ---------------- */
 
 function visibleTasks() {
@@ -577,6 +508,30 @@ $("#grp-seg").addEventListener("click", e => {
 $("#only-now").addEventListener("change", e => { state.onlyNow = e.target.checked; renderGantt(); });
 
 /* ---------------- hardware ---------------- */
+
+const DRV_BOARDS = ["player", "both", "central"];
+const DRV_COLS = ["name", "iface", "pins", "use", "owner", "status", "verify"];
+
+function renderDrivers() {
+  const list = D.status.drivers || [];
+  let html = "<thead><tr>" + DRV_COLS.map(c => `<th>${esc(tr("app.drv.col." + c))}</th>`).join("") + "</tr></thead><tbody>";
+  DRV_BOARDS.forEach(b => {
+    const rows = list.filter(d => d.board === b);
+    if (!rows.length) return;
+    html += `<tr class="grp"><td colspan="${DRV_COLS.length}">${esc(tr("app.drv.board." + b))}</td></tr>`;
+    rows.forEach(d => {
+      const dim = state.member && d.owner !== state.member;
+      const owner = d.owner && D.status.members[d.owner]
+        ? `<span class="dot" style="--c:${memberColor(d.owner)}"></span>${esc(memberName(d.owner))}`
+        : esc(tr("app.drv.tbd"));
+      html += `<tr class="drv${d.plan ? " plan" : ""}${dim ? " dim" : ""}" data-drv="${esc(d.id)}" data-board="${b}" data-owner="${esc(d.owner)}">
+        <td class="nm">${esc(L(d, "name"))}</td><td class="if">${esc(L(d, "iface"))}</td><td class="pn">${esc(L(d, "pins"))}</td>
+        <td class="use">${esc(L(d, "use"))}</td><td class="own">${owner}</td>
+        <td><span class="st ${esc(d.status)}">${esc(tr("app.drv.st." + d.status))}</span></td><td class="vf">${esc(L(d, "verify"))}</td></tr>`;
+    });
+  });
+  $("#drivers").innerHTML = html + "</tbody>";
+}
 
 function renderParts() {
   const parts = D.status.parts.filter(p => ownerMatch(p.owner));
@@ -669,71 +624,6 @@ $("#board-seg").addEventListener("click", e => {
 });
 $("#no-matrix").addEventListener("change", e => { state.noMatrix = e.target.checked; renderPins(); });
 
-/* ---------------- updates ---------------- */
-
-// category key -> label, in order of first appearance, plus the known categories
-function areaLabels() {
-  const labels = new Map();
-  D.updates.forEach(u => { const k = areaKey(u.area); if (!labels.has(k)) labels.set(k, updateArea(u)); });
-  return labels;
-}
-
-function renderUpdates() {
-  const labels = areaLabels();
-  $("#area-filter").innerHTML = [["", tr("app.updates.allAreas")], ...labels].map(([k, l]) =>
-    `<button class="chip" data-area="${esc(k)}" aria-pressed="${state.area === k}">${esc(l)}</button>`).join("");
-  const suggest = new Set(labels.values());
-  Object.keys(AREAS).forEach(k => suggest.add(areaName(k)));
-  $("#areas").innerHTML = [...suggest].map(a => `<option value="${esc(a)}">`).join("");
-
-  // search the text shown plus the Chinese original, so either language finds it
-  const q = state.query.trim().toLowerCase();
-  const list = memberUpdates().filter(u =>
-    (!state.area || areaKey(u.area) === state.area) &&
-    (!q || [u.title, u.body, u.area, L(u, "title"), L(u, "body"), updateArea(u)].join(" ").toLowerCase().includes(q)));
-  $("#update-list").innerHTML = list.length ? list.map(updateCard).join("") : `<div class="empty">${esc(tr("app.updates.noMatch"))}</div>`;
-}
-
-$("#area-filter").addEventListener("click", e => {
-  const b = e.target.closest("[data-area]");
-  if (b) { state.area = b.dataset.area; renderUpdates(); }
-});
-$("#search").addEventListener("input", e => { state.query = e.target.value; renderUpdates(); });
-
-function initComposer() {
-  const f = $("#composer");
-  const today = new Date();
-  f.date.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  f.author.innerHTML = Object.entries(D.status.members).map(([id, m]) => `<option value="${id}">${esc(m.name)}</option>`).join("") +
-    `<option value="all">${esc(tr("app.everyone"))}</option>`;
-  const saved = store.get("pr.author");
-  if (saved) f.author.value = saved;
-
-  // Chinese goes in the main fields; "en" is added only when an English title
-  // or body is filled in. If only English is given it also fills the main field.
-  const update = () => {
-    const titleEn = f.titleEn.value.trim(), bodyEn = f.bodyEn.value.trim();
-    const area = f.area.value.trim() || tr("app.composer.defaultArea");
-    const u = {date: f.date.value, author: f.author.value, area,
-               title: f.title.value.trim() || titleEn || tr("app.composer.phTitle"),
-               body: f.body.value.trim() || bodyEn || tr("app.composer.phBody")};
-    if (titleEn || bodyEn) {
-      u.en = {area: areaEn(area)};
-      if (titleEn) u.en.title = titleEn;
-      if (bodyEn) u.en.body = bodyEn;
-    }
-    store.set("pr.author", u.author);
-    $("#compose-preview").innerHTML = updateCard(u);
-    const json = JSON.stringify(u, null, 2).split("\n").map(l => "  " + l).join("\n") + ",";
-    $("#compose-json").textContent = json;
-  };
-  f.addEventListener("input", update);
-  update();
-  // Keep what's typed when the language is switched (the page reloads)
-  I18N.keepDraft("composer", () => I18N.formValues(f), v => I18N.fillForm(f, v));
-  $("#copy-json").addEventListener("click", () => copyText($("#compose-json").textContent));
-}
-
 /* ---------------- boot ---------------- */
 
 function renderAll() {
@@ -741,20 +631,18 @@ function renderAll() {
   renderStats();
   renderArch();
   renderTeam();
-  renderLatest();
   renderGantt();
+  renderDrivers();
   renderParts();
   renderPins();
-  renderUpdates();
 }
 
 const load = f => fetch(f, {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(f); return r.json(); });
 
-Promise.all([load("status.json"), load("updates.json"), load("pins.json")])
-  .then(([status, updates, pins]) => {
-    D = {status, updates, pins};
+Promise.all([load("status.json"), load("pins.json")])
+  .then(([status, pins]) => {
+    D = {status, pins};
     renderAll();
-    initComposer();
   })
   .catch(err => {
     $("main").insertAdjacentHTML("afterbegin", `<div class="card" style="border-color:var(--danger)">${esc(tr("app.loadFailed", {msg: err.message}))}</div>`);

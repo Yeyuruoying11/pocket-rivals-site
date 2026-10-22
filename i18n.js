@@ -16,7 +16,7 @@
 // sets attributes. These are applied once the page has loaded; a key nobody
 // registered leaves the authored text in place.
 //
-// Data files (status.json, pins.json, updates.json) keep Chinese in the usual
+// Data files (status.json, pins.json) keep Chinese in the usual
 // fields and English in an optional "en" object with the same field names;
 // I18N.L(obj, "field") picks the right one and falls back to Chinese.
 //
