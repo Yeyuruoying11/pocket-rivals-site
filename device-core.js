@@ -165,6 +165,9 @@
 //       null (neither: YOU QUIT, GAVE UP); sfx [+]: a sound id that replaces that
 //       choice. The results screen plays it once on enter.}},
 //   bot(ctx, ctl),
+//   rank [+]: [{variant, titleKey, subKey, subVars, ruleKey, better: "high"|"low", coop,
+//     pause: null|"exclude"|"add", pauseExtraMs(params), ignoreParams: [key], valid(v), format(v) -> {main, side}}]
+//     today's leaderboard boards (§9.9; board id = modeId << 4 | variant, at most C.RANK.MAX_BOARDS)
 // });
 // A new match (match field changed, or a different mode) calls
 // player.destroy on the old m, then create, then onState(ctx, msg, null).
@@ -191,7 +194,10 @@
 //   gameNow() [+] -> central ms without the time spent paused,
 //   canPause(p) [+] -> mode's canPause or "now" ("no" without a mode),
 //   over() [+] -> the running mode's over() or null,
-//   quitMode(p) [+] -> mode.quit(p) if defined, else endMode()}
+//   quitMode(p) [+] -> mode.quit(p) if defined, else endMode(),
+//   rank [+]: {submit(boardId, [{who, value, pets}], {excluded}) -> [place], boards()} (§9.9:
+//     once per match, from the mode's central side; the host adds its own exclusions, stores the
+//     board, handles RANK_GET / RANK_NAME / RANK_CLEAR and sends MSG_RANK)}
 // startMode fills opts.carry from the outgoing instance's carry() when
 // opts.retryRoom is set. Host rules (§8.7): one step counter (only
 // nextStep() moves it; startMode / endMode call it), ACK for every action,
@@ -223,7 +229,8 @@
 //   [+] params(modeId) -> DEVICE.params, error() -> null | {code, board, central},
 //   [+] closeConfirm(yes), setPresence(v | null) (pause settings subpage = 2;
 //       cleared when that overlay closes), hw.protocol (this board's flashed
-//       protocol version), hw.channel (radio channel now), hw.fwBuild}
+//       protocol version), hw.channel (radio channel now), hw.fwBuild,
+//   [+] rank: {boards(), get(id), request(id), status(id), placed(), rivalOpen(), name(ini, onAck), clear(onAck)} (§9.9)}
 // ctx.local = {booted, stack: [{id, params}], loggedIn, confirm, hover,
 //   flashReset [+] (the stored profiles were unreadable and were reset: W3), ...}
 //   It lives in RAM for the whole power-on (screens keep things like the
@@ -324,6 +331,8 @@
 // errors() -> [{where, message, stack, t, count}] (one entry per distinct error);
 // msgSizes(); msgSize(name); glyphs(); sfxLog(p); exportStrings();
 // pack(name, obj, hdr); unpack(bytes); trial; padLevel; ui; C; opts.
+// [+] leaderboard (§9.9): rank.dump() / clear() / seed(map) / boards() / defs(); reset({rankTest, freshRank});
+//     radio.powerCentral(true, {holdAB: ms}); store: localStorage pr.device.central.rank (?test=1: flashMem.central)
 // Inside a fixture, T = DEVICE + {log(msg), assert(cond, msg), shot(label)
 // [+]}; the simulation does not run by itself while it runs (use T.step).
 // shot() keeps both screens (PNG ×2, screen ids, SPI stats) for the gallery:
@@ -387,16 +396,21 @@
     BUDGET_GREEN: 5000, BUDGET_YELLOW: 12000,
     NODE: Object.freeze({CENTRAL: 0, P1: 1, P2: 2, BROADCAST: 0xff}),
     MSG: Object.freeze({INPUT: 0x01, ACTION: 0x02, HELLO: 0x03, RACE_INPUT: 0x04, ACK: 0x40,
-      BATTLE_STATE: 0x41, LOBBY: 0x42, RACE_STATE: 0x43, ADV_STATE: 0x44, ECHO_STATE: 0x4e}),
+      BATTLE_STATE: 0x41, LOBBY: 0x42, RACE_STATE: 0x43, ADV_STATE: 0x44, RANK: 0x45, ECHO_STATE: 0x4e}),
     ACT: Object.freeze({SEND_OUT: 1, ATTACK: 2, SKILL: 3, DEFEND: 4, REMATCH_V5: 5, SWITCH: 6,
       VOTE: 0x10, READY: 0x12, LEAVE: 0x13, PAUSE: 0x14, REMATCH: 0x15, QUIT: 0x16,
+      RANK_GET: 0x18, RANK_NAME: 0x19, RANK_CLEAR: 0x1a,
       RACE_PICK: 0x20, RACE_SKILL: 0x21,
       ADV_PICK: 0x30, ADV_USE: 0x31, ADV_POWER: 0x32, ADV_PING: 0x33, ADV_SWAP: 0x34,
       ADV_CORE: 0x35, ADV_RESTART_ROOM: 0x36,
       STUB_PICK: 0x7a, STUB_PRESS: 0x7b, STUB_END: 0x7c}),
     LOBBY: Object.freeze({WAIT: 0, SELECT: 1, AGREED: 2, LOBBY: 3, IN_MODE: 4}),
     FLAG: Object.freeze({PAUSED: 1, P1_LINK: 2, P2_LINK: 4, ATTACKER_TRIAL: 8}),
-    PRESENCE: Object.freeze({LOGIN: 0, MENU: 1, SETTINGS: 2, GAME: 3}),
+    PRESENCE: Object.freeze({LOGIN: 0, MENU: 1, SETTINGS: 2, GAME: 3, RANKS: 4}),
+    // today's leaderboard (§9.6): rank_core.c / protocol.h
+    RANK: Object.freeze({ROWS: 5, MAX_BOARDS: 4, OPEN_MS: 30000, NAME_MS: 20000, PEND_PERIOD_MS: 500, REPLY_MS: 300,
+      CLEAR_KEY: 0xc1, PEND_OPEN: 8, PEND_EXCLUDED: 16, FLAG_REPLY: 1, FLAG_RESET: 2, LOOK_NONE: 0xff,
+      REC_ENTRY: 0x51, REC_CLEAR: 0xc1, PAGE_RECS: 255, COMPACT_FREE: 32}),
     SEV: Object.freeze({NONE: 0, LEFT: 1, QUIT: 2, PAUSE_LATER: 3, LOGOUT: 4, REMATCH: 5}),
     BTN_BIT: Object.freeze({A: 1, B: 2, SKILL: 4, MENU: 8}),
     NO_PET: 0xff, NONE: 0xff,
@@ -1450,6 +1464,9 @@
     "readyMask:u8", "rematchMask:u8", "pausedBy:u8", "wins:u8[6]",
     ["profile", 2, ["name:u8[6]", "avatar:u8", "color:u8"]],
     "helloNonce:u8[2]", "modesBuilt:u8", "evId:u8", "evType:u8", "evWho:u8", "error:u8", "modeRes:u8[4]"], {kind: "session"});
+  // §9.6: one whole board + this match's placings (63 B); C -> all, or one player (RANK_GET reply)
+  DEVICE.registerMessage("rank", C.MSG.RANK, ["board:u8", "epoch:u8", "rev:u8", "count:u8", "match:u8", "pend:u8[2]", "flags:u8",
+    ["e", 5, ["ini:u8[6]", "look:u8[2]", "value:u16"]]], {kind: "session"});
 
   function makeRadio(world) {
     const nodes = [0, 1, 2].map(() => ({ch: 15, ver: C.PROTOCOL_VERSION, plugged: true, rx: null, bad: null, seq: 0,
@@ -1505,10 +1522,374 @@
 
   /* ================= 8. central host and stub session ================= */
 
+  /* ---------------- 8a. today's leaderboard on the central (§9, rank_core.c + rank_store.c) ---------------- */
+
+  // Boards come from the modes' optional `rank` lists (order = mode order, at
+  // most C.RANK.MAX_BOARDS); board id = modeId << 4 | variant (§9.2).
+  DEVICE.RANK_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
+  DEVICE.rankLook = (pet, color, avatar) => ((pet & 3) | ((color & 7) << 2) | ((avatar & 7) << 5)) & 0xff;
+  // §9.3 default initials: first 3 characters of the name, - and . -> space, padded; blank -> P1 / P2
+  DEVICE.rankInitials = function (name, p) {
+    let s = String(name == null ? "" : name).toUpperCase().replace(/[^A-Z0-9]/g, " ").slice(0, 3).padEnd(3, " ");
+    if (!s.trim()) s = ("P" + ((p | 0) + 1)).padEnd(3, " ");
+    return s;
+  };
+  const pad2 = n => String(n).padStart(2, "0");
+  // value -> {main (m font, right-aligned to x 123, <= 36 px), side (s font, right-aligned to x 92, <= 24 px) | null}
+  DEVICE.rankFmt = Object.freeze({
+    score: v => ({main: String(v >> 8), side: "\x05" + (v & 255)}),
+    lapCs: v => { const s = Math.floor(v / 100), cs = v % 100; return {main: s >= 100 ? s + "." + Math.floor(cs / 10) : s + "." + pad2(cs), side: null}; },
+    clockDs: v => {
+      const secs = Math.floor(v / 10), m = Math.floor(secs / 60);
+      if (m > 99) return {main: "99:59", side: null};
+      return {main: m + ":" + pad2(secs % 60) + (m >= 10 ? "" : "." + (v % 10)), side: null};
+    },
+  });
+  let rankBoardsCache = null;
+  function rankBoards() {
+    if (rankBoardsCache) return rankBoardsCache;
+    const out = [];
+    for (const m of R.modes) {
+      const list = typeof m.rank === "function" ? safe("rank " + m.id, () => m.rank()) : m.rank;
+      for (const r of list || []) {
+        const id = ((m.modeId & 0x0f) << 4) | ((r.variant | 0) & 0x0f);
+        if (out.some(b => b.id === id)) { lint("rankBoards", m.id, {duplicate: id}); continue; }
+        if (out.length >= C.RANK.MAX_BOARDS) { lint("rankBoards", m.id, {id, max: C.RANK.MAX_BOARDS}); continue; }
+        out.push(Object.freeze(Object.assign({better: "high", coop: false, pause: null, subVars: null, ignoreParams: []}, r,
+          {id, modeId: m.modeId, mode: m.id, variant: (r.variant | 0) & 0x0f})));
+      }
+    }
+    if (DEVICE._started) rankBoardsCache = out;        // the registries are complete once start() runs
+    return out;
+  }
+  // rules_crc (§9.5): defaults that change a result + track / room data + the board list
+  let rankRulesCache = null;
+  function rankRules() {
+    if (rankRulesCache != null) return rankRulesCache;
+    let s;
+    try {
+      s = JSON.stringify({boards: rankBoards().map(b => [b.id, b.better, b.coop, b.pause]), battle: BATTLE_DEFAULTS,
+        trial: TRIAL.defaults(), modes: R.modes.filter(m => m.rank).map(m => [m.id, (m.params || []).map(p => [p.key, p.def]), m.rules || null])});
+    } catch (e) { s = "rules?"; }
+    const h = hashStr(s) & 0xffff;
+    if (DEVICE._started) rankRulesCache = h;
+    return h;
+  }
+  // The "flash": one JSON record log (fmt, rules, pageSeq, epoch = the page's
+  // first epoch, recs [[type, board, value, ini0, ini1, look0, look1, seq]]),
+  // localStorage pr.device.central.rank, or world.flashMem.central under ?test=1
+  const RANK_KEY = "pr.device.central.rank";
+  function rankLoad(world) {
+    if (world.flashMem) return world.flashMem.central === undefined ? null : world.flashMem.central;
+    try { return localStorage.getItem(RANK_KEY); } catch { return null; }
+  }
+  function rankSave(world, obj) {
+    let js;
+    try { js = JSON.stringify(obj); } catch (e) { recordError("rank save", e); return; }
+    if (world.flashMem) { world.flashMem.central = js; return; }
+    try { localStorage.setItem(RANK_KEY, js); } catch {}
+  }
+  function rankWipe(world) {
+    if (world.flashMem) { delete world.flashMem.central; return; }
+    try { localStorage.removeItem(RANK_KEY); } catch {}
+  }
+
+  function makeRank(world, c, io) {
+    const K = C.RANK;
+    const boards = rankBoards(), byId = new Map(boards.map(b => [b.id, b]));
+    const rules = rankRules();
+    const rk = {
+      epoch: 1, pageEpoch: 1, pageSeq: 1, recs: [], unwritten: [], nextSeq: 1, flags: 0,
+      rows: {}, rev: {}, pend: [null, null], win: null, lastMatch: 0, queue: [], lastPendSend: -1e9,
+      m: null,
+    };
+    for (const b of boards) { rk.rows[b.id] = []; rk.rev[b.id] = 0; }
+    const better = b => b.better === "low" ? (x, y) => x < y : (x, y) => x > y;
+    const sorter = b => b.better === "low" ? (x, y) => x.value - y.value || x.seq - y.seq : (x, y) => y.value - x.value || x.seq - y.seq;
+    function insert(b, e) {
+      const rows = rk.rows[b.id];
+      rows.push(e);
+      rows.sort(sorter(b));
+      rows.length = Math.min(rows.length, K.ROWS);
+      rk.rev[b.id] = (rk.rev[b.id] + 1) & 0xff;
+    }
+    // where a new value would land (ties go below the ones already there), 0 = not in the top 5
+    function rankIf(b, value) {
+      const bt = better(b);
+      const n = 1 + rk.rows[b.id].filter(e => !bt(value, e.value)).length;
+      return n <= K.ROWS ? n : 0;
+    }
+    const recOf = (bid, e) => [K.REC_ENTRY, bid, e.value, e.ini[0] || "", e.ini[1] || "", e.look[0], e.look[1], e.seq];
+    function persist() { rankSave(world, {fmt: 1, rules, pageSeq: rk.pageSeq, epoch: rk.pageEpoch, recs: rk.recs}); }
+    function replay() {
+      for (const b of boards) { rk.rows[b.id] = []; rk.rev[b.id] = (rk.rev[b.id] + 1) & 0xff; }
+      rk.epoch = rk.pageEpoch;
+      let last = 0;
+      for (const r of rk.recs) {
+        // a bad record (half written at a power cut) is skipped
+        if (!Array.isArray(r) || r.length !== 8) continue;
+        const [type, board, value, i0, i1, l0, l1, seq] = r;
+        if (!Number.isInteger(seq) || seq <= last || !Number.isInteger(value) || value < 0 || value > 65535) continue;
+        if (type === K.REC_ENTRY) {
+          last = seq;
+          const b = byId.get(board);
+          if (b) insert(b, {ini: [String(i0 || "").slice(0, 3), String(i1 || "").slice(0, 3)], look: [l0 & 255, l1 & 255], value, seq});
+        } else if (type === K.REC_CLEAR) {
+          last = seq;
+          for (const b of boards) rk.rows[b.id] = [];
+          rk.epoch = (board & 255) || 1;
+        }
+      }
+      rk.nextSeq = last + 1;
+    }
+    function load() {
+      const raw = rankLoad(world);
+      let st = null, bad = null;
+      if (raw != null) {
+        try { st = JSON.parse(raw); } catch { bad = "json"; }
+        if (!bad && !(st && typeof st === "object" && !Array.isArray(st))) bad = "json";
+        else if (!bad && st.fmt !== 1) bad = "fmt";
+        else if (!bad && st.rules !== rules) bad = "rules";
+        else if (!bad && (!Array.isArray(st.recs) || !Number.isInteger(st.epoch) || st.epoch < 1 || st.epoch > 255)) bad = "page";
+      }
+      if (raw != null && !bad) {
+        rk.pageSeq = st.pageSeq | 0; rk.pageEpoch = st.epoch; rk.recs = st.recs.slice(); rk.unwritten = [];
+        replay();
+        return;
+      }
+      // nothing stored, or unreadable / other rules: a new "today" on a fresh page
+      const old = st && typeof st === "object" && Number.isInteger(st.epoch) ? st.epoch & 255 : 0;
+      rk.pageSeq = ((st && st.pageSeq) | 0) + 1; rk.pageEpoch = old ? old % 255 + 1 : 1; rk.recs = []; rk.unwritten = [];
+      if (bad) { rk.flags |= K.FLAG_RESET; io.log("rank: stored board unreadable (" + bad + "), new day"); }
+      replay();
+      persist();
+    }
+    function append(rec) {
+      if (rk.recs.length >= K.PAGE_RECS) { rk.unwritten.push(rec); return; }   // page full: RAM until a safe moment
+      rk.recs.push(rec);
+      persist();
+    }
+    // compaction (§9.7): the current boards' entries on a fresh page, never during a match
+    function compact() {
+      const open = new Set(rk.win ? rk.win.seqs : []);
+      const keep = [];
+      for (const b of boards) for (const e of rk.rows[b.id]) if (!open.has(e.seq)) keep.push(recOf(b.id, e));
+      keep.sort((a, b) => a[7] - b[7]);
+      rk.recs = keep; rk.unwritten = []; rk.pageSeq++; rk.pageEpoch = rk.epoch;
+      persist();
+      io.log("rank: compacted to page " + rk.pageSeq + " (" + keep.length + " records)");
+    }
+    function queue(bid, dst, delay = 0) {
+      if (!byId.has(bid)) return;
+      const at = world.clock + delay;
+      if (!rk.queue.some(q => q.bid === bid && q.dst === dst && q.at === at)) rk.queue.push({bid, dst, at});
+    }
+    function pendByte(p, bid) {
+      const q = rk.pend[p];
+      if (!q || q.board !== bid) return 0;
+      let r = q.rank;
+      if (!q.excluded) { const i = rk.rows[bid].findIndex(e => e.seq === q.seq); r = i >= 0 ? i + 1 : 0; }
+      if (!r) return 0;
+      return (r & 7) | (q.open ? K.PEND_OPEN : 0) | (q.excluded ? K.PEND_EXCLUDED : 0);
+    }
+    const iniBytes = s => { const t = String(s || ""); return [0, 1, 2].map(i => i < t.length ? t.charCodeAt(i) & 0xff : 0); };
+    function fields(bid, reply) {
+      const rows = rk.rows[bid] || [];
+      const e = [];
+      for (let i = 0; i < K.ROWS; i++) {
+        const x = rows[i];
+        e.push(x ? {ini: iniBytes(x.ini[0]).concat(iniBytes(x.ini[1])), look: [x.look[0] & 255, x.look[1] & 255], value: x.value}
+          : {ini: [0, 0, 0, 0, 0, 0], look: [K.LOOK_NONE, K.LOOK_NONE], value: 0});
+      }
+      return {board: bid, epoch: rk.epoch, rev: rk.rev[bid] & 0xff, count: rows.length, match: rk.lastMatch & 0xff,
+        pend: [pendByte(0, bid), pendByte(1, bid)], flags: (reply ? K.FLAG_REPLY : 0) | rk.flags, e};
+    }
+    function flush() {
+      const now = world.clock, due = rk.queue.filter(q => q.at <= now);
+      if (!due.length) return;
+      rk.queue = rk.queue.filter(q => q.at > now);
+      for (const {bid, dst} of due) {
+        io.send(dst, "rank", fields(bid, dst !== 0xff));
+        if (dst === 0xff && rk.win) rk.lastPendSend = now;
+      }
+    }
+    // the names are settled: write the records, last broadcast with OPEN cleared
+    function settle() {
+      const w = rk.win;
+      if (!w) return;
+      rk.win = null;
+      const recs = [];
+      for (const b of boards) for (const e of rk.rows[b.id]) if (w.seqs.includes(e.seq)) recs.push(recOf(b.id, e));
+      recs.sort((a, b) => a[7] - b[7]);
+      for (const r of recs) append(r);
+      for (const q of rk.pend) if (q) { q.open = false; q.settled = true; }
+      for (const bid of w.boards) queue(bid, 0xff);
+      if (recs.length) io.log("rank: " + recs.length + " record(s) written, match " + w.match);
+    }
+    const freshMatch = () => ({match: c.match, bot: [false, false], pausedAny: false, pauseMs: 0, pauseFrom: null, resumes: 0, submitted: false});
+    // the host's own exclusions (§9.2): bots, tuned parameters (not with reset({rankTest}))
+    function tuned(b) {
+      if (world.opts.rankTest) return false;
+      const md = DEVICE.mode(b.mode);
+      const cur = DEVICE.params(b.mode);
+      for (const p of (md && md.params) || []) if (!b.ignoreParams.includes(p.key) && cur[p.key] !== p.def) return true;
+      if (b.modeId === 0) { const bp = DEVICE.battleParams(); for (const [k, v] of Object.entries(BATTLE_DEFAULTS)) if (bp[k] !== v) return true; }
+      return false;
+    }
+    const api = {
+      boards,
+      load,
+      // api.rank.submit(boardId, [{who: [p] | [0, 1], value, pets}], {excluded}) -> [rank 1..5 | 0, ...]
+      submit(bid, cands, o = {}) {
+        const m = rk.m;
+        if (!c.mode || !m) { lint("rankSubmit", String(bid), "no mode running"); return []; }
+        if (m.submitted) { lint("rankTwice", c.mode.def.id, {board: bid}); return []; }
+        m.submitted = true;
+        const b = byId.get(bid);
+        cands = Array.isArray(cands) ? cands : [];
+        if (!b) return cands.map(() => 0);        // a test track / a world without a board
+        const now = world.clock;
+        const hostEx = tuned(b) ? "params" : null;
+        const pauseEx = b.pause === "exclude" && m.pausedAny ? "pause" : null;
+        let add = 0;
+        if (b.pause === "add") {
+          const extra = b.pauseExtraMs ? (safe("rank pauseExtraMs", () => b.pauseExtraMs(DEVICE.params(b.mode))) | 0) : 0;
+          add = Math.round((m.pauseMs + (m.pauseFrom != null ? now - m.pauseFrom : 0) + m.resumes * extra) / 100);
+        }
+        const w = {match: c.match, until: now + K.OPEN_MS, seqs: [], boards: new Set()};
+        const out = [];
+        let any = false, open = false;
+        for (const cd of cands) {
+          const who = (Array.isArray(cd && cd.who) ? cd.who : []).filter(p => p === 0 || p === 1).slice(0, b.coop ? 2 : 1);
+          let value = Math.round(+cd.value || 0) + add;
+          if (b.better === "low") value = Math.min(65535, value);
+          const ok = who.length && Number.isInteger(value) && value > 0 && value <= 65535 && (!b.valid || !!safe("rank valid", () => b.valid(value)));
+          if (!ok) { out.push(0); continue; }
+          const r = rankIf(b, value);
+          if (!r) { out.push(0); continue; }
+          const ex = hostEx || pauseEx || (o && o.excluded) || (!world.opts.rankTest && who.some(p => m.bot[p]) ? "bot" : null);
+          any = true;
+          w.boards.add(bid);
+          if (ex) {
+            for (const p of who) rk.pend[p] = {board: bid, rank: r, excluded: true, open: false, match: c.match, why: ex};
+            out.push(r);
+            continue;
+          }
+          const pets = Array.isArray(cd.pets) ? cd.pets : [];
+          const prof = c.hello;
+          const seq = rk.nextSeq++;
+          const ini = who.map(p => DEVICE.rankInitials(prof[p] ? prof[p].name : "", p));
+          const look = who.map((p, i) => DEVICE.rankLook(pets[i] == null || pets[i] > 2 ? 3 : pets[i], prof[p] ? prof[p].color : 7, prof[p] ? prof[p].avatar : 7));
+          insert(b, {ini: [ini[0], b.coop ? ini[1] || "" : ""], look: [look[0], b.coop && look[1] != null ? look[1] : K.LOOK_NONE], value, seq});
+          w.seqs.push(seq);
+          who.forEach((p, slot) => { rk.pend[p] = {board: bid, seq, slot, match: c.match, open: true, excluded: false}; });
+          open = true;
+          out.push({seq});
+        }
+        if (any) {
+          // "not ranked" only: the window just repeats it a few times
+          if (!open) w.until = now + 4 * K.PEND_PERIOD_MS;
+          if (rk.win) settle();
+          rk.win = w; rk.lastMatch = c.match;
+          queue(bid, 0xff);
+        }
+        // final places (a better entry of the same match may have pushed an earlier one down)
+        return out.map(r => typeof r === "object" ? rk.rows[bid].findIndex(e => e.seq === r.seq) + 1 : r);
+      },
+      // RANK_GET / RANK_NAME / RANK_CLEAR (§9.6), deduplicated by the host like every live action
+      action(p, a, arg, data) {
+        if (a === C.ACT.RANK_GET) {
+          if (c.mode && !c.api.over()) return false;          // no extra traffic while a match runs
+          if (!byId.has(arg)) return false;
+          // [+] the reply goes out twice, 20 ms apart: one lost 63 B frame would otherwise cost the
+          // handheld a 300 ms wait and its only retry (3 ms more air time per request)
+          queue(arg, p + 1); queue(arg, p + 1, 20);
+          return true;
+        }
+        if (a === C.ACT.RANK_NAME) return api.name(p, arg, data);
+        if (a === C.ACT.RANK_CLEAR) return arg === K.CLEAR_KEY && !c.mode ? api.clear() : false;
+        return false;
+      },
+      name(p, match, data) {
+        const q = rk.pend[p];
+        if (!q || q.excluded || q.match !== match) return false;
+        const ini = String.fromCharCode(...(data || []).slice(0, 3));
+        if (ini.length !== 3 || [...ini].some(ch => !DEVICE.RANK_CHARS.includes(ch))) return false;
+        const e = rk.rows[q.board].find(x => x.seq === q.seq);
+        if (!e) return false;
+        if (q.settled) return e.ini[q.slot] === ini;            // the same name again: same answer
+        if (!rk.win || rk.win.match !== match) return false;
+        if (e.ini[q.slot] !== ini) { e.ini[q.slot] = ini; rk.rev[q.board] = (rk.rev[q.board] + 1) & 0xff; }
+        q.open = false;
+        queue(q.board, 0xff);
+        if (!rk.pend.some(x => x && x.open)) settle();
+        return true;
+      },
+      clear() {
+        rk.win = null; rk.pend = [null, null];
+        rk.epoch = rk.epoch % 255 + 1;
+        for (const b of boards) { rk.rows[b.id] = []; rk.rev[b.id] = (rk.rev[b.id] + 1) & 0xff; }
+        append([K.REC_CLEAR, rk.epoch, 0, "", "", K.LOOK_NONE, K.LOOK_NONE, rk.nextSeq++]);
+        for (const b of boards) queue(b.id, 0xff);
+        io.log("rank: cleared, epoch " + rk.epoch);
+        return true;
+      },
+      // startMode: settle the last match first (§9.8 5), then a new match record
+      beforeStart(opts) {
+        if (rk.win) settle();
+        rk.pend = [null, null];
+        const keep = opts && opts.retryRoom && rk.m;
+        rk.m = keep ? Object.assign({}, rk.m, {submitted: false, pauseFrom: null}) : freshMatch();
+      },
+      started() { if (rk.m) rk.m.match = c.match; },
+      tick(now) {
+        const m = rk.m;
+        if (c.mode && m) {
+          for (const h of world.hh || []) if (h.bot) m.bot[h.p] = true;
+          if (c.paused && m.pauseFrom == null && !m.submitted) { m.pauseFrom = now; m.pausedAny = true; }
+          else if (!c.paused && m.pauseFrom != null) { m.pauseMs += now - m.pauseFrom; m.pauseFrom = null; m.resumes++; }
+        }
+        if (rk.win) {
+          if (now >= rk.win.until) settle();
+          else if (now - rk.lastPendSend >= K.PEND_PERIOD_MS) for (const bid of rk.win.boards) queue(bid, 0xff);
+        }
+        const ph = c.lobbySnap ? c.lobbySnap.phase : C.LOBBY.WAIT;
+        const safeNow = !c.mode && (ph === C.LOBBY.WAIT || ph === C.LOBBY.SELECT);
+        if (safeNow && (K.PAGE_RECS - rk.recs.length < K.COMPACT_FREE || rk.unwritten.length)) compact();
+      },
+      flush,
+      dump() {
+        const bd = {};
+        for (const b of boards) bd[b.id] = rk.rows[b.id].map(e => ({ini: e.ini.slice(), look: e.look.slice(), value: e.value, seq: e.seq}));
+        return {epoch: rk.epoch, rules, pageSeq: rk.pageSeq, recCount: rk.recs.length, unwritten: rk.unwritten.length, flags: rk.flags,
+          boards: bd, open: rk.win ? {match: rk.win.match, until: rk.win.until} : null,
+          pending: [0, 1].map(p => rk.pend[p] && Object.assign({p, rank: pendByte(p, rk.pend[p].board) & 7}, rk.pend[p])).filter(Boolean),
+          match: rk.m ? Object.assign({}, rk.m, {bot: rk.m.bot.slice()}) : null};
+      },
+      // DEVICE.rank.seed: straight into the store, then read back
+      seed(map) {
+        for (const [k, list] of Object.entries(map || {})) {
+          const bid = +k;
+          for (const it of list || []) {
+            const ini = String(it.ini || "AAA").toUpperCase().slice(0, 3).padEnd(3, " ");
+            const ini2 = it.ini2 != null ? String(it.ini2).toUpperCase().slice(0, 3).padEnd(3, " ") : "";
+            const look = DEVICE.rankLook(it.pet == null ? 3 : it.pet, it.color == null ? 0 : it.color, it.avatar == null ? 3 : it.avatar);
+            const look2 = ini2 ? DEVICE.rankLook(it.pet2 == null ? 3 : it.pet2, it.color2 == null ? 4 : it.color2, it.avatar2 == null ? 4 : it.avatar2) : K.LOOK_NONE;
+            append([K.REC_ENTRY, bid, it.value | 0, ini, ini2, look, look2, rk.nextSeq++]);
+          }
+        }
+        load();
+      },
+    };
+    rk.m = null;
+    load();
+    return api;
+  }
+
   // Lobby fields a session snapshot must provide (host fills the rest)
   const EMPTY_PROFILE = {name: [0, 0, 0, 0, 0, 0], avatar: 0, color: 0};
 
-  function makeCentral(world) {
+  function makeCentral(world, boot = {}) {
     const radio = world.radio;
     const rng = world.streams.central;
     const c = {
@@ -1541,7 +1922,9 @@
         if (!def) throw new Error("startMode: unknown mode " + id);
         const prev = c.mode;
         if (opts.retryRoom && opts.carry == null && prev && prev.inst && prev.inst.carry) opts.carry = safe("carry", () => prev.inst.carry());
+        c.rank.beforeStart(opts);           // §9.8: the last match's names are settled before a new one
         c.match = (c.match + 1) & 0xff;
+        c.rank.started();
         api.nextStep();
         c.manual = null;
         const full = Object.assign({first: 0, params: DEVICE.params(def.id), profiles: api.profiles(), rematch: false, retryRoom: false, carry: null}, opts);
@@ -1574,6 +1957,11 @@
         else api.endMode();
         c.wantBroadcast = true;
       },
+      // [+] today's leaderboard (§9.9), central side only: submit once per match from the mode's end
+      rank: {
+        submit: (board, cands, o) => c.rank.submit(board, cands, o),
+        boards: () => rankBoards().map(b => ({id: b.id, modeId: b.modeId, variant: b.variant, better: b.better, coop: b.coop})),
+      },
     };
     function log(msg) { c.log.push({t: world.clock, msg}); if (c.log.length > 100) c.log.shift(); }
     c.api = api;
@@ -1584,6 +1972,9 @@
     function send(dst, name, fields) {
       try { radio.send(0, dst, DEVICE.pack(name, fields)); } catch (e) { recordError("central send " + name, e); }
     }
+    c.rank = makeRank(world, c, {send, log});
+    // power-up with A+B held >= 3 s: a new day (§9.5)
+    if ((boot.holdAB | 0) >= 3000) c.rank.clear();
     function hostFlags() {
       return (c.paused ? C.FLAG.PAUSED : 0) | (c.links[0] ? C.FLAG.P1_LINK : 0) | (c.links[1] ? C.FLAG.P2_LINK : 0);
     }
@@ -1637,7 +2028,8 @@
         if (m.flags !== 0 && d === 0) accepted = c.lastRt[p].accepted;
         else if (d >= 1 && d <= 127) {
           const info = {step: m.step, counter: m.flags};
-          const ok = m.action <= 0x1f
+          const ok = m.action >= C.ACT.RANK_GET && m.action <= C.ACT.RANK_CLEAR ? !!safe("rank action", () => c.rank.action(p, m.action, m.arg, m.data))
+            : m.action <= 0x1f
             ? safe("session.action", () => c.session.action(p, m.action, m.arg, m.data))
             : c.mode && c.mode.inst.action ? safe("mode action", () => c.mode.inst.action(p, m.action, m.arg, m.data, info)) : false;
           accepted = ok ? 1 : 0;
@@ -1655,6 +2047,7 @@
         }
       }
       send(srcNode, "ack", {step: m.step, ackedSeq: m.hdr.seq, accepted, counter: rt ? m.flags : 0});
+      c.rank.flush();                     // a RANK_GET reply goes right after its ACK
     }
 
     c.tick = function (now) {
@@ -1670,6 +2063,7 @@
         if (c.mode) safe(want ? "mode pause" : "mode resume", () => (want ? c.mode.inst.pause : c.mode.inst.resume) && (want ? c.mode.inst.pause() : c.mode.inst.resume()));
         c.wantBroadcast = true;
       }
+      safe("rank tick", () => c.rank.tick(now));
       safe("session.tick", () => c.session.tick(now));
       const m = c.mode;
       if (m && !c.paused && m.inst.tick) safe("mode " + m.def.id + " tick", () => m.inst.tick(now));
@@ -1688,6 +2082,7 @@
       }
       if (c.mode && (c.wantBroadcast || now - c.mode.lastBroadcast >= (c.mode.def.central.periodMs || C.STATE_PERIOD_MS))) broadcastMode();
       c.wantBroadcast = false;
+      c.rank.flush();                     // MSG_RANK after the lobby and the mode state of this tick
     };
 
     c.view = function () {
@@ -1743,7 +2138,7 @@
           return true;
         }
         if (a === A.READY) {
-          if (s.phase !== L.LOBBY || s.presence[p] === C.PRESENCE.SETTINGS) return false;
+          if (s.phase !== L.LOBBY || s.presence[p] === C.PRESENCE.SETTINGS || s.presence[p] === C.PRESENCE.RANKS) return false;
           s.ready = arg ? s.ready | (1 << p) : s.ready & ~(1 << p);
           api.broadcast();
           return true;
@@ -1794,7 +2189,7 @@
           } else if (s.phase === L.AGREED && now >= s.agreedUntil) {
             s.phase = L.LOBBY; s.ready = 0; api.nextStep(); api.broadcast();
           } else if (s.phase === L.LOBBY) {
-            for (let p = 0; p < 2; p++) if (s.presence[p] === C.PRESENCE.SETTINGS && (s.ready & (1 << p))) { s.ready &= ~(1 << p); api.broadcast(); }
+            for (let p = 0; p < 2; p++) if ((s.presence[p] === C.PRESENCE.SETTINGS || s.presence[p] === C.PRESENCE.RANKS) && (s.ready & (1 << p))) { s.ready &= ~(1 << p); api.broadcast(); }
             if (s.ready === 3) start({});
           }
         } else {
@@ -1834,7 +2229,8 @@
   /* ================= 9. handheld ================= */
 
   const DEFAULT_SETTINGS = () => ({volume: 3, clicks: true, pad: "auto", padCal: {min: C.FSR_REST, max: C.FSR_PEAK}, padCalSet: false, channel: 15, lang: LANG});
-  const PRESENCE_LOCAL = {settings: 2, "settings.cal": 2};
+  // local page -> presence; null = the page keeps the presence of what is under it (S21 in results: still "in game")
+  const PRESENCE_LOCAL = {settings: 2, "settings.cal": 2, ranks: 4, "ranks.name": null};
   const SYSTEM_MENU = new Set(["connect", "menu", "lobby"]);
 
   DEVICE.defaultSettings = DEFAULT_SETTINGS;   // [+] S09 "restore default" (S key)
@@ -1876,6 +2272,7 @@
       invertUntil: 0, shakeAt: -1e9,
       mLobbyMatch: -1, mAhead: false,   // legacy-layout modes: lobby match behind m, m started early (newMatch)
       ctls: {}, modeBotOn: false, sentCaps: null, lastPushed: [],
+      rank: {cache: {}, pendMsg: null, req: null, stat: {}},   // §9.9 link cache of MSG_RANK + the request state
       dom,
     };
     const fl = loadFlash(world, p);
@@ -2084,21 +2481,7 @@
         hh.pendingAct = {step, action, arg, data: data.slice(0, 3).concat([0, 0, 0]).slice(0, 3), last: -1e9};
         flushAct(hh);
       },
-      rt(action, arg = 0, data = [0, 0, 0]) {
-        const q = hh.rtQueue;
-        const dup = q.find(e => e.action === action && !e.sent);
-        if (dup) { dup.arg = arg; dup.data = data.slice(0, 3).concat([0, 0, 0]).slice(0, 3); return true; }
-        if (q.length >= 4) {
-          // drop the oldest repeatable USE / POWER / PING that is not in flight
-          const droppable = q.findIndex((e, i) => (i > 0 || !e.sent) && [C.ACT.ADV_USE, C.ACT.ADV_POWER, C.ACT.ADV_PING].includes(e.action));
-          if (droppable < 0) { ctx.sfx("ui_deny"); return false; }
-          q.splice(droppable, 1);
-        }
-        hh.rtCounter = hh.rtCounter % 255 + 1;
-        q.push({action, arg, data: data.slice(0, 3).concat([0, 0, 0]).slice(0, 3), counter: hh.rtCounter, sent: false, last: -1e9});
-        flushRt(hh);
-        return true;
-      },
+      rt(action, arg = 0, data = [0, 0, 0]) { return !!rtPush(hh, action, arg, data, null); },
       send(name, fields) { radioSend(hh, name, fields); },
       sendInputNow() { sendHeartbeat(hh); hh.extraInput = hh.now() + 20; },
       padLevel: (st, dt) => DEVICE.padLevel.update(st, hh.input.st, hh.settings, dt),
@@ -2111,8 +2494,91 @@
         dissolve: (x, y, w, h) => { hh.fx.dissolves.push({x, y, w, h, at: hh.now()}); },
       },
       toast(key, vars, ms = C.TOAST_MS) { hh.toastRec = {key, vars, until: hh.now() + ms}; },
+      // [+] today's leaderboard, player side (§9.9); onAck(accepted) is an [+] optional callback
+      rank: {
+        boards: () => rankBoards().map(b => ({id: b.id, def: b})),
+        get: id => hh.rank.cache[id] || null,
+        request: id => rankRequest(hh, id),
+        status: id => hh.rank.stat[id] || null,
+        placed: () => rankPlaced(hh),
+        rivalOpen() {
+          const pm = hh.rank.pendMsg, L = hh.lobby;
+          return !!(pm && L && pm.msg.match === L.match && (pm.msg.pend[1 - hh.p] & C.RANK.PEND_OPEN));
+        },
+        name(initials, onAck) {
+          const pl = rankPlaced(hh), s3 = String(initials || "").toUpperCase().slice(0, 3).padEnd(3, " ");
+          if (!pl || pl.excluded) return false;
+          return !!rtPush(hh, C.ACT.RANK_NAME, pl.match, [0, 1, 2].map(i => s3.charCodeAt(i)), onAck || null);
+        },
+        clear: onAck => !!rtPush(hh, C.ACT.RANK_CLEAR, C.RANK.CLEAR_KEY, [0, 0, 0], onAck || null),
+      },
     };
     return ctx;
+  }
+  // live-action queue (§7.6) with an optional ACK callback [+]
+  function rtPush(hh, action, arg = 0, data = [0, 0, 0], onAck = null) {
+    const q = hh.rtQueue;
+    const d3 = data.slice(0, 3).concat([0, 0, 0]).slice(0, 3);
+    const dup = q.find(e => e.action === action && !e.sent);
+    if (dup) { dup.arg = arg; dup.data = d3; if (onAck) dup.onAck = onAck; return dup; }
+    if (q.length >= 4) {
+      // drop the oldest repeatable USE / POWER / PING / RANK_GET that is not in flight
+      const droppable = q.findIndex((e, i) => (i > 0 || !e.sent) && [C.ACT.ADV_USE, C.ACT.ADV_POWER, C.ACT.ADV_PING, C.ACT.RANK_GET].includes(e.action));
+      if (droppable < 0) { hh.ctx.sfx("ui_deny"); return null; }
+      q.splice(droppable, 1);
+    }
+    hh.rtCounter = hh.rtCounter % 255 + 1;
+    const e = {action, arg, data: d3, counter: hh.rtCounter, sent: false, last: -1e9, onAck};
+    q.push(e);
+    flushRt(hh);
+    return e;
+  }
+  // §9.6 request rule: RANK_GET, wait RANK_REPLY_MS after the ACK, one retry, then "error"
+  function rankRequest(hh, id) {
+    const r = hh.rank;
+    r.req = {id, tries: 1, phase: "ack", at: hh.now(), entry: null};
+    r.stat[id] = "loading";
+    rankSend(hh, r.req);
+  }
+  function rankSend(hh, q) {
+    q.phase = "ack"; q.at = hh.now();
+    q.entry = rtPush(hh, C.ACT.RANK_GET, q.id, [0, 0, 0], acc => {
+      if (hh.rank.req !== q) return;
+      if (!acc) rankFail(hh, q, true);
+      else { q.phase = "reply"; q.ackAt = hh.now(); }
+    });
+    if (!q.entry) rankFail(hh, q, true);
+  }
+  function rankFail(hh, q, final) {
+    const r = hh.rank;
+    if (r.req !== q) return;
+    if (q.entry) { const i = hh.rtQueue.indexOf(q.entry); if (i >= 0) hh.rtQueue.splice(i, 1); q.entry = null; }
+    if (!final && q.tries < 2) { q.tries++; rankSend(hh, q); return; }
+    r.stat[q.id] = "error"; r.req = null;
+  }
+  function rankTick(hh) {
+    const q = hh.rank.req;
+    if (!q) return;
+    const now = hh.now();
+    if (q.phase === "reply" && now - q.ackAt >= C.RANK.REPLY_MS) rankFail(hh, q, false);
+    else if (q.phase === "ack" && now - q.at >= 1000) rankFail(hh, q, false);    // no ACK at all (central gone)
+  }
+  function onRank(hh, m) {
+    const r = hh.rank, now = hh.now();
+    r.cache[m.board] = {msg: m, at: now};
+    if (m.pend[0] || m.pend[1]) r.pendMsg = {msg: m, at: now};
+    if (r.req && r.req.id === m.board) {
+      if (r.req.entry) { const i = hh.rtQueue.indexOf(r.req.entry); if (i > 0 || (i === 0 && !r.req.entry.sent)) hh.rtQueue.splice(i, 1); }
+      r.stat[m.board] = "ok"; r.req = null;
+    } else if (r.stat[m.board] !== "loading") r.stat[m.board] = "ok";
+  }
+  // this match's own placing: MSG_RANK.match == lobby.match and pend[me] != 0
+  function rankPlaced(hh) {
+    const pm = hh.rank.pendMsg, L = hh.lobby;
+    if (!pm || !L || pm.msg.match !== L.match) return null;
+    const b = pm.msg.pend[hh.p];
+    if (!b) return null;
+    return {board: pm.msg.board, rank: b & 7, open: !!(b & C.RANK.PEND_OPEN), excluded: !!(b & C.RANK.PEND_EXCLUDED), match: pm.msg.match};
   }
 
   function leaveSettings(hh) {
@@ -2128,7 +2594,7 @@
     hh.m = null;
     Object.assign(hh, {lobby: null, lobbyPrev: null, state: null, stateName: null, stateModeDef: null,
       lastNonInModeLobbyStep: -1, lastLobbyStep: -1, lastModeStep: -1, pendingAct: null, rtQueue: [], centralBoot: null,
-      mLobbyMatch: -1, mAhead: false});
+      mLobbyMatch: -1, mAhead: false, rank: {cache: {}, pendMsg: null, req: null, stat: {}}});
     hh.link.gotState = false; hh.link.inMode = false; hh.link.match = -1; hh.link.helloAcked = false;
     setTone(hh, 0);
   }
@@ -2152,6 +2618,7 @@
   function presenceOf(hh) {
     const top = hh.local.stack[hh.local.stack.length - 1];
     if (!hh.local.loggedIn) return C.PRESENCE.LOGIN;
+    if (top && PRESENCE_LOCAL[top.id] === null) return hh.link.inMode ? 3 : 1;
     if (top) return PRESENCE_LOCAL[top.id] != null ? PRESENCE_LOCAL[top.id] : 2;
     if (hh.presenceOverride != null) return hh.presenceOverride;
     if (SYSTEM_MENU.has(hh.screenId) || hh.screenId === "boot" || hh.screenId === "login") return 1;
@@ -2210,6 +2677,7 @@
     }
     if (hh.pendingAct && now - hh.pendingAct.last >= C.ACTION_RETRY_MS) flushAct(hh);
     if (hh.rtQueue.length && now - hh.rtQueue[0].last >= C.ACTION_RETRY_MS) flushRt(hh);
+    rankTick(hh);
     // link status
     while (hh.rxTimes.length && hh.rxTimes[0] <= now - 1000) hh.rxTimes.shift();
     while (hh.badTimes.length && hh.badTimes[0] <= now - 2000) hh.badTimes.shift();
@@ -2239,6 +2707,7 @@
     try { m = DEVICE.unpack(bytes); } catch (e) { recordError("P" + (hh.p + 1) + " unpack", e); return; }
     const now = hh.now();
     if (m.name === "ack") return onAck(hh, m);
+    if (m.name === "rank") { hh.goodTimes.push(now); return onRank(hh, m); }
     const d = R.msgs[m.name];
     if (m.name !== "lobby" && (!d || d.kind !== "mode")) return;
     hh.goodTimes.push(now);
@@ -2292,6 +2761,7 @@
     if (fresh) {
       if (hh.m && hh.stateModeDef) safe("mode destroy", () => hh.stateModeDef.player.destroy && hh.stateModeDef.player.destroy(hh.ctx));
       hh.stateModeDef = def;
+      hh.local.stack = [];        // §7.7: a new match clears the page stack (S21 left over from the last results)
       hh.link.match = !legacy ? m.match : ahead ? (hh.link.match + 1) & 0xff : lm;
       hh.state = null;
       hh.m = safe("mode " + def.id + " player.create", () => def.player.create && def.player.create(hh.ctx)) || {};
@@ -2327,8 +2797,9 @@
       if (hh.pendingAct && m.step === hh.pendingAct.step) { hh.lastAck = m; hh.pendingAct = null; }
     } else if (hh.rtQueue[0] && m.counter === hh.rtQueue[0].counter) {
       hh.lastAck = m;
-      hh.rtQueue.shift();
+      const e = hh.rtQueue.shift();
       if (hh.rtQueue.length) flushRt(hh);
+      if (e.onAck) safe("P" + (hh.p + 1) + " ack callback", e.onAck, m.accepted);
     }
   }
 
@@ -3086,6 +3557,7 @@
     if (opts.loss != null) w.radio.loss = clamp(+opts.loss, 0, 1);
     if (opts.latency) w.radio.latency = opts.latency.slice(0, 2);
     if (opts.collisions != null) w.radio.collisions = !!opts.collisions;
+    if (opts.freshRank) rankWipe(w);    // [+] reset({freshRank}): the central starts from an empty leaderboard store
     w.central = makeCentral(w);
     w.radio.nodes[0].rx = (bytes, src) => w.central.receive(bytes, src);
     const doms = DEVICE._dom ? DEVICE._dom.handhelds : [null, null];
@@ -3417,7 +3889,7 @@
       if (!m.central.create) lint("modeParts", m.id, {missing: "central.create"});
     }
     // §7.6 sizes and kinds (the step-0 stubs register placeholders and are skipped)
-    for (const [type, size, kind] of [[C.MSG.BATTLE_STATE, 47, "mode"], [C.MSG.RACE_INPUT, 23, "uplink"], [C.MSG.RACE_STATE, 55, "mode"], [C.MSG.ADV_STATE, 61, "mode"]]) {
+    for (const [type, size, kind] of [[C.MSG.BATTLE_STATE, 47, "mode"], [C.MSG.RACE_INPUT, 23, "uplink"], [C.MSG.RACE_STATE, 55, "mode"], [C.MSG.ADV_STATE, 61, "mode"], [C.MSG.RANK, 63, "session"]]) {
       const d = R.msgByType[type];
       if (d && !d.stub && (d.size !== size || d.kind !== kind)) lint("msgSize", d.name, {size: d.size, want: size, kind: d.kind, wantKind: kind});
     }
@@ -3434,6 +3906,7 @@
       const seeded = mulberry32(OPTS.seed || 1);
       Math.random = function () { if (world && world.inTick) lint("mathRandom", "tick", "Math.random used during a tick"); return seeded(); };
     }
+    rankBoards(); rankRules();          // fixed from here on (lint "rankBoards" for a fifth board)
     checkRegistries();
     const dom = buildDom();
     // §8.12: a phone shows one handheld, P1, with the computer playing P2
@@ -3537,11 +4010,11 @@
     },
     stats: () => world.radio.stats(),
     unplug(p, on) { world.radio.nodes[p + 1].plugged = !on; },
-    powerCentral(on) {
+    powerCentral(on, o = {}) {           // [+] o.holdAB: ms A+B are held at power-up (>= 3000 = clear the leaderboard)
       const c = world.central;
       if (!on) { c.powered = false; return; }
       if (c.powered) return;
-      world.central = makeCentral(world);
+      world.central = makeCentral(world, {holdAB: o.holdAB | 0});
       world.radio.nodes[0].rx = (bytes, src) => world.central.receive(bytes, src);
     },
     channel(p, ch) { world.radio.nodes[p === "central" || p < 0 ? 0 : p + 1].ch = ch | 0; },   // [+] "central" / -1 = the central board
@@ -3607,6 +4080,15 @@
     try { await f.run(T); return {id, ok: true, error: null, log, shots}; }
     catch (e) { return {id, ok: false, error: e && e.message ? e.message : String(e), log, shots}; }
     finally { world.running = wasRunning; }
+  };
+  // [+] today's leaderboard (§9.9 test hooks): dump() / clear() (= the central's A+B) / seed({boardId: [{ini, value,
+  // pet, color, avatar, ini2...}]}) straight into the store / boards()
+  DEVICE.rank = {
+    dump: () => world.central.rank.dump(),
+    clear() { const c = world.central; if (!c.powered) return false; c.rank.clear(); return true; },
+    seed(map) { world.central.rank.seed(map); return world.central.rank.dump(); },
+    boards: () => world.central.api.rank.boards(),
+    defs: () => rankBoards().slice(),
   };
   DEVICE.hh = p => HH(p);          // [+] internal handheld object (debug panel)
   DEVICE.registry = R;             // [+] registries (debug panel, gallery)
