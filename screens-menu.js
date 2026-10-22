@@ -611,13 +611,16 @@
       // rematch line
       const kind = r.again && r.again.kind === "retryRoom" ? "retryRoom" : "rematch";
       const coop = md && md.coop;
+      // [+] again.partnerKey replaces the partner line; again.lineKey (+ lineVars) is shown while nobody has pressed
       if (L && bit(L.rematchMask, o)) {
-        const k = kind === "retryRoom" ? "dev.res.partnerRetry" : coop ? "dev.res.partnerAgain" : "dev.res.rivalAgain";
+        const k = r.again && r.again.partnerKey ? r.again.partnerKey
+          : kind === "retryRoom" ? "dev.res.partnerRetry" : coop ? "dev.res.partnerAgain" : "dev.res.rivalAgain";
         g.text(4, 132, ctx.t(k), {w: 120, key: k});
       } else if (ctx.rank.rivalOpen()) {
         const rv = ctx.rival();
         g.text(4, 132, ctx.t("dev.rank.rivalNaming", {name: rv ? rv.name : ""}), {w: 120, c: "muted", key: "dev.rank.rivalNaming"});
       } else if (L && bit(L.rematchMask, ctx.p)) g.text(4, 132, ctx.t("dev.res.waitRival"), {w: 120, c: "muted", key: "dev.res.waitRival"});
+      else if (r.again && r.again.lineKey) g.text(4, 132, ctx.t(r.again.lineKey, r.again.lineVars), {w: 120, c: "gold", key: r.again.lineKey});
       const locked = ctx.now() - ctx.s.t0 < RES_LOCK_MS;
       const again = r.again && r.again.labelKey ? r.again.labelKey : "dev.ui.again";
       const sent = L && bit(L.rematchMask, ctx.p);

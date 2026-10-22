@@ -832,10 +832,10 @@
         "file": "device.html",
         "owner": "yihao",
         "status": "done",
-        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车，可选俯视 / 车后 / 第一人称视角）和双人冒险（4 个房间 + Boss），有暂停、掉线重连、设置和压力垫校准。",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准。",
         "en": {
           "name": "Handheld simulator",
-          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet, top-down / chase / first-person view) and co-op adventure (4 rooms + a boss), with pause, reconnect, settings and pad calibration."
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration."
         }
       },
       {
