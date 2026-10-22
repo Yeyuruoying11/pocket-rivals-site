@@ -8,6 +8,10 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><rect x='1' y='2' width='8' height='7' rx='1' fill='%23e8663d'/><rect x='3' y='4' width='1' height='1' fill='%23fff'/><rect x='6' y='4' width='1' height='1' fill='%23fff'/></svg>">
 <link rel="stylesheet" href="style.css">
 <script src="i18n.js"></script>
+<!-- three.js for the 3D pin map (hardware tab); only fetched when that tab first opens -->
+<script type="importmap">
+{"imports": {"three": "./vendor/three@0.160.0/build/three.module.min.js", "three/addons/": "./vendor/three@0.160.0/examples/jsm/"}}
+</script>
 </head>
 <body>
 
@@ -112,11 +116,16 @@
         </div>
         <label class="switch"><input type="checkbox" id="no-matrix"> <span data-i18n="app.hw.noMatrix">停用板载 LED 点阵</span></label>
       </div>
-      <p class="muted" id="pin-note" style="margin:0 0 6px;font-size:13px"></p>
-      <div class="pin-summary" id="pin-summary"></div>
+      <p class="muted" id="pin-note" style="margin:0 0 10px;font-size:13px"></p>
+      <div class="p3d" id="p3d">
+        <div class="p3d-stage" id="p3d-stage"><div class="p3d-loading" data-i18n="p3d.loading">正在加载 3D 视图…</div></div>
+        <button class="btn p3d-reset" id="p3d-reset" type="button" hidden data-i18n="p3d.reset">重置视角</button>
+        <div class="p3d-foot"><span class="p3d-hint" id="p3d-hint"></span><span class="p3d-legend" id="p3d-legend"></span></div>
+      </div>
+      <div class="detail" id="pin-detail"><span class="muted" data-i18n="app.pin.clickAny">点击任意 pin。</span></div>
+      <div class="pin-summary" id="pin-summary" style="margin-top:16px"></div>
       <div class="pins" id="pins"></div>
       <div class="legend" id="pin-legend"></div>
-      <div class="detail" id="pin-detail"><span class="muted" data-i18n="app.pin.clickAny">点击任意 pin。</span></div>
       <ul class="notes" id="pin-extra"></ul>
     </div>
   </section>
