@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Test suite of the Pocket Rivals handheld simulator (device.html + device-*.js + mode-*.js).
+# Test suite of the Pocket Rivals handheld simulator (device.html + device-*.js + mode-*.js)
+# and the site's 3D pin map (index.html + pinmap-*.js).
 # usage: tests/run.sh [quick|full]      (default: quick; works from any directory)
 #   quick  the fixtures, the input / gate / wave / blurb tests and the World 1 solver checker
-#   full   quick, then the racing track test, the end-to-end run and the World 1 play-through
+#   full   quick, then the racing track test, the end-to-end run, the World 1 play-through
+#          and the 3D pin map on the site's hardware tab (index.html)
 # Every browser test runs with the route.js preload, which answers the page requests from the
 # repository folder: no server, no network.
 set -e
@@ -44,6 +46,7 @@ if [ "$MODE" = full ]; then
   step full-test node -r ./tests/route.js tests/full-test.js
   step make-cases node tests/adv/make-cases.js
   step harness   node -r ./tests/route.js tests/adv/harness.js --world 1 --kinds solve,solo,restart,boss,bossSolo,bot --bot-orders
+  step pin3d     node -r ./tests/route.js tests/pin3d-test.js
 fi
 
 echo
