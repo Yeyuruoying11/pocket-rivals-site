@@ -84,6 +84,10 @@
     ["dashMs", "RACE_DASH_MS", 200, 3000, 100, 1200, "ms", "冲刺时长", "Dash ms", ""],
     ["splashMs", "RACE_SPLASH_MS", 200, 4000, 100, 1500, "ms", "浪花", "Splash", "潮影 浪花"],
     ["splashWindow", "RACE_SPLASH_WINDOW", 16, 96, 4, 40, "px", "浪花视野", "Splash view", "被浪花盖住时，车周围还看得清的方框边长 px"],
+    ["wipeFarMm", "RACE_WIPE_FAR_MM", 150, 600, 10, 250, "mm", "挥手远", "Wave far", "距离传感器读数大于这个值算手离开"],
+    ["wipeNearMm", "RACE_WIPE_NEAR_MM", 40, 240, 10, 120, "mm", "挥手近", "Wave near", "小于这个值算手到传感器前面"],
+    ["wipeCutMs", "RACE_WIPE_CUT_MS", 0, 1500, 50, 500, "ms", "挥手擦", "Wave wipe", "每挥一次手，被浪花挡住的时间减少这么多"],
+    ["wipeGapMs", "RACE_WIPE_GAP_MS", 50, 500, 10, 150, "ms", "挥手间隔", "Wave gap", "两次挥手之间至少隔这么久"],
     ["vineMs", "RACE_VINE_MS", 1000, 30000, 1000, 15000, "ms", "藤蔓存在", "Vine life", "叶芽 藤蔓陷阱存在多久"],
     ["vinePct", "RACE_VINE_PCT", 10, 100, 5, 40, "%", "藤蔓速度", "Vine speed", "压到藤蔓后剩下的最高速度 %"],
     ["snareMs", "RACE_SNARE_MS", 100, 3000, 100, 800, "ms", "缠住", "Snare", ""],
@@ -532,7 +536,7 @@
       notes: "原版俯视赛道（mode-racing.js §5.2），16×16 一屏放下。\n顺时针：上直道 → 右侧下坡 → 中间 U 形弯 → 左侧回到起点。\n水洼在上直道和 U 形弯入口，加速板在左右两侧直道。",
     },
     {
-      id: "park", name: {"zh": "林荫公园", "en": "Park Avenue"}, blurb: {"zh": "宽路大弯，看牌就转", "en": "Wide roads, follow signs"},
+      id: "park", name: {"zh": "林荫公园", "en": "Park Avenue"}, blurb: {"zh": "宽路大弯 看牌就转", "en": "Wide roads, follow signs"},
       size: 32,
       map: [
         "...........T.T.T.T.T.T...sssssss",
@@ -574,7 +578,7 @@
       notes: "新手第一条第一人称赛道：路宽 3 格，所有弯都是 45° 切角，没有急弯；每个弯的内侧再多铺 1 格，切弯也在路上。\n顺时针：林荫终点直道（拱门）→ 右上大弯 → 右侧长直道（外道一个水洼，可以躲开）→ 右下大弯 → 后直道一整排加速板 → 左下 135° 大弯 → 内场 U 形弯 → 左上 135° 弯回终点。\n每个弯前 3-4 格有警示牌，弯外是金色沙坑或一排锥桶，直道两边是树：看到金色 / 橙色就该转了。\n内场 U 形弯是唯一要松油的地方；U 外的沙坑和锥桶正对着入弯的视线。\n4 个检查点挡住左侧草地和 U 形弯的捷径。",
     },
     {
-      id: "riptide", name: {"zh": "八字激流", "en": "Riptide Eight"}, blurb: {"zh": "8 字交叉，水道与加速道", "en": "Figure-8 crossing flow"},
+      id: "riptide", name: {"zh": "八字激流", "en": "Riptide Eight"}, blurb: {"zh": "8字交叉 内道有水 外道加速", "en": "Figure-8 crossing flow"},
       size: 32,
       map: [
         ".sssssTs.T...S..S........T....T.",
@@ -616,7 +620,7 @@
       notes: "8 字形：两条 45° 长斜线在中央平面交叉，X 路口四个夹角各放锥桶，驾驶舱里能看到对手横穿前方。\n上下两个半圈镜像：先左后右的快速摆弯（S 牌提示）→ 三段 45° 大回旋 → 三车道长直道 → 135° 发夹弯。\n下直道外侧加速道：两块加速板之后紧接发夹弯，冲 96 px/s 进弯要重刹，赌的是晚刹车超车。\n上直道内侧一排水洼：别人要收油到 60% 以下，潮影可以全油门过去并顺便降温。\n6 个检查点（两条斜线上各一个斜向带）挡住 X 路口抄近路；两个发夹弯是降温和超车点。",
     },
     {
-      id: "gale", name: {"zh": "疾风环", "en": "Gale Loop"}, blurb: {"zh": "长弯连串，外道赌加速", "en": "Sweepers + boost gamble"},
+      id: "gale", name: {"zh": "疾风环", "en": "Gale Loop"}, blurb: {"zh": "长弯连串 外道加速 先过水洼", "en": "Sweepers + boost gamble"},
       size: 32,
       map: [
         "..T................T............",
@@ -658,7 +662,7 @@
       notes: "起点直道后接 V 形快速摆弯（底部一段平路，走对线可全油门），锥桶岛和两块 S 牌提示入弯。\n右侧是连续 45° 蛇形弯，一路树木做地标；之后大弧线下到长直道。\n长直道外侧加速道：入口一格水洼，油门要先收到 60% 以下才不打滑，再踩两块加速板（潮影可全油门直冲）。\n左下发夹弯（两个 90° 相隔 32 px）最慢：3-2-1 倒数牌 + 沙地缓冲；出弯走外线能踩到一块加速板，晚刹车超车和降温都在这里。\n回程走内场斜线和 S 弯，沿左侧直道回到拱门终点。全油门超过 4 秒会过热熄火，直道末段要点一下油门。",
     },
     {
-      id: "switchback", name: {"zh": "回头湾", "en": "Switchback Bay"}, blurb: {"zh": "连环发卡，沙地抄近路", "en": "Hairpins + sand shortcut"},
+      id: "switchback", name: {"zh": "回头湾", "en": "Switchback Bay"}, blurb: {"zh": "连环发卡 沙地近路", "en": "Hairpins + sand shortcut"},
       size: 32,
       map: [
         "............T...T...T...........",
@@ -1344,6 +1348,7 @@
       goAt: null, cdStep: -1, cdIsStart: false, went: false, cdShown: 0, goShowUntil: 0, frozenNoSig: false,
       evSeen: -1, banner: null, parts: [], partAt: 0, lastSend: -1e9, toneHz: 0, warnAt: 0, myPet: NO_PET,
       noteKey: null, noteDone: false, rh: [],
+      wave: {buf: [], armed: true, lastAt: -1e9, count: 0, wipeAt: -1e9},
     };
   }
   function banner(ctx, key, c = "gold", ms = 1500, vars) {
@@ -1510,6 +1515,25 @@
       m.acc -= STEP_MS;
       const u = ctx.padLevel(m.pl, STEP_MS);
       if (!live) { c.u = c.finished ? 0 : u; continue; }
+      // distance sensor over the handheld: far -> near -> far = one wave, wipes the splash faster
+      const d = ctx.input.distMm;
+      if (d >= 0) {
+        const w = m.wave;
+        w.buf.push(d);
+        if (w.buf.length > 3) w.buf.shift();
+        const med = w.buf.slice().sort((a, b) => a - b)[w.buf.length >> 1];
+        if (med > P.wipeFarMm) w.armed = true;
+        else if (med < P.wipeNearMm && w.armed) {
+          w.armed = false;
+          if (m.raceT - w.lastAt >= P.wipeGapMs) {
+            w.count++; w.lastAt = m.raceT;
+            if (c.splashUntil > m.raceT) {
+              c.splashUntil = max(m.raceT, c.splashUntil - P.wipeCutMs);
+              w.wipeAt = ctx.now();
+            }
+          }
+        }
+      }
       const rv = rivalView(ctx);
       const env = {t: m.raceT, laps: st.laps, vineTile: vineOf(st.vines[1 - ctx.p]), draft: false, catchup: false, pet: myPet(ctx, m), T};
       if (rv && P.draftPct > 0) {
@@ -1702,6 +1726,21 @@
     }
   }
 
+  // A wave wipes one streak: a waterLt band sweeps the water left to right for
+  // WIPE_SWEEP_MS, on a y row picked from the wave count (decoration only).
+  // x0..x1 = water width, yTop..yTop+hAll = water height, wy/win = the clear window's rows.
+  const WIPE_SWEEP_MS = 250;
+  function drawWipe(g, ctx, m, x0, x1, yTop, hAll, wy, win) {
+    const wv = m.wave;
+    if (!wv || ctx.now() - wv.wipeAt >= WIPE_SWEEP_MS) return;
+    const k = ctx.now() - wv.wipeAt;
+    const half = max(4, hAll >> 1);
+    let y = half + (wv.count * 13) % (half - 3);       // a new row for every wave, lower half (banners sit up top)
+    if (y > wy - 3 && y < wy + win) y = wy + win + 2;
+    if (y > hAll - 3) y = max(0, wy - 4);              // never over the clear window
+    const xb = x0 + trunc((x1 - x0) * k / WIPE_SWEEP_MS);   // the row is clear of the window
+    if (xb > x0) g.rect(x0, yTop + y, xb - x0, 3, "waterLt");
+  }
   function drawHud(ctx, g) {
     const m = ctx.m, st = ctx.state;
     if (m && st && viewOf(ctx, m.T) !== "top") { draw3D(ctx, g, m, st, viewOf(ctx, m.T)); return; }
@@ -1751,6 +1790,7 @@
       g.dither(0, Y + wy, wx, w, "waterDk", "water");
       g.dither(wx + w, Y + wy, 128 - wx - w, w, "waterDk", "water");
       g.frame(wx, Y + wy, w, w, "waterLt");
+      drawWipe(g, ctx, m, 0, 128, TRACK_Y, 128, wy, w);
     }
     // announcements (inner grass, never on the road)
     drawAnnounce(g, ctx, m, st, 40);
@@ -2219,6 +2259,7 @@
       g.dither(0, wy, wx, w, "waterDk", "water");
       g.dither(wx + w, wy, SW - wx - w, w, "waterDk", "water");
       g.frame(wx, wy, w, w, "waterLt");
+      drawWipe(g, ctx, m, 0, SW, S.y0, S.y1 - S.y0, wy - S.y0, w);
     }
     drawAnnounce(g, ctx, m, st, S.y0 + 2);
     drawTopBar(g, ctx, m, st);

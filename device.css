@@ -77,6 +77,8 @@
 .dv-pad span, .dv-pad kbd { position: relative; }
 .dv-pad kbd { font-size: 10px; color: var(--muted); font-family: inherit; }
 .dv-pad.on { border-color: var(--fire); }
+.dv-w { flex: none; width: 44px; height: 32px; border-radius: 8px; font-size: 12px; gap: 0; }
+.dv-w kbd { font-size: 9px; }
 
 .dv-help { max-width: 80ch; margin: 20px 0 0; font-size: 13px; color: var(--muted); }
 .dv-debug { margin-top: 20px; }

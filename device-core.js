@@ -258,6 +258,8 @@
 //   (DEVICE.SSYM). Icons 8 px + 2 px gap; {PAD} draws {A} without a pad.
 //   Over budget w -> 1 px danger box + lint "overflow".
 // g.textBox(x, y, w, h, str, opt) -> {lines, overflow}; g.measure(str, opt) -> {w, h}
+//   A wrapped line after the first of a paragraph that starts with Chinese
+//   punctuation (，。、！？：；) -> lint "leadPunct".
 // g.sprite(name, x, y, {scale, flipX, flipY, transpose, frame, color, map [+]})
 //   color = whole sprite in one color; map = per-letter color overrides
 // g.spriteSize(name) -> {w, h, frames}; g.clip(x, y, w, h); g.unclip()
@@ -292,16 +294,18 @@
 //
 // ctx.input = {x, y (-100..100, + = up), a, b, skill, menu, pressure (0..255),
 //   padPresent, aDownMs, bDownMs, stickClick, aBtn [+] (A without the stick
-//   click: trial, throttle and winch "hold A" use this), raw: {fsr, joyX, joyY}}
+//   click: trial, throttle and winch "hold A" use this), distMm [+] (distance
+//   sensor over the handheld: 80 while the wave key is held, otherwise the hand
+//   height in mm, 1300 = no hand), raw: {fsr, joyX, joyY}}
 //   Only this board's input; the central sees each player's MSG_INPUT in
 //   central.input(p, fields).
 // ev = {btn: "A"|"B"|"SKILL"|"MENU"|"UP"|"DOWN"|"LEFT"|"RIGHT",
 //   type: "down"|"up"|"click" (released < 500 ms)|"long" (held 1000 ms)|"repeat",
 //   t (board ms), fromStick [+] (A came from the stick click)}
 // Keyboard (event.code, so layout / IME do not matter):
-//          stick     A   B   SKILL  MENU  pad hard (230)  pad light (130)
-//   P1     W A S D   F   G   R      T     V               C
-//   P2     arrows    K   L   I      O     ,               .
+//          stick     A   B   SKILL  MENU  pad hard (230)  pad light (130)  wave
+//   P1     W A S D   F   G   R      T     V               C                E
+//   P2     arrows    K   L   I      O     ,               .                P
 //   ` (Backquote) pauses / resumes the simulation; Tab swaps which handheld
 //   each key group drives (DEVICE.keySwap(), badge in the toolbar), then
 //   tells DEVICE.on("tab").
@@ -318,8 +322,9 @@
 //   battleParams = {key: value} (DEVICE.battleParams keys): this world only,
 //   win over saved tuning, never written to localStorage (fixtures pass the
 //   values they depend on). mode = start it at once with the stub session.
-// press(p, btn, holdMs = 50) (btn also "UP".."RIGHT", "PAD", "PAD_LIGHT", "STICK");
+// press(p, btn, holdMs = 50) (btn also "UP".."RIGHT", "PAD", "PAD_LIGHT", "STICK", "WAVE");
 // hold(p, btn, down); stick(p, x, y); pressure(p, v); bot(p, on);
+// hand(p, mm) (hand height over that handheld, 0..1300; omitted: read it);
 //   (unlike a bot's, these are not held back: a script, like a person, loses
 //   a press made within 150 ms of a screen change, so step(200) after one)
 // screen(p) -> {id, overlay, mode, params}; texts(p); find(p, substr);
@@ -825,10 +830,11 @@
   }
 
   // Word wrap: Chinese anywhere, English only at spaces (§2.3)
-  function wrapLines(hh, str, w, opt) {
+  function wrapLines(hh, str, w, opt, heads) {
     const font = opt.font || "m", s = opt.scale || 1;
     const lines = [];
     for (const para of String(str).split("\n")) {
+      if (heads) heads.add(lines.length);   // index of this paragraph's first line
       const units = [];
       let cur = "";
       for (const t of tokens(para)) {
@@ -851,13 +857,20 @@
   }
   function drawTextBox(g, hh, x, y, w, h, str, opt) {
     const s = opt.scale || 1;
-    const lines = wrapLines(hh, str, w, opt);
+    const heads = new Set();
+    const lines = wrapLines(hh, str, w, opt, heads);
     const fit = Math.max(0, Math.floor(h / (14 * s)));
     const overflow = lines.length > fit;
     lines.slice(0, fit).forEach((ln, i) => drawText(g, hh, x, y + i * 14 * s, ln, Object.assign({}, opt, {w: undefined})));
     if (overflow) {
       g.frame(x - 1, y, w + 2, h, "danger");
       lint("overflow", hh ? hh.screenId : "?", {key: opt.key || (hh && hh.tmap.get(str)) || null, lang: LANG, lines: lines.length, fit, s: str});
+    }
+    // dev lint (drawing is unchanged): no wrapped line after the first of a
+    // paragraph may start with Chinese punctuation
+    for (let i = 1; i < lines.length; i++) {
+      if (!heads.has(i) && /^[，。、！？：；]/.test(lines[i]))
+        lint("leadPunct", hh ? hh.screenId : "?", {key: opt.key || (hh && hh.tmap.get(str)) || null, lang: LANG, line: i, s: lines[i]});
     }
     return {lines, overflow};
   }
@@ -1202,23 +1215,23 @@
   const BTNS = ["A", "B", "SKILL", "MENU"];
   const KEYMAP = {
     KeyW: [0, "up"], KeyS: [0, "down"], KeyA: [0, "left"], KeyD: [0, "right"],
-    KeyF: [0, "a"], KeyG: [0, "b"], KeyR: [0, "skill"], KeyT: [0, "menu"], KeyV: [0, "padHard"], KeyC: [0, "padLight"],
+    KeyF: [0, "a"], KeyG: [0, "b"], KeyR: [0, "skill"], KeyT: [0, "menu"], KeyV: [0, "padHard"], KeyC: [0, "padLight"], KeyE: [0, "wave"],
     ArrowUp: [1, "up"], ArrowDown: [1, "down"], ArrowLeft: [1, "left"], ArrowRight: [1, "right"],
-    KeyK: [1, "a"], KeyL: [1, "b"], KeyI: [1, "skill"], KeyO: [1, "menu"], Comma: [1, "padHard"], Period: [1, "padLight"],
+    KeyK: [1, "a"], KeyL: [1, "b"], KeyI: [1, "skill"], KeyO: [1, "menu"], Comma: [1, "padHard"], Period: [1, "padLight"], KeyP: [1, "wave"],
   };
   DEVICE.KEYMAP = KEYMAP;
   const KEY_LABEL = [
-    {a: "F", b: "G", skill: "R", menu: "T", pad: "V", light: "C", stick: "WASD"},
-    {a: "K", b: "L", skill: "I", menu: "O", pad: ",", light: ".", stick: "↑←↓→"},
+    {a: "F", b: "G", skill: "R", menu: "T", pad: "V", light: "C", wave: "E", stick: "WASD"},
+    {a: "K", b: "L", skill: "I", menu: "O", pad: ",", light: ".", wave: "P", stick: "↑←↓→"},
   ];
   const newSource = () => ({x: 0, y: 0, a: false, b: false, skill: false, menu: false, stick: false,
-    force: 0, target: 0, up: false, down: false, left: false, right: false, padHard: false, padLight: false});
+    force: 0, target: 0, up: false, down: false, left: false, right: false, padHard: false, padLight: false, wave: false});
 
   function makeInput(hh) {
     const src = {kbd: newSource(), touch: newSource(), pad: newSource(), script: newSource(), bot: newSource()};
     const queue = [];   // {t (sim ms), src, field, value}
     const st = {x: 0, y: 0, a: false, b: false, skill: false, menu: false, pressure: 0, padPresent: false,
-      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
+      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, distMm: 1300, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
     const btn = {};
     for (const b of BTNS) btn[b] = {down: false, at: 0, long: false, gen: 0, fromStick: false};
     const stick = {dir: null, next: 0, latched: false};
@@ -1226,16 +1239,17 @@
     const rng = () => hh.world.streams["input." + hh.p];
 
     function merged() {
-      let x = 0, y = 0, a = false, b = false, skill = false, menu = false, stickC = false, target = 0, analog = 0;
+      let x = 0, y = 0, a = false, b = false, skill = false, menu = false, stickC = false, wave = false, target = 0, analog = 0;
       for (const s of Object.values(src)) {
         x += s.x + (s.right ? 100 : 0) - (s.left ? 100 : 0);
         y += s.y + (s.up ? 100 : 0) - (s.down ? 100 : 0);
         a = a || s.a; b = b || s.b; skill = skill || s.skill; menu = menu || s.menu; stickC = stickC || s.stick;
+        wave = wave || s.wave;
         target = Math.max(target, s.target, s.padHard ? 230 : 0, s.padLight ? 130 : 0);
         analog = Math.max(analog, s.force);
       }
       if (!hh.hw.caps.joy) { x = 0; y = 0; stickC = false; }
-      return {x: clamp(x, -100, 100), y: clamp(y, -100, 100), A: a || stickC, B: b, SKILL: skill, MENU: menu, stickC, aBtn: a, target, analog};
+      return {x: clamp(x, -100, 100), y: clamp(y, -100, 100), A: a || stickC, B: b, SKILL: skill, MENU: menu, stickC, wave, aBtn: a, target, analog};
     }
     let last = merged();
 
@@ -1334,6 +1348,7 @@
         st.raw.joyX = hh.hw.caps.joy ? Math.round(512 + m.x * 5.11) : 0;
         st.raw.joyY = hh.hw.caps.joy ? Math.round(512 + m.y * 5.11) : 0;
         st.aBtn = m.aBtn;
+        st.distMm = m.wave ? 80 : hh.handMm;   // the wave key = a hand held at 80 mm (ui-design §6.11)
         return out;
       },
     };
@@ -2278,6 +2293,7 @@
     const wr = world.streams.world;
     const hh = {
       world, p, node: p + 1,
+      handMm: 1300,
       offset: wr.int(10001),
       bootNonce: 1 + wr.int(255),
       hw: {caps: Object.assign({joy: true, pad: true, snd: true}, (world.opts.caps || [])[p] || {})},
@@ -3428,7 +3444,7 @@
       "dev.page.paused": "模拟已暂停（按 ` 继续）", "dev.page.swapped": "键位已对调（Tab）",
       "dev.page.help": "两人共用一个键盘。屏幕上的 A / B / S / M 是掌机的按键，不是键盘上的同名键，按下表找：",
       "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟；Tab 对调两组键位（一个人也能操作任意一台）。",
-      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏"},
+      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏", "dev.page.colWave": "挥手"},
     en: {"dev.page.title": "Device simulator", "dev.page.back": "← Back to progress",
       "dev.page.intro": "Two handhelds and a virtual central board: all three modes, two players on one computer. The screens are the real 128×160 pixels, the same as on the TFT.",
       "dev.page.view": "Show", "dev.page.both": "Both", "dev.page.scale": "Scale", "dev.page.auto": "Auto",
@@ -3437,7 +3453,7 @@
       "dev.page.paused": "Simulation paused (press ` to resume)", "dev.page.swapped": "Keys swapped (Tab)",
       "dev.page.help": "Two players share one keyboard. A / B / S / M on the screens are the handheld's buttons, not the keyboard keys with those letters:",
       "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation; Tab swaps the two key groups, so one person can drive either handheld.",
-      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light"},
+      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light", "dev.page.colWave": "Wave"},
   });
 
   /* ================= 12b. stub helpers and the echo mode ================= */
@@ -3660,7 +3676,7 @@
   }
 
   // ctl for bots and the test hook: press / hold / stick / pressure on one source
-  const BTN_FIELD = {A: "a", B: "b", SKILL: "skill", MENU: "menu", STICK: "stick", UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right", PAD: "padHard", PAD_LIGHT: "padLight"};
+  const BTN_FIELD = {A: "a", B: "b", SKILL: "skill", MENU: "menu", STICK: "stick", UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right", PAD: "padHard", PAD_LIGHT: "padLight", WAVE: "wave"};
   // A bot's presses wait until the 150 ms input lock after a screen / overlay
   // change has passed (otherwise its first press on a new screen is silently
   // dropped); changes are applied in the order they were made.
@@ -3726,14 +3742,14 @@
     const handhelds = [0, 1].map(p => buildShell(p));
     handhelds.forEach(h => row.append(h.shell));
     const kb = txt => el("kbd", {text: txt});
-    const head = ["dev.page.colPlayer", "dev.page.stick", null, null, null, null, "dev.page.colHard", "dev.page.colLight"];
+    const head = ["dev.page.colPlayer", "dev.page.stick", null, null, null, null, "dev.page.colHard", "dev.page.colLight", "dev.page.colWave"];
     const btnHead = ["A", "B", "S", "M"];
     const table = el("table", {class: "dv-keytable"},
       el("thead", null, el("tr", null, ...head.map((k, i) => el("th", {scope: "col", text: k ? t(k) : btnHead[i - 2]})))),
       el("tbody", null, ...[0, 1].map(p => {
         const L = KEY_LABEL[p];
         return el("tr", null, el("th", {scope: "row", text: "P" + (p + 1)}),
-          ...[L.stick, L.a, L.b, L.skill, L.menu, L.pad, L.light].map(k => el("td", null, kb(k))));
+          ...[L.stick, L.a, L.b, L.skill, L.menu, L.pad, L.light, L.wave].map(k => el("td", null, kb(k))));
       })));
     const help = el("div", {class: "dv-help"},
       el("p", {text: t("dev.page.help")}), el("div", {class: "dv-keywrap"}, table), el("p", {text: t("dev.page.helpTouch")}));
@@ -3756,15 +3772,16 @@
       el("span", {text: name}), el("kbd", {text: kbdKey}));
     const bA = btn("A", "a", KEY_LABEL[p].a, "dv-a"), bB = btn("B", "b", KEY_LABEL[p].b, "dv-b");
     const bS = btn("S", "skill", KEY_LABEL[p].skill, "dv-s"), bM = btn("≡", "menu", KEY_LABEL[p].menu, "dv-m");
+    const bW = btn(t("dev.page.colWave"), "wave", KEY_LABEL[p].wave, "dv-w");
     const btns = el("div", {class: "dv-btns"}, bS, bM, bB, bA);
     const fill = el("i");
     const pad = el("div", {class: "dv-pad", role: "slider", "aria-label": t("dev.page.pad"), "aria-valuemin": "0", "aria-valuemax": "255", "aria-valuenow": "0"},
       fill, el("span", {text: t("dev.page.pad")}), el("kbd", {text: KEY_LABEL[p].pad}));
-    const controls = el("div", {class: "dv-controls"}, stick, btns, pad);
+    const controls = el("div", {class: "dv-controls"}, stick, btns, pad, bW);
     const shell = el("section", {class: "dv-hh", "data-p": String(p)},
       el("div", {class: "dv-hh-head"}, el("b", {text: t("dev.page.player", {n})}), keysLine),
       screen, controls);
-    const h = {p, shell, canvas, screen, controls, knob, stick, pad, padFill: fill, buttons: {a: bA, b: bB, skill: bS, menu: bM}};
+    const h = {p, shell, canvas, screen, controls, knob, stick, pad, padFill: fill, buttons: {a: bA, b: bB, skill: bS, menu: bM, wave: bW}};
     wireTouch(h);
     return h;
   }
@@ -4019,6 +4036,11 @@
   const scriptCtl = p => DEVICE.ctl(p, "script");
   DEVICE.press = (p, btn, holdMs = 50) => scriptCtl(p).press(btn, holdMs);
   DEVICE.hold = (p, btn, down) => scriptCtl(p).hold(btn, down);
+  DEVICE.hand = (p, mm) => {                        // simulated VL53L4CD: 1300 = no hand over the handheld
+    const h = HH(p);
+    if (mm != null) h.handMm = clamp(Math.round(mm), 0, 1300);
+    return h.handMm;
+  };
   DEVICE.stick = (p, x, y) => scriptCtl(p).stick(x, y);
   DEVICE.pressure = (p, v) => scriptCtl(p).pressure(v);
   DEVICE.bot = (p, on) => {                        // on omitted [+]: just tell whether it is a bot
