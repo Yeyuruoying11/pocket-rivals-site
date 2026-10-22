@@ -115,8 +115,10 @@
       };
       st(8, 97, "TFT", true); st(68, 97, "JOY", !!caps.joy);
       st(8, 107, "PAD", !!(caps.pad && ctx.input.padPresent)); st(68, 107, "SND", !!caps.snd);
-      g.text(8, 117, ctx.t("dev.boot.rf", {ch: ctx.hw.channel, p: ctx.p + 1, v: ctx.hw.protocol}), {font: "s", c: "muted", w: 90, key: "dev.boot.rf"});
-      g.text(64, 132, ctx.t("dev.boot.skip"), {align: "c", w: 80, key: "dev.boot.skip"});
+      // ACC (2026-10-22): the on-board accelerometer, only for Tide's attack trial (attack-trial.md §2A)
+      st(8, 117, "ACC", !!caps.acc);
+      g.text(8, 127, ctx.t("dev.boot.rf", {ch: ctx.hw.channel, p: ctx.p + 1, v: ctx.hw.protocol}), {font: "s", c: "muted", w: 90, key: "dev.boot.rf"});
+      g.text(64, 140, ctx.t("dev.boot.skip"), {align: "c", w: 80, key: "dev.boot.skip"});
       for (let i = 0; i < 16; i++) g.rect(i * 8, 152, 8, 8, D.PALETTE[i].name);
     },
     bot(ctx, ctl) { if (ctx.now() - ctx.s.t0 > 300 && !ctx.s.botDone) { ctx.s.botDone = true; ctl.press("A"); } },

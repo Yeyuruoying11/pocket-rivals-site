@@ -1,5 +1,7 @@
 // Pocket Rivals battle prototype: teams of 3, secret send-out, attack trial
-// (track the moving band), chained blocks, skills, type matchups. Follows
+// (one per pet: Ember tracks the moving band, Tide tilts the handheld, Sprout
+// taps on the beat; the trial code is pet-trials.js, shared with the handheld
+// simulator), chained blocks, skills, type matchups. Follows
 // pocket-rivals/docs/attack-trial.md and the firmware rules in software/lib
 // (integer math and rounding included) so numbers tuned here behave the same
 // after they go into game_config.h.
@@ -24,7 +26,7 @@
       "battle.round": "回合",
       "battle.rulesTitle": "规则",
       "battle.rule1": "每人 3 只宠物，开局暗中选出场：<b style=\"color:var(--fire)\">火</b> 克 <b style=\"color:var(--grass)\">草</b> 克 <b style=\"color:var(--water)\">水</b> 克 <b style=\"color:var(--fire)\">火</b>。",
-      "battle.rule2": "<b>攻击测试</b>：按住攻击键，让指针跟住移动的光带。",
+      "battle.rule2": "<b>攻击测试</b>，每只宠物一种：焰灵按住攻击键让指针跟住光带；潮影用攻击 / 防御键（或 ← / →）左右转动掌机，让水珠留在浪尖上；叶芽跟着拍子，音符到线时按攻击键，灰点是空拍别按。",
       "battle.rule3": "共 3 层，一层比一层快；得分决定<b>普通</b> / <b>强力</b> / <b>全力一击</b>。",
       "battle.rule4": "<b>防守</b>：光标进入绿区时按格挡，连挡 1–3 次。",
       "battle.rule5": "也可以不攻击，改用<b>技能</b>或<b>换宠物</b>。",
@@ -41,6 +43,25 @@
       "battle.group.skill": "技能",
       "battle.group.type": "属性",
       "battle.group.pace": "节奏",
+      "battle.group.pet": "宠物测试（潮影倾斜 / 叶芽节拍）",
+      "battle.param.tideBandPct": "潮影：光带宽度（倾斜时）",
+      "battle.param.tiltFullMg": "潮影：转到头的重力分量",
+      "battle.param.tiltSmoothPct": "潮影：每个样本指针跟上",
+      "battle.param.beatStage1Ms": "叶芽：第 1 层拍子间隔",
+      "battle.param.beatStage2Ms": "叶芽：第 2 层拍子间隔",
+      "battle.param.beatStage3Ms": "叶芽：第 3 层拍子间隔",
+      "battle.param.beatRests": "叶芽：空拍（1 = 第 2、3 层各一个）",
+      "battle.param.beatPerfectMs": "叶芽：完美判定窗（±）",
+      "battle.param.beatGoodMs": "叶芽：不错判定窗（±）",
+      "battle.param.beatGoodPts": "叶芽：不错的得分",
+      "battle.param.beatStrayPts": "叶芽：每次多按扣分",
+      "battle.param.beatLanePxPerS": "叶芽：音符速度（只影响画面）",
+      "battle.check.goodWindow": "不错判定窗要小于最短拍子间隔的一半",
+      "battle.check.perfectWindow": "完美判定窗不能比不错判定窗宽",
+      "battle.check.rests": "有空拍时第 2、3 层至少要 2 拍",
+      "battle.check.notes": "每层至少要 1 拍",
+      "battle.check.lastNote": "最后一个音符的判定窗 + 100 ms 要在测试结束前",
+      "battle.check.ready": "准备时间要比不错判定窗长",
       "battle.param.base": "基础伤害（测试 0 分）",
       "battle.param.windowPct": "判定区宽度（普通一击）",
       "battle.param.sweepMs": "扫过时间（普通一击）",
@@ -125,6 +146,12 @@
       "battle.trial.ready": "准备 {s} s",
       "battle.trial.inBand": "光带内 {n}%",
       "battle.trial.pressStart": "按攻击键开始",
+      "battle.trial.beatLive": "这一层 {n}",
+      "battle.trial.kind.band": "焰灵：跟住光带",
+      "battle.trial.kind.tilt": "潮影：水珠留在浪尖",
+      "battle.trial.kind.beat": "叶芽：跟着拍子按",
+      "battle.sound.on": "拍子声：开",
+      "battle.sound.off": "拍子声：关",
       "battle.cue.start": "开始计分！",
       "battle.cue.faster": "加速！",
       "battle.stage.ready": "准备",
@@ -151,6 +178,9 @@
       "battle.mini.fainted": "倒下",
       "battle.pad.attack": "攻击",
       "battle.pad.hold": "按住",
+      "battle.pad.right": "右转",
+      "battle.pad.left": "左转",
+      "battle.pad.tap": "打拍",
       "battle.pad.block": "格挡",
       "battle.pad.skill": "技能",
       "battle.pad.switch": "换宠物",
@@ -166,6 +196,8 @@
       "battle.opt.switch": "{k} 换宠物",
       "battle.prompt.switch": "{p} 换上哪只？{keys} · {k} 取消",
       "battle.prompt.trial": "按住 {k} 跟住光带",
+      "battle.prompt.tilt": "按住 {k}（右转）或 {k2}（左转），让水珠留在浪尖上",
+      "battle.prompt.beat": "音符到线时按 {k}，灰点是空拍别按",
       "battle.prompt.defend": "按 {k} 格挡 ×{n}",
       "battle.prompt.over": "🏆 {p} 获胜！按 {k0} 或 {k1} 再来一局",
     },
@@ -178,7 +210,7 @@
       "battle.round": "Round",
       "battle.rulesTitle": "Rules",
       "battle.rule1": "3 pets each; secretly send one out. <b style=\"color:var(--fire)\">Fire</b> beats <b style=\"color:var(--grass)\">grass</b> beats <b style=\"color:var(--water)\">water</b> beats <b style=\"color:var(--fire)\">fire</b>.",
-      "battle.rule2": "<b>Attack trial</b>: hold the attack key to keep the pointer in the band.",
+      "battle.rule2": "<b>Attack trial</b>, one per pet: Ember holds the attack key to keep the pointer in the band; Tide turns the handheld with the attack / block keys (or ← / →) to keep the drop on the crest; Sprout taps the attack key as each note reaches the line, skipping the grey rests.",
       "battle.rule3": "3 ever-faster stages; the score gives a <b>Normal</b>, <b>Strong</b> or <b>Full Power</b> strike.",
       "battle.rule4": "<b>Defend</b>: press block while the cursor is in the green, 1–3 times.",
       "battle.rule5": "Instead of attacking, use a <b>skill</b> or <b>switch</b> pets.",
@@ -194,6 +226,25 @@
       "battle.group.skill": "Skills",
       "battle.group.type": "Types",
       "battle.group.pace": "Pace",
+      "battle.group.pet": "Pet trials (Tide tilt / Sprout beat)",
+      "battle.param.tideBandPct": "Tide: band width when tilting",
+      "battle.param.tiltFullMg": "Tide: tilt reading for a full turn",
+      "battle.param.tiltSmoothPct": "Tide: pointer catch-up per sample",
+      "battle.param.beatStage1Ms": "Sprout: stage 1 beat interval",
+      "battle.param.beatStage2Ms": "Sprout: stage 2 beat interval",
+      "battle.param.beatStage3Ms": "Sprout: stage 3 beat interval",
+      "battle.param.beatRests": "Sprout: rests (1 = one in stages 2 and 3)",
+      "battle.param.beatPerfectMs": "Sprout: perfect window (±)",
+      "battle.param.beatGoodMs": "Sprout: good window (±)",
+      "battle.param.beatGoodPts": "Sprout: points for a good tap",
+      "battle.param.beatStrayPts": "Sprout: cost of each stray tap",
+      "battle.param.beatLanePxPerS": "Sprout: note speed (screen only)",
+      "battle.check.goodWindow": "The good window must be under half the shortest beat interval",
+      "battle.check.perfectWindow": "The perfect window cannot be wider than the good window",
+      "battle.check.rests": "With rests, stages 2 and 3 need at least 2 beats",
+      "battle.check.notes": "Every stage needs at least 1 beat",
+      "battle.check.lastNote": "The last note's window + 100 ms must end before the trial does",
+      "battle.check.ready": "The ready phase must be longer than the good window",
       "battle.param.base": "Base damage (trial score 0)",
       "battle.param.windowPct": "Block zone width (Normal strike)",
       "battle.param.sweepMs": "Sweep time (Normal strike)",
@@ -275,6 +326,12 @@
       "battle.trial.ready": "Get ready {s} s",
       "battle.trial.inBand": "In band {n}%",
       "battle.trial.pressStart": "Press attack",
+      "battle.trial.beatLive": "This stage {n}",
+      "battle.trial.kind.band": "Ember: follow the band",
+      "battle.trial.kind.tilt": "Tide: drop on the crest",
+      "battle.trial.kind.beat": "Sprout: tap on the beat",
+      "battle.sound.on": "Beat sound: on",
+      "battle.sound.off": "Beat sound: off",
       "battle.cue.start": "Go!",
       "battle.cue.faster": "Faster!",
       "battle.stage.ready": "Get ready",
@@ -300,6 +357,9 @@
       "battle.mini.fainted": "Fainted",
       "battle.pad.attack": "Attack",
       "battle.pad.hold": "Hold",
+      "battle.pad.right": "Right",
+      "battle.pad.left": "Left",
+      "battle.pad.tap": "Tap",
       "battle.pad.block": "Block",
       "battle.pad.skill": "Skill",
       "battle.pad.switch": "Switch",
@@ -314,6 +374,8 @@
       "battle.opt.switch": "{k} switch",
       "battle.prompt.switch": "{p}: who comes in? {keys} · {k} cancel",
       "battle.prompt.trial": "Hold {k} to follow the band",
+      "battle.prompt.tilt": "Hold {k} (turn right) or {k2} (turn left): keep the drop on the crest",
+      "battle.prompt.beat": "Tap {k} as each note reaches the line; skip the grey rests",
       "battle.prompt.defend": "Press {k} to block ×{n}",
       "battle.prompt.over": "🏆 {p} wins! Press {k0} or {k1} for a rematch",
     },
@@ -325,6 +387,7 @@
   // exported but not tuned here. g is the slider group; the slider label is
   // the string "battle.param.<key>".
   const PTS = tr("battle.unit.score");
+  const PT = window.PetTrials, PTD = PT.DEFAULTS;
   const PARAMS = [
     {key: "base",       c: "BASE_DAMAGE",        g: "trial", min: 4,   max: 20,   step: 1,   def: 10,   unit: "",    note: "attack damage at trial score 0"},
     {key: "windowPct",  c: "DEFEND_WINDOW_PCT",  g: "block", min: 8,   max: 50,   step: 1,   def: 24,   unit: "%",   note: "width of the block zone at tier 0, % of the sweep"},
@@ -360,8 +423,25 @@
     {key: "resolveMs",  c: "RESOLVE_MS",         g: "pace",  min: 300, max: 2000, step: 100, def: 900,  unit: " ms", note: "how long each event stays on screen", before: [""]},
     {key: "graceMs",    c: "DEFEND_GRACE_MS",                                                               def: 1500, note: "central treats a silent defender as missing",
       note2: ["every block after the whole chain (all", "sweeps + gaps) + this"]},
+    // Per-pet attack trials (attack-trial.md §2A / §2B); defaults from pet-trials.js
+    {key: "tideBandPct",   c: "TIDE_BAND_PCT",      w: 20, g: "pet", min: 10,  max: 60,   step: 1,   def: PTD.tideBandPct,   unit: "",      note: "Tide tilting: band width (tilting is slower than squeezing)",
+      before: ["", "// Per-pet attack trials (docs/attack-trial.md 2A / 2B): Ember keeps the", "// band above; Tide tilts the handheld"]},
+    {key: "tiltFullMg",    c: "TILT_FULL_MG",       w: 20, g: "pet", min: 200, max: 1000, step: 50,  def: PTD.tiltFullMg,    unit: " mg",   note: "x reading (mg) that puts the pointer at an end (~30 deg)"},
+    {key: "tiltSmoothPct", c: "TILT_SMOOTH_PCT",    w: 20, g: "pet", min: 10,  max: 100,  step: 5,   def: PTD.tiltSmoothPct, unit: "%",     note: "per new sample the pointer moves this % toward the tilt"},
+    {key: "tiltSampleMs",  c: "TILT_SAMPLE_MS",     w: 20,                                           def: PTD.tiltSampleMs,                 note: "accelerometer sample period (50 Hz); change with the driver"},
+    {key: "tiltStaleMs",   c: "TILT_STALE_MS",      w: 20,                                           def: PTD.tiltStaleMs,                  note: "no sample this long: no tilt (at the start) / pointer holds"},
+    {key: "beatStage1Ms",  c: "BEAT_STAGE1_MS",     w: 20, g: "pet", min: 250, max: 1000, step: 25,  def: PTD.beatStage1Ms,  unit: " ms",   note: "Sprout: stage 1 beat (120 BPM), also the count-in",
+      before: ["// Sprout taps A on the beat of the on-board speaker"]},
+    {key: "beatStage2Ms",  c: "BEAT_STAGE2_MS",     w: 20, g: "pet", min: 250, max: 1000, step: 25,  def: PTD.beatStage2Ms,  unit: " ms",   note: "stage 2 (160 BPM)"},
+    {key: "beatStage3Ms",  c: "BEAT_STAGE3_MS",     w: 20, g: "pet", min: 200, max: 1000, step: 25,  def: PTD.beatStage3Ms,  unit: " ms",   note: "stage 3 (200 BPM)"},
+    {key: "beatRests",     c: "BEAT_RESTS",         w: 20, g: "pet", min: 0,   max: 1,    step: 1,   def: PTD.beatRests,     unit: "",      note: "1 = one rest (seeded) in stages 2 and 3"},
+    {key: "beatPerfectMs", c: "BEAT_PERFECT_MS",    w: 20, g: "pet", min: 5,   max: 100,  step: 5,   def: PTD.beatPerfectMs, unit: " ms",   note: "|tap - beat| up to this: perfect, 100 points"},
+    {key: "beatGoodMs",    c: "BEAT_GOOD_MS",       w: 20, g: "pet", min: 20,  max: 200,  step: 5,   def: PTD.beatGoodMs,    unit: " ms",   note: "up to this: good (under half the shortest interval)"},
+    {key: "beatGoodPts",   c: "BEAT_GOOD_PTS",      w: 20, g: "pet", min: 0,   max: 100,  step: 5,   def: PTD.beatGoodPts,   unit: "",      note: "points for a good tap"},
+    {key: "beatStrayPts",  c: "BEAT_STRAY_PTS",     w: 20, g: "pet", min: 0,   max: 100,  step: 5,   def: PTD.beatStrayPts,  unit: "",      note: "each stray tap costs this (a missed note of the stage forgives one)"},
+    {key: "beatLanePxPerS", c: "BEAT_LANE_PX_PER_S", w: 20, g: "pet", min: 40, max: 200,  step: 10,  def: PTD.beatLanePxPerS, unit: " px/s", note: "note speed on the TFT (picture only)"},
   ];
-  const GROUPS = ["trial", "tier", "block", "skill", "type", "pace"];
+  const GROUPS = ["trial", "pet", "tier", "block", "skill", "type", "pace"];
   const TUNABLE = PARAMS.filter(p => p.min !== undefined);
 
   const TEAM_SIZE = 3;
@@ -419,7 +499,7 @@
         <span>${esc(tr("battle.param." + p.key))}<b id="pv-${p.key}">${P[p.key]}${p.unit}</b></span>
         <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${P[p.key]}" data-p="${p.key}">
         <code class="cname">${p.c}</code>
-      </label>`).join("")).join("");
+      </label>`).join("") + (g === "pet" ? `<p class="pcheck" id="param-check" role="status"></p>` : "")).join("");
     renderCSnippet();
   }
 
@@ -451,6 +531,11 @@
 
   function renderCSnippet() {
     $("#param-c").textContent = cConfig();
+    // attack-trial.md §2B timing rules: the beat sliders that break one turn red
+    const bad = PT.beat.check(PT.beat.cfgFrom(P));
+    const box = $("#param-check");
+    if (box) box.textContent = bad.map(k => "⚠ " + tr("battle.check." + k)).join("  ");
+    document.querySelectorAll("#params input[data-p^='beat']").forEach(i => i.closest("label").classList.toggle("bad", bad.length > 0));
   }
 
   $("#params").addEventListener("input", e => {
@@ -478,35 +563,19 @@
 
   // §2: the trial timeline. Ready phase [0, R), stage k scored in
   // [R + k*S, R + (k+1)*S), done at R + 3*S
-  const stageSpeeds = () => [P.speed1, P.speed2, P.speed3];
   const trialEnd = () => P.readyMs + 3 * P.stageMs;
   // Stage running at ms t: -1 while getting ready, then 0..2
   const stageAt = t => t < P.readyMs ? -1 : Math.min(Math.floor((t - P.readyMs) / P.stageMs), 2);
 
   // Band time τ * 100 for integer ms t (the distance travelled at the stage
-  // speeds), all in integers like the firmware
-  function tau100(t) {
-    const R = P.readyMs, St = P.stageMs, s = stageSpeeds();
-    if (t < R) return t * s[0];
-    const u = Math.min(t - R, 3 * St);
-    const k = Math.min(Math.floor(u / St), 2);
-    let v = R * s[0];
-    for (let j = 0; j < k; j++) v += St * s[j];
-    return v + (u - k * St) * s[k];
-  }
+  // speeds), all in integers like the firmware (pet-trials.js, shared with
+  // the simulator)
+  const tau100 = t => PT.band.tau100(t, PT.band.cfgFrom(P));
 
   // §2: band center from seed and ms since the trial started (ready part
   // included); same double math as trial_band_center() in trial.c, with
-  // τ = τ100 / 100.0 in place of t
-  function bandCenter(seed, t, w = P.bandPct) {
-    const half = w / 2;
-    const twoPi = 2 * Math.PI;
-    const tau = tau100(t) / 100;
-    const p1 = seed * twoPi / 256;
-    const p2 = (seed * 7 % 256) * twoPi / 256;
-    const c = 50 + 22 * Math.sin(twoPi * tau / 1300 + p1) + 12 * Math.sin(twoPi * tau / 700 + p2);
-    return Math.floor(Math.min(Math.max(c, half), 100 - half) + 0.5);
-  }
+  // τ = τ100 / 100.0 in place of t. w = this trial's band width (Tide: tideBandPct)
+  const bandCenter = (seed, t, w = P.bandPct) => PT.band.bandCenter(seed, t, PT.band.cfgFrom(P, w));
   // trial_in_band(): |level - center| <= w/2, in integers
   const inBand = (center, level, w = P.bandPct) => 2 * Math.abs(level - center) <= w;
 
@@ -752,16 +821,62 @@
 
   /* ---------------- attack trial (trial.c, no pressure pad) ---------------- */
 
-  function startTrial() {
+  // The pet on the field picks the trial (attack-trial.md §2-§2B): Ember
+  // "band" (hold the attack key, no pad here), Tide "tilt" (the attack / block
+  // keys or ← / → turn the handheld), Sprout "beat" (tap the attack key)
+  const KIND_OF = {fire: "band", water: "tilt", grass: "beat"};
+  function startTrial(ts) {
+    const kind = KIND_OF[activePet(att()).el];
+    const w = kind === "tilt" ? P.tideBandPct : P.bandPct;
     Object.assign(S.trial, {
-      started: true, t0: performance.now(), held: true,
+      started: true, t0: kind === "beat" && ts != null ? ts : performance.now(), held: true, kind, w,
       levelMilli: 0, levelMs: 0, level: 0,  // controls.c: no pad, level in 1/1000
-      elapsed: 0, scoredMs: [0, 0, 0], insideMs: [0, 0, 0], center: bandCenter(S.trial.seed, 0), inBand: false,
+      elapsed: 0, scoredMs: [0, 0, 0], insideMs: [0, 0, 0], center: bandCenter(S.trial.seed, 0, w), inBand: false,
       score: null, stageScores: null, cueStage: -1,
     });
+    const T = S.trial;
+    if (kind === "tilt") {
+      // the handheld starts level; the key that started the trial turns it only after it is let go
+      Object.assign(T, {held: false, armed: false, keys: {r: false, l: false, ar: false, al: false}, mg: 0, mgMs: 0,
+        nextSample: P.tiltSampleMs});
+      T.levelM = PT.tilt.step(0, PT.tilt.quantize(0), true, P.tiltFullMg, P.tiltSmoothPct);
+      T.level = PT.tilt.level(T.levelM);
+    } else if (kind === "beat") {
+      Object.assign(T, {held: false, B: PT.beat.create(T.seed, PT.beat.cfgFrom(P), 0), marks: []});
+      beatSounds(T);
+    }
     S.phase = "trial";  // same step: the trial is local to the attacker's board
     S.switching = null;
     loop();
+    render();
+  }
+
+  // Tide: the handheld turns at the hold-A speed (140 pointer / s = 2.8 x
+  // TILT_FULL_MG mg / s) while a turn key is held; the accelerometer gives a
+  // sample every TILT_SAMPLE_MS (4 mg steps) and each one goes through the
+  // §2A filter
+  function tiltDir(T) {
+    const r = (T.armed && T.keys.r) || T.keys.ar, l = T.keys.l || T.keys.al;
+    return (r ? 1 : 0) - (l ? 1 : 0);
+  }
+  function tiltAdvance(T, ms) {
+    const rate = 2.8 * P.tiltFullMg / 1000, dir = tiltDir(T);
+    const turn = to => { T.mg = Math.max(-1000, Math.min(1000, T.mg + dir * rate * (to - T.mgMs))); T.mgMs = to; };
+    while (T.nextSample <= ms) {
+      turn(T.nextSample);
+      T.levelM = PT.tilt.step(T.levelM, PT.tilt.quantize(T.mg), false, P.tiltFullMg, P.tiltSmoothPct);
+      T.nextSample += P.tiltSampleMs;
+    }
+    if (ms > T.mgMs) turn(ms);
+    T.level = PT.tilt.level(T.levelM);
+  }
+  function tiltKey(k, down) {
+    const T = S.trial;
+    if (!S || S.phase !== "trial" || T.kind !== "tilt") return;
+    trialUpdate(performance.now());            // the old direction up to now
+    if (S.phase !== "trial") return;
+    if (k === "r" && !down) T.armed = true;
+    T.keys[k] = down;
     render();
   }
 
@@ -771,19 +886,23 @@
   // too if this level is in this band)
   function trialUpdate(now) {
     const T = S.trial;
+    if (T.kind === "beat") { beatUpdate(now); return; }
     const ms = Math.floor(now - T.t0);
-    const dl = ms - T.levelMs;
-    if (dl > 0) {
-      T.levelMilli = T.held ? Math.min(100000, T.levelMilli + P.risePerS * dl) : Math.max(0, T.levelMilli - P.fallPerS * dl);
-      T.levelMs = ms;
+    if (T.kind === "tilt") tiltAdvance(T, ms);
+    else {
+      const dl = ms - T.levelMs;
+      if (dl > 0) {
+        T.levelMilli = T.held ? Math.min(100000, T.levelMilli + P.risePerS * dl) : Math.max(0, T.levelMilli - P.fallPerS * dl);
+        T.levelMs = ms;
+      }
+      T.level = Math.floor((T.levelMilli + 500) / 1000);
     }
-    T.level = Math.floor((T.levelMilli + 500) / 1000);
     const end = trialEnd();
     const e = Math.max(T.elapsed, Math.min(ms, end));
     const from = T.elapsed;
     T.elapsed = e;
-    T.center = bandCenter(T.seed, e);
-    T.inBand = inBand(T.center, T.level);
+    T.center = bandCenter(T.seed, e, T.w);
+    T.inBand = inBand(T.center, T.level, T.w);
     for (let k = 0; k < 3; k++) {
       const lo = P.readyMs + k * P.stageMs, hi = lo + P.stageMs;
       const dt = Math.min(e, hi) - Math.max(from, lo);
@@ -810,12 +929,42 @@
     render();
   }
 
+  // Sprout (§2B): taps at their event time; notes whose window closed are
+  // missed; done a moment after R + 3S so a key event from just before the
+  // end is still counted
+  function beatUpdate(now) {
+    const T = S.trial, B = T.B, e = Math.floor(now - T.t0);
+    PT.beat.update(B, Math.min(e, PT.beat.endMs(B.cfg)));
+    T.elapsed = Math.min(Math.max(T.elapsed, e), trialEnd());
+    if (e >= PT.beat.endMs(B.cfg) + 30) {
+      PT.beat.finish(B);
+      finishTrial();
+    }
+  }
+  function beatTap(ts) {
+    const T = S.trial;
+    const now = performance.now();
+    trialUpdate(Math.max(now, ts));
+    if (S.phase !== "trial") return;
+    const r = PT.beat.tap(T.B, Math.round(ts - T.t0));
+    if (r.kind === "ignored") return;
+    T.marks.push({kind: r.kind, at: now});
+    if (r.kind === "stray") sound.beep([[180, 40]], 0);
+    renderGauges();
+  }
+
   // ACT_ATTACK(arg = score) arrives at the central board: tier, damage and the
   // defense difficulty go into the state, then PHASE_DEFEND
   function finishTrial() {
     const T = S.trial;
-    T.score = trialScore(T);
-    T.stageScores = [0, 1, 2].map(k => stageScore(T, k));
+    if (T.kind === "beat") {
+      T.score = PT.beat.score(T.B);
+      T.stageScores = [0, 1, 2].map(k => PT.beat.stageScore(T.B, k));
+      sound.cancel();
+    } else {
+      T.score = trialScore(T);
+      T.stageScores = [0, 1, 2].map(k => stageScore(T, k));
+    }
     T.held = false;
     const a = att(), d = dfn();
     const tier = tierOf(T.score);
@@ -957,8 +1106,9 @@
     showEvent("end", tr("battle.ev.switch", {p: esc(PLAYERS[i].name), pet: petName(i)}) + edgeHtml());
   }
 
-  // slot = 0/1/2/3: the player's four keys / pad buttons
-  function act(i, slot, down) {
+  // slot = 0/1/2/3: the player's four keys / pad buttons; ts = the event's time
+  // (performance.now clock) for Sprout's taps
+  function act(i, slot, down, ts) {
     if (!S) return;
     const ph = S.phase;
     if (S.switching === i) {
@@ -980,14 +1130,74 @@
     } else if (ph === "over") {
       if (down && slot === 0) startMatch(1 - S.winner);  // loser goes first
     } else if (slot === 0 && i === att()) {
-      if (down && ph === "ready") startTrial();
+      if (down && ph === "ready") startTrial(ts);
+      else if (ph === "trial" && S.trial.kind === "tilt") tiltKey("r", down);
+      else if (ph === "trial" && S.trial.kind === "beat") { if (down) beatTap(ts != null ? ts : performance.now()); }
       else if (ph === "trial") trialHold(down);
+    } else if (slot === 1 && i === att() && ph === "trial" && S.trial.kind === "tilt") {
+      tiltKey("l", down);
     } else if (slot === 1 && down && i === dfn() && ph === "defending") {
       defendPress();
     } else if (slot === 2 && down && i === att() && ph === "ready" && pl(i).cd === 0) {
       useSkill();
     }
   }
+
+  /* ---------------- Sprout's beat on WebAudio ---------------- */
+
+  // Square-wave beeps like the handheld's PWM speaker (ui-design §2.6), timed
+  // with WebAudio (not setTimeout) and moved earlier by the output latency.
+  // The toggle under the gauges is stored in this browser.
+  const SOUND_KEY = "pr.battle.sound";
+  const sound = {
+    ac: null, nodes: [],
+    get on() { return store.get(SOUND_KEY) !== "off"; },
+    ctx() {
+      if (!this.on) return null;
+      if (!this.ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        try { this.ac = new AC(); } catch { return null; }
+      }
+      if (this.ac.state === "suspended") this.ac.resume().catch(() => {});
+      return this.ac;
+    },
+    // tones [[hz, ms]...] starting `inMs` from now
+    beep(tones, inMs) {
+      const ac = this.ctx();
+      if (!ac) return;
+      const lat = ac.outputLatency || ac.baseLatency || 0;
+      let t = ac.currentTime + Math.max(0, inMs / 1000 - lat);
+      const out = ac.createGain();
+      out.gain.value = 0.06;
+      out.connect(ac.destination);
+      for (const [hz, ms] of tones) {
+        const o = ac.createOscillator();
+        o.type = "square"; o.frequency.value = hz;
+        o.connect(out); o.start(t); o.stop(t + ms / 1000);
+        t += ms / 1000;
+        this.nodes.push(o);
+      }
+      if (this.nodes.length > 64) this.nodes.splice(0, this.nodes.length - 64);
+    },
+    cancel() { for (const o of this.nodes) { try { o.disconnect(); } catch {} } this.nodes = []; },
+  };
+  const BEAT_TONES = {beat_count: [[1000, 20]], beat_tick: [[1600, 30]], beat_accent: [[2400, 40]]};
+  function beatSounds(T) {
+    const now = performance.now() - T.t0;
+    for (const c of PT.beat.cues(T.B)) if (c.t >= now) sound.beep(BEAT_TONES[c.id], c.t - now);
+  }
+  function renderSoundBtn() {
+    const b = $("#battle-sound");
+    if (!b) return;
+    b.textContent = tr(sound.on ? "battle.sound.on" : "battle.sound.off");
+    b.setAttribute("aria-pressed", String(sound.on));
+  }
+  $("#battle-sound")?.addEventListener("click", () => {
+    store.set(SOUND_KEY, sound.on ? "off" : "on");
+    if (!sound.on) sound.cancel();
+    renderSoundBtn();
+  });
 
   /* ---------------- animation loop ---------------- */
 
@@ -1033,14 +1243,23 @@
     const ph = S.phase, T = S.trial, A = S.atk;
     const trialOn = T && T.started;
     const band = $("#trial-band"), ptr = $("#trial-ptr"), tg = $("#trial-gauge");
-    band.style.display = trialOn ? "" : "none";
-    ptr.style.display = trialOn ? "" : "none";
+    const kind = trialOn ? T.kind : null, beat = kind === "beat";
+    band.style.display = trialOn && !beat ? "" : "none";
+    ptr.style.display = trialOn && !beat ? "" : "none";
+    tg.classList.toggle("tide", kind === "tilt");
+    tg.classList.toggle("beat", beat);
+    renderLane(beat ? T : null);
+    const kindEl = $("#trial-kind");
+    if (kindEl) kindEl.textContent = trialOn ? tr("battle.trial.kind." + kind) : "";
     let val = "—", scoring = false, stage = -2, fills = [0, 0, 0, 0];
     if (trialOn) {
-      band.style.left = (T.center - P.bandPct / 2) + "%";
-      band.style.width = P.bandPct + "%";
-      band.classList.toggle("in", T.inBand && ph === "trial");
-      ptr.style.left = T.level + "%";
+      if (!beat) {
+        band.style.left = (T.center - T.w / 2) + "%";
+        band.style.width = T.w + "%";
+        band.classList.toggle("in", T.inBand && ph === "trial");
+        ptr.style.left = T.level + "%";
+        ptr.classList.toggle("in", T.inBand && ph === "trial");
+      }
       const t = T.elapsed;
       const done = T.score !== null;
       stage = done ? 3 : stageAt(t);
@@ -1049,7 +1268,8 @@
       fills = [P.readyMs ? Math.min(1, t / P.readyMs) : 1,
         ...[0, 1, 2].map(k => Math.min(1, Math.max(0, (t - P.readyMs - k * P.stageMs) / P.stageMs)))];
       if (done) val = tr("battle.trial.total", {n: T.score});
-      else if (!scoring) val = tr("battle.trial.ready", {s: ((P.readyMs - t) / 1000).toFixed(1)});
+      else if (!scoring) val = tr("battle.trial.ready", {s: (Math.max(0, P.readyMs - t) / 1000).toFixed(1)});
+      else if (beat) { const v = PT.beat.stageLive(T.B, stage); val = tr("battle.trial.beatLive", {n: v == null ? "--" : v + "%"}); }
       else val = tr("battle.trial.inBand", {n: stageScore(T, stage)});
       // Cue once per stage start
       if (ph === "trial" && scoring && !done && T.cueStage !== stage) {
@@ -1107,6 +1327,39 @@
     $("#def-val").textContent = dv;
   }
 
+  // Sprout's lane (ui-design §4.8 C3, drawn like the TFT): notes slide in from
+  // the right and reach the judge line (8 %) on their beat; rests are grey
+  // dots; a hit turns into ★ / ✓ on the line, a stray tap flashes ✗ left of it
+  const LANE_X = 8, LANE_LEAD_MS = 1200;
+  function renderLane(T) {
+    const lane = $("#trial-lane");
+    if (!lane) return;
+    lane.hidden = !T;
+    if (!T) { if (lane.dataset.k) { lane.innerHTML = ""; lane.dataset.k = ""; } return; }
+    const B = T.B, e = Math.floor(performance.now() - T.t0);
+    if (lane.dataset.k !== String(T.t0)) {
+      lane.dataset.k = String(T.t0);
+      lane.innerHTML = `<i class="judge"></i>` + B.sc.slots.map(sl => `<b class="${sl.rest ? "rest" : "note"}"></b>`).join("") +
+        `<em class="mark"></em><em class="stray">✗</em>`;
+    }
+    const els = lane.querySelectorAll("b");
+    B.sc.slots.forEach((sl, i) => {
+      const x = LANE_X + (sl.b - e) / LANE_LEAD_MS * (100 - LANE_X);
+      const el = els[i], ni = sl.rest ? -1 : B.sc.notes.indexOf(sl), r = ni >= 0 ? B.res[ni] : null;
+      const show = x <= 100 && x >= 0 && r !== "perfect" && r !== "good";
+      el.style.display = show ? "" : "none";
+      if (show) el.style.left = x + "%";
+      el.classList.toggle("miss", r === "miss");
+    });
+    const now = performance.now(), recent = k => T.marks.some(mk => mk.kind === k && now - mk.at < 150);
+    const mark = lane.querySelector(".mark");
+    mark.textContent = recent("perfect") ? "★" : recent("good") ? "✓" : "";
+    mark.className = "mark" + (recent("perfect") ? " perfect" : recent("good") ? " good" : "");
+    lane.querySelector(".stray").classList.toggle("on", recent("stray"));
+    const flash = B.sc.notes.some(nt => e >= nt.b && e - nt.b < 80) || B.sc.counts.some(c => e >= c && e - c < 80);
+    lane.querySelector(".judge").classList.toggle("on", flash);
+  }
+
   // Short text over the trial gauge when a stage starts
   function cue(text, stage) {
     const el = $("#trial-cue");
@@ -1144,9 +1397,11 @@
         {t: tr("battle.pad.skill"), k: kb[2], on: false}, {...switchBtn, on: false}];
     }
     const skill = p.active !== null ? PETS[p.active].skill : tr("battle.pad.skill");
-    const holding = isAtt && ph === "trial";
+    const holding = isAtt && ph === "trial", kind = holding ? S.trial.kind : null;
     return [
-      {t: tr(holding ? "battle.pad.hold" : "battle.pad.attack"), k: kb[0], on: isAtt && (ph === "ready" || ph === "trial")},
+      {t: tr(kind === "tilt" ? "battle.pad.right" : kind === "beat" ? "battle.pad.tap" : holding ? "battle.pad.hold" : "battle.pad.attack"),
+        k: kb[0], on: isAtt && (ph === "ready" || ph === "trial")},
+      kind === "tilt" ? {t: tr("battle.pad.left"), k: kb[1], on: true} :
       {t: tr("battle.pad.block"), k: kb[1], on: !isAtt && ph === "defending"},
       {t: skill, k: kb[2], on: isAtt && ph === "ready" && p.cd === 0},
       switchBtn,
@@ -1202,7 +1457,8 @@
         b.querySelector("span").textContent = labels[s].t;
         b.querySelector("kbd").textContent = labels[s].k;
         b.disabled = !labels[s].on;
-        b.classList.toggle("held", s === 0 && isAtt && ph === "trial" && S.trial.held);
+        b.classList.toggle("held", isAtt && ph === "trial" && (s === 0 && S.trial.held ||
+          S.trial.kind === "tilt" && (s === 0 && S.trial.keys.r || s === 1 && S.trial.keys.l)));
       });
     });
 
@@ -1225,7 +1481,9 @@
       if (canSwitch(a)) opts.push(tr("battle.opt.switch", {k: k[3]}));
       prompt = `<span>${tr("battle.prompt.ready", {p: pName(a), opts: opts.join(" · ")})}</span>`;
     } else if (ph === "trial") {
-      prompt = `<span>${tr("battle.prompt.trial", {k: kbd(PLAYERS[a].keys[0])})}</span>`;
+      const kind = S.trial.kind, k = kbd(PLAYERS[a].keys[0]);
+      prompt = `<span>${kind === "tilt" ? tr("battle.prompt.tilt", {k, k2: kbd(PLAYERS[a].keys[1])}) :
+        kind === "beat" ? tr("battle.prompt.beat", {k}) : tr("battle.prompt.trial", {k})}</span>`;
     } else if (ph === "defending") {
       prompt = `<span>${tr("battle.prompt.defend", {k: kbd(PLAYERS[d].keys[1]), n: S.atk.hits})}</span>`;
     } else if (ph === "over") {
@@ -1252,12 +1510,20 @@
     const m = KEYMAP[e.key.toLowerCase()];
     if (!m) return;
     e.preventDefault();
-    if (!e.repeat) act(m[0], m[1], true);
+    if (!e.repeat) act(m[0], m[1], true, e.timeStamp);
   });
   document.addEventListener("keyup", e => {
     const m = KEYMAP[e.key.toLowerCase()];
-    if (m && m[1] === 0) act(m[0], 0, false);
+    if (m && m[1] <= 1) act(m[0], m[1], false, e.timeStamp);
   });
+  // ← / → also turn the attacker's handheld in Tide's trial
+  const ARROWS = {ArrowRight: "ar", ArrowLeft: "al"};
+  document.addEventListener("keydown", e => {
+    if (window.currentTab !== "battle" || typing(e) || !ARROWS[e.key] || !S || S.phase !== "trial" || S.trial.kind !== "tilt") return;
+    e.preventDefault();
+    if (!e.repeat) tiltKey(ARROWS[e.key], true);
+  });
+  document.addEventListener("keyup", e => { if (ARROWS[e.key] && S && S.phase === "trial" && S.trial.kind === "tilt") tiltKey(ARROWS[e.key], false); });
 
   const arena = document.querySelector(".arena");
   arena.addEventListener("pointerdown", e => {
@@ -1272,24 +1538,30 @@
     if (!b || b.disabled) return;
     e.preventDefault();
     b.setPointerCapture?.(e.pointerId);
-    act(+b.dataset.i, +b.dataset.s, true);
+    act(+b.dataset.i, +b.dataset.s, true, e.timeStamp);
   });
   const release = e => {
     const b = e.target.closest?.(".pad button");
-    if (b && b.dataset.s === "0") act(+b.dataset.i, 0, false);
+    if (b && (b.dataset.s === "0" || b.dataset.s === "1")) act(+b.dataset.i, +b.dataset.s, false, e.timeStamp);
   };
   arena.addEventListener("pointerup", release);
   arena.addEventListener("pointercancel", release);
   arena.addEventListener("contextmenu", e => { if (e.target.closest(".pad")) e.preventDefault(); });
   // A key held while switching tabs or windows never sends its keyup: let go
-  window.addEventListener("blur", () => { if (S && S.phase === "trial") trialHold(false); });
+  window.addEventListener("blur", () => {
+    if (!S || S.phase !== "trial") return;
+    if (S.trial.kind === "tilt") { for (const k of ["r", "l", "ar", "al"]) if (S.trial.keys[k]) tiltKey(k, false); }
+    else trialHold(false);
+  });
 
   $("#restart").addEventListener("click", () => startMatch(Math.random() < 0.5 ? 0 : 1));
 
   // Read-only hooks for the automated playtest script
-  window.PR.battle = {get state() { return S; }, params: P, bandCenter, tau100, stageAt, inBand, tierOf, attackDamage, chainDamage, cConfig};
+  window.PR.battle = {get state() { return S; }, params: P, bandCenter, tau100, stageAt, inBand, tierOf, attackDamage, chainDamage, cConfig,
+    petTrials: PT, act, get sound() { return sound.on; }};
 
   buildFighters();
   renderParams();
+  renderSoundBtn();
   startMatch(Math.random() < 0.5 ? 0 : 1);
 })();

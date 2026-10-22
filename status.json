@@ -508,10 +508,10 @@
         "name": "板载喇叭",
         "iface": "PWM",
         "owner": "all",
-        "detail": "micro:bit V2 自带的喇叭（P0.00，PWM 方波），没有延迟：界面音、节奏音和赛车引擎声都走它；计划中叶芽打节拍的拍子也由它发出。",
+        "detail": "micro:bit V2 自带的喇叭（P0.00，PWM 方波），没有延迟：界面音、节奏音和赛车引擎声都走它；叶芽的攻击测试也由它打拍子（模拟器里已经能玩，固件待移植）。",
         "en": {
           "name": "On-board speaker",
-          "detail": "The micro:bit V2's own speaker (P0.00, PWM square wave) with no latency: UI sounds, rhythm cues and the racing engine sound; it will also play the beat for Sprout's planned rhythm trial."
+          "detail": "The micro:bit V2's own speaker (P0.00, PWM square wave) with no latency: UI sounds, rhythm cues and the racing engine sound; it also plays the beat of Sprout's attack trial (playable in the simulator, firmware still to port)."
         }
       },
       {
@@ -543,10 +543,10 @@
         "name": "按钮 ×4",
         "iface": "GPIO",
         "owner": "yihao",
-        "detail": "A / B 用板载按钮（确认 / 返回、格挡），S 技能、M 菜单是外接按钮。A / B 按下的时刻用中断记录，精确到 1 ms。计划：叶芽的攻击测试是跟着拍子按 A。",
+        "detail": "A / B 用板载按钮（确认 / 返回、格挡），S 技能、M 菜单是外接按钮。A / B 按下的时刻用中断记录，精确到 1 ms。叶芽的攻击测试是跟着拍子按 A，按下的时刻算分（模拟器里已经能玩）。",
         "en": {
           "name": "Buttons ×4",
-          "detail": "A / B are the on-board buttons (confirm / back, blocking); S (skill) and M (menu) are external buttons. A / B press times are recorded by interrupt to 1 ms. Planned: Sprout's attack trial is pressing A on the beat."
+          "detail": "A / B are the on-board buttons (confirm / back, blocking); S (skill) and M (menu) are external buttons. A / B press times are recorded by interrupt to 1 ms. Sprout's attack trial is pressing A on the beat, scored by the press time (playable in the simulator)."
         },
         "kind": "sensor"
       },
@@ -569,10 +569,10 @@
         "name": "加速度计（计划）",
         "iface": "I2C",
         "owner": "all",
-        "detail": "micro:bit V2 板载（内部 I2C，不占边缘引脚）。计划用于潮影的攻击测试：倾斜掌机让水珠停在浪尖上。待组里确认，要实测机壳里的轴向和舒适的倾斜角度。",
+        "detail": "micro:bit V2 板载 LSM303AGR（内部 I2C，不占边缘引脚）。潮影的攻击测试：左右倾斜掌机让水珠停在浪尖上（转约 30° 到头）；模拟器里已经能玩（键盘、倾斜条、调试滑杆、手机自带的加速度计）。驱动由组员写，还要实测机壳里的轴向和倾斜角度是否舒服。",
         "en": {
           "name": "Accelerometer (planned)",
-          "detail": "On the micro:bit V2 board (internal I2C, no edge pins). Planned for Tide's attack trial: tilt the handheld to keep a water drop on the wave crest. Pending team confirmation; the axes inside the case and a comfortable tilt range need testing."
+          "detail": "The micro:bit V2's on-board LSM303AGR (internal I2C, no edge pins). Tide's attack trial: tilt the handheld left and right to keep a water drop on the wave crest (about 30 degrees to the end); playable in the simulator (keys, a tilt bar, the debug slider, a phone's own accelerometer). The driver is the team's to write; the axes inside the case and a comfortable tilt range still need testing."
         }
       },
       {
@@ -672,10 +672,10 @@
         "file": "lib/trial.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "三层越来越快的追踪光带：光带位置只由种子和时间决定，和网页原型逐点一致；按在带内的时间比例给分。",
+        "detail": "三层越来越快的追踪光带：光带位置只由种子和时间决定，和网页原型逐点一致；按在带内的时间比例给分。 每只宠物一种测试（焰灵光带、潮影倾斜、叶芽节拍）的规格和模拟器已经做好，固件里潮影的倾斜和叶芽的节拍（beat.c）等试玩后再移植。",
         "en": {
           "name": "Attack trial",
-          "detail": "Three tracking stages, each faster than the last: the band's position depends only on the seed and time, matching the web prototype point for point; the score is the share of time the pointer stays inside the band."
+          "detail": "Three tracking stages, each faster than the last: the band's position depends only on the seed and time, matching the web prototype point for point; the score is the share of time the pointer stays inside the band. One trial per pet (Ember the band, Tide tilting, Sprout the beat) is specified and playable in the simulator; Tide's tilt and Sprout's beat (beat.c) come to the firmware after the playtest."
         }
       },
       {
@@ -829,13 +829,13 @@
       {
         "id": "webproto",
         "name": "网页对战原型",
-        "file": "battle.js",
+        "file": "battle.js · pet-trials.js",
         "owner": "yihao",
         "status": "done",
-        "detail": "和固件规则完全一致的网页对战，滑块调参后可以导出 game_config.h。",
+        "detail": "和固件规则完全一致的网页对战，滑块调参后可以导出 game_config.h。每只宠物一种攻击测试：焰灵按住键跟光带，潮影用两个键左右倾斜，叶芽跟着拍子按键；三种测试的代码在 pet-trials.js，和模拟器共用。",
         "en": {
           "name": "Battle prototype",
-          "detail": "A web battle with rules identical to the firmware; tune values with sliders and export game_config.h."
+          "detail": "A web battle with rules identical to the firmware; tune values with sliders and export game_config.h. One attack trial per pet: Ember holds a key to follow the band, Tide tilts with two keys, Sprout taps on the beat; the trial code is pet-trials.js, shared with the simulator."
         }
       },
       {
@@ -844,10 +844,10 @@
         "file": "device.html",
         "owner": "yihao",
         "status": "done",
-        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准；距离传感器用挥手键或手高滑杆模拟（赛车挥手擦浪花、冒险手托升降门）。",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗（每只宠物一种攻击测试：焰灵捏压力垫跟光带、潮影倾斜掌机、叶芽跟着喇叭的拍子按 A）、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准；倾斜用键盘、倾斜条、调试滑杆或手机自带的加速度计模拟；距离传感器用挥手键或手高滑杆模拟（赛车挥手擦浪花、冒险手托升降门）。",
         "en": {
           "name": "Handheld simulator",
-          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration; the distance sensor is simulated with a wave key or a hand-height slider (wave to wipe the splash in racing, hold the gate by hand in adventure)."
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle (one attack trial per pet: Ember squeezes the pad to follow the band, Tide tilts the handheld, Sprout taps A on the speaker's beat), two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration; tilt comes from the keys, a tilt bar, the debug slider or a phone's own accelerometer; the distance sensor is simulated with a wave key or a hand-height slider (wave to wipe the splash in racing, hold the gate by hand in adventure)."
         }
       },
       {

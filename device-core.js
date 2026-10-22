@@ -23,8 +23,8 @@
 //   Every key must start with prefix. Calls I18N.add, records keys (missing
 //   English -> lint "missingEn") and Chinese characters (font export). Every
 //   character must be in the m charset (ASCII, CJK, ！？：，、。…「」); write
-//   icons as {A} {B} {S} {M} {STICK} {PAD} {OK} {NO} {STAR} {L} {R} {UP} {DN}
-//   {DEL} {DICE} {GEAR}, never as ✓ ▶ ⚄ (lint "charset"). dev.page.* (HTML
+//   icons as {A} {B} {S} {M} {STICK} {PAD} {TILT} {NOTE} {OK} {NO} {STAR} {L} {R}
+//   {UP} {DN} {DEL} {DICE} {GEAR}, never as ✓ ▶ ⚄ (lint "charset"). dev.page.* (HTML
 //   page text) is exempt. Placeholders are {name}; icon names are reserved.
 //   [+] Once device-font.js is loaded, a non-ASCII character that is not in it
 //   is linted "missingGlyph" (at start for every string, and when drawn):
@@ -211,7 +211,7 @@
 //
 // ======================= HANDHELD CONTEXT ctx =======================
 //
-// ctx = {p, now(), gameNow(), g, input, hw: {caps: {joy, pad, snd}, invert(ms), shake()},
+// ctx = {p, now(), gameNow(), g, input, hw: {caps: {joy, pad, snd, acc [+]}, invert(ms), shake()},
 //   lobby, state, stateAge(), link: {up, gotState, rxPerSec, helloAcked, inMode, match},
 //   rival(), settings, s, m, local, t(key, vars), rng: {int(n), float()},
 //   go(id, params), back(), confirm({textKey, vars, holdMs, c, onYes, onNo}) ([+] c = text colour),
@@ -222,6 +222,14 @@
 //   saveSettings(patch), setLanguage(lang), setHover(card),
 //   act(action, arg, data), rt(action, arg, data) -> bool, send(msgName, fields),
 //   sendInputNow(), padLevel(st, dt), sfx(id), tone(hz),
+//   [+] sfxAt(id, t) (a BEEP sound at board time t, scheduled ahead with WebAudio:
+//       the beat of Sprout's trial; logged at once with that t), sfxCancel() (stop
+//       the ones not played yet), sfxEpoch() (+1 whenever scheduled sounds were
+//       dropped: a pause of the simulation; schedule again what is still ahead),
+//   [+] tiltOn() -> the tilt pointer is usable (acc fitted, setting not off, fresh
+//       samples, attack-trial.md §2A), accSamples(afterSeq) -> [{seq, t, x}] the
+//       accelerometer samples after that seq (last 32), tiltSteer(on) (Tide's trial:
+//       the stick keys / gamepad stick / touch tilt bar turn the handheld, §8.6),
 //   fx: {wipe(), border(color, ms), pop(text, x, y, color), dissolve(x, y, w, h)},
 //   toast(key, vars, ms),
 //   [+] screenId, overlayId, lingering, me() -> my profile | null,
@@ -256,7 +264,8 @@
 //   (x, y) = top-left of the 14 px text row (x = middle / right edge for c / r);
 //   m glyphs at +1, s glyphs and icons at +3 (times scale). m: CJK 12 px,
 //   ASCII 6 px; s: 5x7 ASCII in a 6 px cell, plus "\x01".."\x08" = → ← ↑ ↓ ✓ ✗ ★ °
-//   (DEVICE.SSYM). Icons 8 px + 2 px gap; {PAD} draws {A} without a pad.
+//   (DEVICE.SSYM). Icons 8 px + 2 px gap; {PAD} draws {A} without a pad, {TILT}
+//   draws {A} without a usable accelerometer.
 //   Over budget w -> 1 px danger box + lint "overflow".
 // g.textBox(x, y, w, h, str, opt) -> {lines, overflow}; g.measure(str, opt) -> {w, h}
 //   A wrapped line after the first of a paragraph that starts with Chinese
@@ -285,7 +294,7 @@
 //   -> {pick: i} | {unlock: true} | null, dim(g), panel(g, x, y, w, h)
 // Shared sprites: pet.ember pet.tide pet.sprout, av.kid av.robot av.cat,
 // ui.mode.battle ui.mode.race ui.mode.adv ui.mode.settings, ui.car ui.carDiag,
-// icon.A icon.B icon.S icon.M icon.STICK icon.PAD icon.OK icon.NO icon.STAR
+// icon.A icon.B icon.S icon.M icon.STICK icon.PAD icon.TILT icon.NOTE icon.OK icon.NO icon.STAR
 // icon.L icon.R icon.UP icon.DN icon.DEL icon.DICE icon.GEAR icon.heart
 // icon.heartEmpty icon.bolt icon.flame icon.drop icon.leaf icon.shield
 // icon.hourglass icon.antenna icon.pause. Tables: DEVICE.PALETTE, DEVICE.PETS,
@@ -294,7 +303,9 @@
 // ======================= INPUT =======================
 //
 // ctx.input = {x, y (-100..100, + = up), a, b, skill, menu, pressure (0..255),
-//   padPresent, aDownMs, bDownMs, stickClick, aBtn [+] (A without the stick
+//   padPresent, aDownMs, bDownMs, stickClick, acc [+] {x, y, z} (mg, handheld frame,
+//   +x = right side down; a sample every 20 ms, attack-trial.md §2A), accSeq [+],
+//   aBtn [+] (A without the stick
 //   click: trial, throttle and winch "hold A" use this), distMm [+] (distance
 //   sensor over the handheld: 80 while the wave key is held, otherwise the hand
 //   height in mm, 1300 = no hand), raw: {fsr, joyX, joyY}}
@@ -324,7 +335,9 @@
 //   win over saved tuning, never written to localStorage (fixtures pass the
 //   values they depend on). mode = start it at once with the stub session.
 // press(p, btn, holdMs = 50) (btn also "UP".."RIGHT", "PAD", "PAD_LIGHT", "STICK", "WAVE");
-// hold(p, btn, down); stick(p, x, y); pressure(p, v); bot(p, on);
+// hold(p, btn, down); stick(p, x, y); pressure(p, v); bot(p, on); tilt(p, mg, src) [+]
+//   (the handheld's left-right tilt as the x reading in mg; src "script" (default)
+//   or "slider"; omitted mg: read it); tiltInvert(p, on) [+] (phone motion sign);
 // hand(p, mm) (hand height over that handheld, 0..1300; omitted: read it);
 //   (unlike a bot's, these are not held back: a script, like a person, loses
 //   a press made within 150 ms of a screen change, so step(200) after one)
@@ -355,7 +368,7 @@
 //     ready(T) / pct(inside, scored), stubModeScreens(prefix, titleKey, hud),
 //     debug(cmd, arg) (the running mode's central.debug; broadcasts next tick),
 //     ctl(p, "script"|"pad"|"touch") (a ctl on that input source: gamepads go
-//     on "pad"), caps(p, {joy, pad, snd}) (unplug the stick / pull the SD card
+//     on "pad"; bots and scripts also get tilt(mg)), caps(p, {joy, pad, snd, acc}) (unplug the stick / pull the SD card / remove the accelerometer
 //     at run time; HELLO caps follow), keySwap(on) (Tab), world().fsrInverted
 //     (FSR divider wired the other way), world().spiMhz (8 | 16).
 //
@@ -684,8 +697,8 @@
     return (c >= 0x4e00 && c <= 0x9fff) || (c >= 0x3400 && c <= 0x4dbf);
   };
   const inMCharset = ch => isAscii(ch) || isCjk(ch) || M_PUNCT.includes(ch);
-  const ICON_NAMES = ["A", "B", "S", "M", "STICK", "PAD", "OK", "NO", "STAR", "L", "R", "UP", "DN", "DEL", "DICE", "GEAR"];
-  const KEY_ICONS = new Set(["A", "B", "S", "M", "STICK", "PAD"]);
+  const ICON_NAMES = ["A", "B", "S", "M", "STICK", "PAD", "TILT", "NOTE", "OK", "NO", "STAR", "L", "R", "UP", "DN", "DEL", "DICE", "GEAR"];
+  const KEY_ICONS = new Set(["A", "B", "S", "M", "STICK", "PAD", "TILT", "NOTE"]);
   const TOKEN_RE = /\{([A-Z]+)\}/g;
 
   let fontTable = null;          // DEVICE_FONT_M decoded lazily: {ch: glyph}
@@ -824,6 +837,7 @@
 
   function drawIcon(g, hh, name, x, y, s, textColor) {
     if (name === "PAD" && hh && !hh.padOn()) name = "A";
+    if (name === "TILT" && hh && !hh.tiltOn()) name = "A";
     const opt = {scale: s};
     if (textColor === "line") opt.color = "line";
     else if (!KEY_ICONS.has(name) && name !== "STAR") opt.color = textColor;
@@ -967,6 +981,9 @@
     M: ["muted", ".######.", "########", "##....##", "########", "##....##", "########", "##....##", ".######."],
     STICK: ["muted", "..####..", "..#..#..", "###..###", "#......#", "#......#", "###..###", "..#..#..", "..####.."],
     PAD: ["muted", "########", "#......#", "#.####.#", "#.#..#.#", "#.#..#.#", "#.####.#", "#......#", "########"],
+    // attack trials (ui-design §2.4, 2026-10-22): a tilted handheld (Tide), a note (Sprout)
+    TILT: ["waterLt", ".....##.", "....#..#", "...#..#.", "..#..#..", ".#..#...", "#..#....", ".##.....", "........"],
+    NOTE: ["grassLt", "....###.", "....#.##", "....#...", "....#...", ".####...", "#####...", ".###....", "........"],
     OK: ["grassLt", "........", "......##", ".....##.", "##..##..", ".####...", "..##....", "........", "........"],
     NO: ["danger", "##....##", ".##..##.", "..####..", "...##...", "..####..", ".##..##.", "##....##", "........"],
     STAR: ["gold", "...##...", "...##...", "########", ".######.", "..####..", ".##..##.", ".#....#.", "........"],
@@ -1222,8 +1239,8 @@
   };
   DEVICE.KEYMAP = KEYMAP;
   const KEY_LABEL = [
-    {a: "F", b: "G", skill: "R", menu: "T", pad: "V", light: "C", wave: "E", stick: "WASD"},
-    {a: "K", b: "L", skill: "I", menu: "O", pad: ",", light: ".", wave: "P", stick: "↑←↓→"},
+    {a: "F", b: "G", skill: "R", menu: "T", pad: "V", light: "C", wave: "E", stick: "WASD", tilt: "A / D"},
+    {a: "K", b: "L", skill: "I", menu: "O", pad: ",", light: ".", wave: "P", stick: "↑←↓→", tilt: "← / →"},
   ];
   const newSource = () => ({x: 0, y: 0, a: false, b: false, skill: false, menu: false, stick: false,
     force: 0, target: 0, up: false, down: false, left: false, right: false, padHard: false, padLight: false, wave: false});
@@ -1232,7 +1249,8 @@
     const src = {kbd: newSource(), touch: newSource(), pad: newSource(), script: newSource(), bot: newSource()};
     const queue = [];   // {t (sim ms), src, field, value}
     const st = {x: 0, y: 0, a: false, b: false, skill: false, menu: false, pressure: 0, padPresent: false,
-      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, distMm: 1300, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
+      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, distMm: 1300, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512},
+      acc: {x: 0, y: 0, z: 1000}, accSeq: 0};
     const btn = {};
     for (const b of BTNS) btn[b] = {down: false, at: 0, long: false, gen: 0, fromStick: false};
     const stick = {dir: null, next: 0, latched: false};
@@ -1253,6 +1271,40 @@
       return {x: clamp(x, -100, 100), y: clamp(y, -100, 100), A: a || stickC, B: b, SKILL: skill, MENU: menu, stickC, wave, aBtn: a, target, analog};
     }
     let last = merged();
+
+    // The simulated LSM303AGR (ui-design §8.6): while Tide's trial steers, the
+    // stick keys turn the handheld at the hold-A speed (140 pointer / s) and a
+    // gamepad stick is the angle; then a sample every TILT_SAMPLE_MS of this
+    // board's clock, +-4 mg of seeded noise, 4 mg steps (10 bit at +-2 g).
+    function tiltTick(t0, t1) {
+      const tl = hh.tilt, bp = DEVICE.battleParams(), F = bp.tiltFullMg || 500;
+      if (tl.steer) {
+        let dir = 0;
+        for (const [n, s] of Object.entries(src)) if (n !== "pad") dir += (s.right ? 1 : 0) - (s.left ? 1 : 0);
+        dir = clamp(dir, -1, 1);
+        if (dir) {
+          if (tl.active !== "keys") tl.kbd = tl.mg;
+          tl.kbd = clamp(tl.kbd + dir * 2.8 * F * (t1 - t0) / 1000, -1000, 1000);
+          setTilt(hh, "keys", tl.kbd);
+        }
+        if (src.pad.x !== tl.padX) { tl.padX = src.pad.x; setTilt(hh, "pad", src.pad.x / 100 * 1.2 * F); }
+      }
+      const now = t1 + hh.offset, every = Math.max(1, bp.tiltSampleMs || 20);
+      if (tl.next == null) tl.next = now - (((now % every) + every) % every) + every;
+      while (tl.next <= now) {
+        if (hh.hw.caps.acc) {
+          const x = PT.tilt.quantize(tl.mg + hh.world.streams["acc." + hh.p].int(9) - 4);
+          const z = PT.tilt.quantize(Math.sqrt(Math.max(0, 1e6 - x * x)));
+          tl.seq++;
+          tl.samples.push({seq: tl.seq, t: tl.next, x});
+          if (tl.samples.length > 32) tl.samples.shift();
+          tl.lastAt = tl.next;
+          st.acc = {x, y: 0, z};
+          st.accSeq = tl.seq;
+        }
+        tl.next += every;
+      }
+    }
 
     function edges(m, t, out) {
       for (const b of BTNS) {
@@ -1350,10 +1402,40 @@
         st.raw.joyY = hh.hw.caps.joy ? Math.round(512 + m.y * 5.11) : 0;
         st.aBtn = m.aBtn;
         st.distMm = m.wave ? 80 : hh.handMm;   // the wave key = a hand held at 80 mm (ui-design §6.11)
+        tiltTick(t0, t1);
         return out;
       },
     };
   }
+  // A tilt source moved: the source that moved last is the handheld's angle
+  // (ui-design §8.6). min > 0 (phone motion): it takes over only after moving
+  // that much, so a phone lying still does not fight the touch bar or keys.
+  function setTilt(hh, name, mg, min = 0) {
+    const tl = hh.tilt;
+    mg = clamp(Math.round(+mg || 0), -2000, 2000);
+    if (tl.active !== name) {
+      const ref = tl.ref[name];
+      // (nothing else drives it yet: take over at once)
+      if (min && tl.active != null && (ref == null || Math.abs(mg - ref) < min)) { if (ref == null) tl.ref[name] = mg; return; }
+      tl.active = name;
+    }
+    tl.ref[name] = mg;
+    tl.mg = mg;
+  }
+  // Tide's trial: the stick keys, a gamepad stick and the touch tilt bar turn the
+  // handheld; afterwards those let go (back to level), the slider stays where it is
+  function setSteer(hh, on) {
+    const tl = hh.tilt;
+    on = !!on;
+    if (tl.steer === on) return;
+    tl.steer = on;
+    tl.padX = hh.input.src.pad.x;
+    if (!on) {
+      tl.kbd = 0;
+      if (tl.active === "keys" || tl.active === "pad" || tl.active === "touch") { tl.active = null; tl.mg = 0; }
+    }
+  }
+
   // input_map_pressure() (input_map.c): raw -> 0..255, either direction
   function mapPressure(raw, mn, mx) {
     if (mn === mx) return 0;
@@ -1587,7 +1669,7 @@
     if (rankRulesCache != null) return rankRulesCache;
     let s;
     try {
-      s = JSON.stringify({boards: rankBoards().map(b => [b.id, b.better, b.coop, b.pause]), battle: BATTLE_DEFAULTS,
+      s = JSON.stringify({boards: rankBoards().map(b => [b.id, b.better, b.coop, b.pause]), battle: battleRuleDefaults(),
         trial: TRIAL.defaults(), modes: R.modes.filter(m => m.rank).map(m => [m.id, (m.params || []).map(p => [p.key, p.def]), m.rules || null])});
     } catch (e) { s = "rules?"; }
     const h = hashStr(s) & 0xffff;
@@ -1763,7 +1845,7 @@
       const md = DEVICE.mode(b.mode);
       const cur = DEVICE.params(b.mode);
       for (const p of (md && md.params) || []) if (!b.ignoreParams.includes(p.key) && cur[p.key] !== p.def) return true;
-      if (b.modeId === 0) { const bp = DEVICE.battleParams(); for (const [k, v] of Object.entries(BATTLE_DEFAULTS)) if (bp[k] !== v) return true; }
+      if (b.modeId === 0) { const bp = DEVICE.battleParams(); for (const [k, v] of Object.entries(battleRuleDefaults())) if (bp[k] !== v) return true; }
       return false;
     }
     const api = {
@@ -2267,7 +2349,7 @@
 
   /* ================= 9. handheld ================= */
 
-  const DEFAULT_SETTINGS = () => ({volume: 3, clicks: true, pad: "auto", padCal: {min: C.FSR_REST, max: C.FSR_PEAK}, padCalSet: false, channel: 15, lang: LANG});
+  const DEFAULT_SETTINGS = () => ({volume: 3, clicks: true, pad: "auto", tilt: "auto", padCal: {min: C.FSR_REST, max: C.FSR_PEAK}, padCalSet: false, channel: 15, lang: LANG});
   // local page -> presence; null = the page keeps the presence of what is under it (S21 in results: still "in game")
   const PRESENCE_LOCAL = {settings: 2, "settings.cal": 2, ranks: 4, "ranks.name": null};
   const SYSTEM_MENU = new Set(["connect", "menu", "lobby"]);
@@ -2297,7 +2379,11 @@
       handMm: 1300,
       offset: wr.int(10001),
       bootNonce: 1 + wr.int(255),
-      hw: {caps: Object.assign({joy: true, pad: true, snd: true}, (world.opts.caps || [])[p] || {})},
+      hw: {caps: Object.assign({joy: true, pad: true, snd: true, acc: true}, (world.opts.caps || [])[p] || {})},
+      // simulated accelerometer (attack-trial.md §2A, ui-design §8.6): mg = the true left-right
+      // tilt (x reading, + = right side down) from the source that moved last (active)
+      tilt: {mg: 0, active: null, ref: {}, kbd: 0, steer: false, padX: 0, invert: false, seq: 0, next: null, samples: [], lastAt: -1e9},
+      sfxEpoch: 0,
       screenId: null, screenDef: null, screenParams: null, screenGen: 0, s: {}, m: null,
       ov: null,      // {id, def, s, lingerUntil}
       lockUntil: 0, nextFrame: 0, texts: [], lastTexts: [], tmap: new Map(), overBudget: 0,
@@ -2335,6 +2421,9 @@
     hh.input = makeInput(hh);
     hh.now = () => world.clock + hh.offset;
     hh.padOn = () => hh.settings.pad === "on" || (hh.settings.pad === "auto" && hh.input.st.padPresent && hh.hw.caps.pad);
+    // attack-trial.md §2A: tilt usable = accelerometer found, setting not off, and (auto) a sample in the last TILT_STALE_MS
+    hh.tiltOn = () => !!hh.hw.caps.acc && hh.settings.tilt !== "off" &&
+      (hh.settings.tilt === "on" || hh.now() - hh.tilt.lastAt <= (DEVICE.battleParams().tiltStaleMs || 200));
     hh.repeatCfg = () => {
       const d = (hh.ov && hh.ov.def) || hh.screenDef;
       const r = d && d.repeat;
@@ -2533,6 +2622,12 @@
       sendInputNow() { sendHeartbeat(hh); hh.extraInput = hh.now() + 20; },
       padLevel: (st, dt) => DEVICE.padLevel.update(st, hh.input.st, hh.settings, dt),
       sfx: id => playSfx(hh, id),
+      sfxAt: (id, t) => playSfxAt(hh, id, t),            // [+]
+      sfxCancel: () => cancelSfxAt(hh),                   // [+]
+      sfxEpoch: () => hh.sfxEpoch,                        // [+]
+      tiltOn: () => hh.tiltOn(),                          // [+]
+      accSamples: after => hh.tilt.samples.filter(q => q.seq > after),   // [+]
+      tiltSteer: on => setSteer(hh, on),                  // [+]
       tone: hz => setTone(hh, hz),
       fx: {
         wipe: () => hh.g.wipe(),
@@ -3215,6 +3310,36 @@
     v.beepUntil = end;
     if (v.toneOsc) { v.toneOsc.frequency.setValueAtTime(0, now); v.toneOsc.frequency.setValueAtTime(v.tone, end); }
   }
+  // [+] A BEEP sound at board time `at` (Sprout's beat, attack-trial.md §2B):
+  // WebAudio timing, not setTimeout, moved earlier by the output latency so it
+  // reaches the ear on time. Logged at once (with t = at).
+  function playSfxAt(hh, id, at) {
+    const def = R.sfx[id];
+    hh.sfxLog.push({id, t: at, at: true});
+    if (hh.sfxLog.length > 300) hh.sfxLog.shift();
+    if (!def) { lint("sfx", id, "unknown sound"); return; }
+    if (def.ch !== "BEEP") { lint("sfx", id, "sfxAt plays BEEP sounds only"); return; }
+    if (def.ui && !hh.settings.clicks) return;
+    const v = voice(hh);
+    if (!v || !hh.settings.volume || !world.running) return;
+    const ac = audio, lat = ac.outputLatency || ac.baseLatency || 0;
+    let t = ac.currentTime + Math.max(0, (at - hh.now()) / 1000 / (world.speed || 1) - lat);
+    v.sched = (v.sched || []).filter(q => q.end > ac.currentTime);
+    for (const [hz, ms] of def.tones || [[1000, 12]]) {
+      const o = ac.createOscillator();
+      o.type = "square"; o.frequency.value = hz;
+      o.connect(v.out); o.start(t); o.stop(t + ms / 1000);
+      t += ms / 1000;
+      v.sched.push({o, end: t});
+    }
+  }
+  function cancelSfxAt(hh) {
+    hh.sfxEpoch++;
+    const v = hh.voice;
+    if (!v || !v.sched) return;
+    for (const q of v.sched) { try { q.o.disconnect(); } catch {} }
+    v.sched = [];
+  }
   function setTone(hh, hz) {
     hz = hz | 0;
     if (!hz && !hh.voice) return;
@@ -3263,69 +3388,17 @@
   /* ================= 11. DEVICE.trial and DEVICE.padLevel ================= */
 
   // Port of trial.c with R (ready), S (stage), speeds and band width as
-  // parameters (§7.8 plan). cfg = {readyMs, stageMs, stages, bandPct, speeds}
-  const TRIAL = DEVICE.trial = {
+  // parameters (§7.8 plan). cfg = {readyMs, stageMs, stages, bandPct, speeds}.
+  // The code lives in pet-trials.js (PetTrials.band), shared with the battle
+  // prototype and the fairness runs; Sprout's beat and Tide's tilt filter are
+  // there too (PetTrials.beat / PetTrials.tilt, attack-trial.md §2A / §2B).
+  const PT = window.PetTrials;
+  const TRIAL = DEVICE.trial = Object.assign({}, PT.band, {
     defaults: () => ({readyMs: C.TRIAL_READY_MS, stageMs: C.TRIAL_STAGE_MS, stages: C.TRIAL_STAGES, bandPct: C.TRIAL_BAND_PCT, speeds: C.TRIAL_SPEEDS.slice()}),
-    // cfg from battle params (DEVICE.battleParams() shape)                 [+]
-    cfgFrom: P => ({readyMs: P.readyMs, stageMs: P.stageMs, stages: 3, bandPct: P.bandPct, speeds: [P.speed1, P.speed2, P.speed3]}),
-    endMs: cfg => cfg.readyMs + cfg.stages * cfg.stageMs,
-    stageAt(t, cfg) {
-      if (t < cfg.readyMs) return 0;
-      return Math.min(Math.floor((t - cfg.readyMs) / cfg.stageMs), cfg.stages - 1);
-    },
-    tau100(t, cfg) {
-      const Rm = cfg.readyMs, S = cfg.stageMs, s = cfg.speeds, n = cfg.stages;
-      if (t < Rm) return t * s[0];
-      const u = Math.min(t - Rm, n * S);
-      const k = Math.min(Math.floor(u / S), n - 1);
-      let v = Rm * s[0];
-      for (let j = 0; j < k; j++) v += S * s[j];
-      return v + (u - k * S) * s[k];
-    },
-    bandCenter(seed, t, cfg) {
-      const twoPi = 2 * Math.PI;
-      const half = cfg.bandPct / 2;
-      const tau = TRIAL.tau100(t, cfg) / 100;
-      const p1 = seed * twoPi / 256;
-      const p2 = (seed * 7 % 256) * twoPi / 256;
-      let c = 50 + 22 * Math.sin(twoPi * tau / 1300 + p1) + 12 * Math.sin(twoPi * tau / 700 + p2);
-      if (c < half) c = half;
-      if (c > 100 - half) c = 100 - half;
-      return Math.floor(c + 0.5);
-    },
-    inBand: (level, center, cfg) => 2 * Math.abs(level - center) <= cfg.bandPct,
-    create(seed, cfg, now) {
-      return {seed: seed & 0xff, cfg, start: now, elapsed: 0, phase: 0, level: 0,
-        center: TRIAL.bandCenter(seed & 0xff, 0, cfg), inside: false,
-        scored: new Array(cfg.stages).fill(0), insideMs: new Array(cfg.stages).fill(0)};
-    },
-    // -> true on the one call that finishes the trial
-    update(T, level, now) {
-      if (T.phase === 2) return false;
-      const cfg = T.cfg, end = TRIAL.endMs(cfg);
-      let e = Math.min(now - T.start, end);
-      if (e < T.elapsed) e = T.elapsed;
-      const prev = T.elapsed;
-      T.elapsed = e;
-      T.level = clamp(Math.round(level), 0, 100);
-      T.center = TRIAL.bandCenter(T.seed, e, cfg);
-      T.inside = TRIAL.inBand(T.level, T.center, cfg);
-      for (let k = 0; k < cfg.stages; k++) {
-        const lo = cfg.readyMs + k * cfg.stageMs, hi = lo + cfg.stageMs;
-        const from = Math.max(prev, lo), to = Math.min(e, hi);
-        if (to > from) { T.scored[k] += to - from; if (T.inside) T.insideMs[k] += to - from; }
-      }
-      if (e >= end) { T.phase = 2; return true; }
-      T.phase = e >= cfg.readyMs ? 1 : 0;
-      return false;
-    },
-    pct: (inside, scored) => scored ? Math.floor((inside * 200 + scored) / (scored * 2)) : 0,
-    score: T => TRIAL.pct(T.insideMs.reduce((a, b) => a + b, 0), T.scored.reduce((a, b) => a + b, 0)),
-    stageScore: (T, k) => k >= 0 && k < T.cfg.stages ? TRIAL.pct(T.insideMs[k], T.scored[k]) : 0,
-    stage: T => TRIAL.stageAt(T.elapsed, T.cfg),
-    done: T => T.phase === 2,
-    ready: T => T.phase === 0,      // [+] still in the ready phase
-  };
+    // cfg from battle params (DEVICE.battleParams() shape); w = band width (Tide tilting: tideBandPct)  [+]
+    cfgFrom: (P, w) => PT.band.cfgFrom(P, w),
+  });
+  DEVICE.petTrials = PT;     // [+]
 
   // Effective pad level 0..100 (controls.c): pad -> mapped pressure; no pad ->
   // holding A (not the stick click) rises TRIAL_RISE_PER_S, release falls
@@ -3407,7 +3480,12 @@
   const BATTLE_DEFAULTS = {base: 10, windowPct: 24, sweepMs: 1100, hp: 60, skillCd: 3, burnDmg: 5, burnTurns: 2, emberDmg: 8,
     tideHeal: 12, drain: 6, perfectPct: 20, goodPct: 50, shieldPct: 50, strongPct: 150, weakPct: 70, trialBonus: 20,
     maxDmg: 30, stageMs: 1500, speed1: 35, speed2: 65, speed3: 100, readyMs: 600, bandPct: 24, risePerS: 140,
-    fallPerS: 140, tierStrong: 50, tierUlt: 80, narrowPct: 20, speedupPct: 12, gapMs: 350, resolveMs: 900, graceMs: 1500};
+    fallPerS: 140, tierStrong: 50, tierUlt: 80, narrowPct: 20, speedupPct: 12, gapMs: 350, resolveMs: 900, graceMs: 1500,
+    // per-pet trials (attack-trial.md §2A / §2B): part of the rules fingerprint like the rest
+    ...window.PetTrials.DEFAULTS};
+  // the battle defaults that decide a result: the rules fingerprint and the "tuned" check (§9.2);
+  // BEAT_LANE_PX_PER_S only moves the notes on the screen
+  const battleRuleDefaults = () => { const o = Object.assign({}, BATTLE_DEFAULTS); delete o.beatLanePxPerS; return o; };
   let battleParamsCache = null, battleParamsAt = -1;
   DEVICE.battleParams = function () {
     const t = world ? world.clock : 0;
@@ -3455,8 +3533,9 @@
       "dev.page.pad": "捏", "dev.page.stick": "摇杆", "dev.page.screen": "玩家 {n} 的屏幕",
       "dev.page.paused": "模拟已暂停（按 ` 继续）", "dev.page.swapped": "键位已对调（Tab）",
       "dev.page.help": "两人共用一个键盘。屏幕上的 A / B / S / M 是掌机的按键，不是键盘上的同名键，按下表找：",
-      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟；Tab 对调两组键位（一个人也能操作任意一台）。",
-      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏", "dev.page.colWave": "挥手"},
+      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟；Tab 对调两组键位（一个人也能操作任意一台）。潮影的攻击测试里，摇杆键（P1 的 A / D，P2 的 ← / →）或屏幕下面的倾斜条就是左右转动掌机；手机上可以直接倾斜手机。",
+      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏", "dev.page.colWave": "挥手",
+      "dev.page.tilt": "倾斜", "dev.page.tiltEnable": "启用倾斜", "dev.page.tiltDenied": "没有倾斜权限，潮影改用按住 A"},
     en: {"dev.page.title": "Device simulator", "dev.page.back": "← Back to progress",
       "dev.page.intro": "Two handhelds and a virtual central board: all three modes, two players on one computer. The screens are the real 128×160 pixels, the same as on the TFT.",
       "dev.page.view": "Show", "dev.page.both": "Both", "dev.page.scale": "Scale", "dev.page.auto": "Auto",
@@ -3464,8 +3543,9 @@
       "dev.page.pad": "Pad", "dev.page.stick": "Stick", "dev.page.screen": "Player {n} screen",
       "dev.page.paused": "Simulation paused (press ` to resume)", "dev.page.swapped": "Keys swapped (Tab)",
       "dev.page.help": "Two players share one keyboard. A / B / S / M on the screens are the handheld's buttons, not the keyboard keys with those letters:",
-      "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation; Tab swaps the two key groups, so one person can drive either handheld.",
-      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light", "dev.page.colWave": "Wave"},
+      "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation; Tab swaps the two key groups, so one person can drive either handheld. In Tide's attack trial the stick keys (P1 A / D, P2 ← / →) or the tilt bar under the screen turn the handheld left and right; on a phone, tilt the phone.",
+      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light", "dev.page.colWave": "Wave",
+      "dev.page.tilt": "Tilt", "dev.page.tiltEnable": "Enable tilt", "dev.page.tiltDenied": "No motion permission: Tide uses hold A"},
   });
 
   /* ================= 12b. stub helpers and the echo mode ================= */
@@ -3618,7 +3698,7 @@
   function buildWorld(opts) {
     const seed = opts.seed != null ? opts.seed >>> 0 : (Date.now() & 0x7fffffff);
     const streams = {};
-    for (const n of ["central", "radio", "bot.0", "bot.1", "fx.0", "fx.1", "input.0", "input.1", "world"]) streams[n] = makeStream(seed, n);
+    for (const n of ["central", "radio", "bot.0", "bot.1", "fx.0", "fx.1", "input.0", "input.1", "world", "acc.0", "acc.1"]) streams[n] = makeStream(seed, n);
     const prev = world;
     if (prev) for (const h of prev.hh || []) setTone(h, 0);     // the old world's engine must not keep humming
     const w = {
@@ -3643,7 +3723,8 @@
       hh.ctl = makeCtl(hh, "bot", w.streams["bot." + hh.p]);
       // who is a bot survives a reset from the page (not in ?test=1, where scripts decide)
       hh.bot = !OPTS.test && prev && prev.hh ? prev.hh[hh.p].bot : !!(opts.bots && opts.bots[hh.p]);
-      if (doms[hh.p]) { doms[hh.p].img = null; doms[hh.p].inverted = false; }
+      // a flash from the old world (tier 2, KO) must not stay on the canvas
+      if (doms[hh.p]) { doms[hh.p].img = null; doms[hh.p].inverted = false; if (doms[hh.p].canvas) doms[hh.p].canvas.style.filter = ""; }
     }
     if (w.autoMode) {
       for (const hh of w.hh) {
@@ -3709,6 +3790,7 @@
       hold(btn, down) { hh.input.set(srcName, field(btn), !!down, at()); },
       stick(x, y) { const t = at(); hh.input.set(srcName, "x", clamp(Math.round(x), -100, 100), t); hh.input.set(srcName, "y", clamp(Math.round(y), -100, 100), t); },
       pressure(v) { hh.input.set(srcName, "force", clamp(+v || 0, 0, 255)); },
+      tilt(mg) { setTilt(hh, srcName, mg); },             // [+] the handheld's tilt (x reading, mg)
       rng: rng ? {int: rng.int, float: rng.float} : null,     // [+] bot.<p> stream (bots only)
     };
   }
@@ -3790,10 +3872,18 @@
     const pad = el("div", {class: "dv-pad", role: "slider", "aria-label": t("dev.page.pad"), "aria-valuemin": "0", "aria-valuemax": "255", "aria-valuenow": "0"},
       fill, el("span", {text: t("dev.page.pad")}), el("kbd", {text: KEY_LABEL[p].pad}));
     const controls = el("div", {class: "dv-controls"}, stick, btns, pad, bW);
+    // Tide's trial (ui-design §8.6): a horizontal tilt bar, finger x = angle; on a
+    // phone also the "enable tilt" button (iOS asks for motion permission in a tap)
+    const tiltKnob = el("i");
+    const tiltBar = el("div", {class: "dv-tilt", role: "slider", "aria-label": t("dev.page.tilt"), "aria-valuemin": "-90", "aria-valuemax": "90", "aria-valuenow": "0", hidden: ""},
+      tiltKnob, el("span", {text: t("dev.page.tilt")}), el("kbd", {text: KEY_LABEL[p].tilt}));
+    const tiltBtn = el("button", {type: "button", class: "dv-tilt-btn", hidden: "", text: t("dev.page.tiltEnable")});
+    const tiltNote = el("p", {class: "dv-tilt-note", hidden: "", text: t("dev.page.tiltDenied")});
     const shell = el("section", {class: "dv-hh", "data-p": String(p)},
       el("div", {class: "dv-hh-head"}, el("b", {text: t("dev.page.player", {n})}), keysLine),
-      screen, controls);
-    const h = {p, shell, canvas, screen, controls, knob, stick, pad, padFill: fill, buttons: {a: bA, b: bB, skill: bS, menu: bM, wave: bW}};
+      screen, controls, tiltBar, tiltBtn, tiltNote);
+    const h = {p, shell, canvas, screen, controls, knob, stick, pad, padFill: fill, buttons: {a: bA, b: bB, skill: bS, menu: bM, wave: bW},
+      tiltBar, tiltKnob, tiltBtn, tiltNote};
     wireTouch(h);
     return h;
   }
@@ -3872,6 +3962,61 @@
     const padEnd = e => { if (e.pointerId === padId) { padId = null; setSrc("target", 0, e); } };
     h.pad.addEventListener("pointerup", padEnd);
     h.pad.addEventListener("pointercancel", padEnd);
+    // tilt bar: finger x = angle, the middle = level, the ends = +-1.2 TILT_FULL_MG; let go = level
+    let tiltId = null;
+    const tiltMove = e => {
+      if (!world) return;
+      const r = h.tiltBar.getBoundingClientRect();
+      const k = clamp((e.clientX - r.left) / r.width * 2 - 1, -1, 1);
+      setTilt(world.hh[p], "touch", k * 1.2 * (DEVICE.battleParams().tiltFullMg || 500));
+    };
+    h.tiltBar.addEventListener("pointerdown", e => { tiltId = e.pointerId; h.tiltBar.setPointerCapture(e.pointerId); markGesture(); tiltMove(e); e.preventDefault(); });
+    h.tiltBar.addEventListener("pointermove", e => { if (e.pointerId === tiltId) tiltMove(e); });
+    const tiltEnd = e => { if (e.pointerId === tiltId) { tiltId = null; if (world) setTilt(world.hh[p], "touch", 0); } };
+    h.tiltBar.addEventListener("pointerup", tiltEnd);
+    h.tiltBar.addEventListener("pointercancel", tiltEnd);
+  }
+
+  // Phone motion (ui-design §8.6): only in phone mode (P1 + the computer), never
+  // on a desktop. accelerationIncludingGravity.x -> mg, right side down = +
+  // (iOS reports the other sign); landscape uses y. iOS needs
+  // DeviceMotionEvent.requestPermission() inside a tap on https: the "enable
+  // tilt" button. Refused -> a note, and this handheld plays without the
+  // accelerometer (Tide's trial falls back to hold A).
+  function setupMotion(h) {
+    const DME = window.DeviceMotionEvent;
+    if (!DME || !window.addEventListener) return;
+    const ios = typeof DME.requestPermission === "function";
+    const onMotion = e => {
+      const g = e && e.accelerationIncludingGravity;
+      if (!g || !world) return;
+      const hh = world.hh[h.p];
+      const so = window.screen && window.screen.orientation;
+      const ang = so && typeof so.angle === "number" ? so.angle : (window.orientation || 0);
+      let v = ang === 90 ? g.y : ang === -90 || ang === 270 ? -g.y : g.x;
+      if (typeof v !== "number" || !isFinite(v)) return;
+      let mg = v / 9.80665 * 1000;
+      if (ios) mg = -mg;
+      if (hh.tilt.invert) mg = -mg;
+      setTilt(hh, "phone", mg, 30);
+    };
+    const listen = () => { try { window.addEventListener("devicemotion", onMotion); } catch {} };
+    if (!ios) { listen(); return; }
+    h.tiltBtn.hidden = false;
+    h.tiltBtn.addEventListener("click", () => {
+      markGesture();
+      let req;
+      try { req = DME.requestPermission(); } catch (e) { req = Promise.reject(e); }
+      Promise.resolve(req).then(state => {
+        h.tiltBtn.hidden = true;
+        if (state === "granted") { listen(); h.tiltNote.hidden = true; return; }
+        h.tiltNote.hidden = false;
+        if (world) world.hh[h.p].hw.caps.acc = false;
+      }, () => {
+        h.tiltNote.hidden = false;
+        if (world) world.hh[h.p].hw.caps.acc = false;
+      });
+    });
   }
   function markGesture() { if (world) world.userGesture = true; if (audio && audio.state === "suspended") audio.resume(); }
 
@@ -3883,7 +4028,11 @@
     if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (down) markGesture();
     if (e.code === "Backquote") {
-      if (down && !e.repeat) { world.running = !world.running; if (DEVICE._dom) DEVICE._dom.pausedBadge.hidden = world.running; }
+      if (down && !e.repeat) {
+        world.running = !world.running;
+        if (DEVICE._dom) DEVICE._dom.pausedBadge.hidden = world.running;
+        if (!world.running) for (const hh of world.hh) cancelSfxAt(hh);
+      }
       e.preventDefault();
       return;
     }
@@ -3937,6 +4086,16 @@
       const raw = world.hh[h.p].input.st.pressure;
       const v = raw > C.CTL_PRESS_RELEASE ? raw : 0;     // hide the resting noise
       if (h.lastPad !== v) { h.padFill.style.height = (v / 255 * 100) + "%"; h.pad.setAttribute("aria-valuenow", String(v)); h.lastPad = v; }
+      const tl = world.hh[h.p].tilt;
+      if (h.tiltBar.hidden === tl.steer) h.tiltBar.hidden = !tl.steer;
+      if (tl.steer) {
+        const F = DEVICE.battleParams().tiltFullMg || 500, k = clamp(tl.mg / (1.2 * F), -1, 1);
+        if (h.lastTilt !== tl.mg) {
+          h.tiltKnob.style.left = ((k + 1) * 50) + "%";
+          h.tiltBar.setAttribute("aria-valuenow", String(Math.round(Math.asin(clamp(tl.mg / 1000, -1, 1)) * 180 / Math.PI)));
+          h.lastTilt = tl.mg;
+        }
+      }
     }
     requestAnimationFrame(updatePadBars);
   }
@@ -3999,6 +4158,7 @@
       document.addEventListener("keydown", e => onKey(e, true), true);
       document.addEventListener("keyup", e => onKey(e, false), true);
       window.addEventListener("blur", releaseKeyboard);
+      if (phone) setupMotion(dom.handhelds[0]);
       for (const fn of R.startHooks) safe("onStart", fn, dom);
       requestAnimationFrame(updatePadBars);
     }
@@ -4027,7 +4187,7 @@
     emit("reset", world);
     return DEVICE;
   };
-  DEVICE.pause = () => { world.running = false; if (DEVICE._dom) DEVICE._dom.pausedBadge.hidden = false; };
+  DEVICE.pause = () => { world.running = false; if (DEVICE._dom) DEVICE._dom.pausedBadge.hidden = false; for (const hh of world.hh) cancelSfxAt(hh); };
   DEVICE.resume = () => { world.running = true; if (DEVICE._dom) DEVICE._dom.pausedBadge.hidden = true; };
   DEVICE.step = function (ms = C.TICK_MS) {
     const n = Math.max(1, Math.ceil(ms / C.TICK_MS));
@@ -4054,6 +4214,13 @@
     return h.handMm;
   };
   DEVICE.stick = (p, x, y) => scriptCtl(p).stick(x, y);
+  // [+] the handheld's left-right tilt (x reading, mg): src "script" (tests) or "slider" (debug panel)
+  DEVICE.tilt = (p, mg, src = "script") => {
+    const h = HH(p);
+    if (mg != null) setTilt(h, src, mg);
+    return h.tilt.mg;
+  };
+  DEVICE.tiltInvert = (p, on) => { const h = HH(p); if (on != null) h.tilt.invert = !!on; return h.tilt.invert; };   // [+] phone motion sign
   DEVICE.pressure = (p, v) => scriptCtl(p).pressure(v);
   DEVICE.bot = (p, on) => {                        // on omitted [+]: just tell whether it is a bot
     if (on === undefined) return HH(p).bot;
@@ -4123,7 +4290,8 @@
     c.wantBroadcast = true;
     return r;
   };
-  // [+] debug panel: unplug the joystick / pull the SD card at run time ({joy, pad, snd}); HELLO caps follow
+  // [+] debug panel: unplug the joystick / pull the SD card / remove the accelerometer at run time
+  // ({joy, pad, snd, acc}); HELLO caps follow (acc is local only, attack-trial.md §6)
   DEVICE.caps = function (p, patch) {
     const h = HH(p);
     if (patch) Object.assign(h.hw.caps, patch);

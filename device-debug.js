@@ -21,6 +21,12 @@
       "dev.dbg.collisions": "同信道会冲突", "dev.dbg.radioStats": "发出 {sent}，丢掉 {lost}，{bps} B/s，占空 {air}%",
       "dev.dbg.boards": "板子", "dev.dbg.player": "玩家 {n}", "dev.dbg.central": "中央板",
       "dev.dbg.hand": "手的高度 {mm} mm",
+      "dev.dbg.tilt": "倾斜 {deg} 度（x = {mg} mg）", "dev.dbg.acc": "拿掉加速度计", "dev.dbg.tiltInv": "手机倾斜反向",
+      "dev.dbg.fair": "攻击测试公平表", "dev.dbg.fairRun": "跑一遍", "dev.dbg.fairRunning": "计算中…",
+      "dev.dbg.fairNote": "每种 bot 跑 {n} 个种子（attack-trial.md 2C 的模型），参数用现在的调参；不符合目标的格子标红。",
+      "dev.dbg.fairPet": "宠物", "dev.dbg.fairSkill": "玩家", "dev.dbg.fairFirst": "第一次玩", "dev.dbg.fairGood": "熟练",
+      "dev.dbg.fairTop5": "熟练 bot 各打 {n} 局（每天每只 10 局，榜上留 5 个）：进前 5 的比例 焰灵 {a}%，潮影 {b}%，叶芽 {c}%",
+      "dev.dbg.fairBad": "没达到的目标：{s}", "dev.dbg.fairOk": "2C 的目标都达到了",
       "dev.dbg.unplug": "拔掉无线", "dev.dbg.reboot": "重启", "dev.dbg.powerOff": "关掉电源", "dev.dbg.channel": "信道",
       "dev.dbg.version": "烧录版本", "dev.dbg.joy": "拔掉摇杆", "dev.dbg.sd": "拿掉SD卡", "dev.dbg.pad": "拔掉压力垫",
       "dev.dbg.hw": "硬件", "dev.dbg.fsrInv": "FSR分压反接", "dev.dbg.spi": "SPI时钟", "dev.dbg.blocks": "显示变化的块",
@@ -58,6 +64,12 @@
       "dev.dbg.collisions": "Same-channel collisions", "dev.dbg.radioStats": "sent {sent}, lost {lost}, {bps} B/s, air {air}%",
       "dev.dbg.boards": "Boards", "dev.dbg.player": "Player {n}", "dev.dbg.central": "Central",
       "dev.dbg.hand": "Hand height {mm} mm",
+      "dev.dbg.tilt": "Tilt {deg} deg (x = {mg} mg)", "dev.dbg.acc": "Remove accelerometer", "dev.dbg.tiltInv": "Flip phone tilt",
+      "dev.dbg.fair": "Attack trial fairness", "dev.dbg.fairRun": "Run", "dev.dbg.fairRunning": "Working...",
+      "dev.dbg.fairNote": "Each bot plays {n} seeds (the models of attack-trial.md 2C) at the current tuning; cells that miss a target are red.",
+      "dev.dbg.fairPet": "Pet", "dev.dbg.fairSkill": "Player", "dev.dbg.fairFirst": "first time", "dev.dbg.fairGood": "skilled",
+      "dev.dbg.fairTop5": "Skilled bots, {n} games each (days of 10 per pet, a board of 5): share of the top 5 Ember {a}%, Tide {b}%, Sprout {c}%",
+      "dev.dbg.fairBad": "Targets missed: {s}", "dev.dbg.fairOk": "All 2C targets met",
       "dev.dbg.unplug": "Unplug radio", "dev.dbg.reboot": "Reboot", "dev.dbg.powerOff": "Power off", "dev.dbg.channel": "Channel",
       "dev.dbg.version": "Firmware", "dev.dbg.joy": "Unplug stick", "dev.dbg.sd": "Remove SD card", "dev.dbg.pad": "Unplug pad",
       "dev.dbg.hw": "Hardware", "dev.dbg.fsrInv": "FSR wired backwards", "dev.dbg.spi": "SPI clock", "dev.dbg.blocks": "Show changed blocks",
@@ -253,6 +265,15 @@
       box.addEventListener("change", () => D.bot(p, box.checked));
       toggles.push(() => { box.checked = D.bot(p); });
       const caps = k => !D.caps(p)[k];
+      // the handheld's left-right tilt (ui-design §8.6): degrees -> mg = round(1000 sin)
+      const tiltIn = el("input", {type: "range", min: "-90", max: "90", step: "1", value: "0", "aria-label": t("tilt", {deg: "", mg: ""})});
+      const tiltOut = el("span");
+      tiltIn.addEventListener("input", () => D.tilt(p, Math.round(1000 * Math.sin(+tiltIn.value * Math.PI / 180)), "slider"));
+      toggles.push(() => {
+        const mg = D.tilt(p), deg = Math.round(Math.asin(Math.max(-1, Math.min(1, mg / 1000))) * 180 / Math.PI);
+        if (document.activeElement !== tiltIn) tiltIn.value = String(deg);
+        tiltOut.textContent = t("tilt", {deg, mg});
+      });
       const handIn = el("input", {type: "range", min: "0", max: "1300", step: "10", "aria-label": t("hand", {mm: ""})});
       const handOut = el("span");
       handIn.addEventListener("input", () => D.hand(p, +handIn.value));
@@ -270,13 +291,59 @@
         row(toggle(t("joy"), () => caps("joy"), v => D.caps(p, {joy: !v})),
           toggle(t("pad"), () => caps("pad"), v => D.caps(p, {pad: !v})),
           toggle(t("sd"), () => caps("snd"), v => D.caps(p, {snd: !v}))),
-        el("label", {class: "dbg-slider"}, handOut, handIn));
+        row(toggle(t("acc"), () => caps("acc"), v => D.caps(p, {acc: !v})),
+          toggle(t("tiltInv"), () => D.tiltInvert(p), v => D.tiltInvert(p, v))),
+        el("label", {class: "dbg-slider"}, handOut, handIn),
+        el("label", {class: "dbg-slider"}, tiltOut, tiltIn));
     });
     const centralBoard = el("div", {class: "dbg-board"}, el("b", {text: t("central")}),
       row(toggle(t("powerOff"), () => !W().central.powered, v => D.radio.powerCentral(!v)),
         select(t("channel"), channels, () => node(0).ch, v => D.radio.channel("central", +v)),
         select(t("version"), versions, () => node(0).ver, v => D.radio.version(0, +v))));
     root.append(card(t("boards"), ...boards, centralBoard));
+
+    /* ---------- attack trial fairness (attack-trial.md §2C, ui-design §8.9) ---------- */
+    const fairBody = el("tbody"), fairTop = el("p", {class: "dbg-muted"}), fairChecks = el("p");
+    const SEEDS = 400, GAMES = 1000;
+    const fairBtn = btn(t("fairRun"), () => runFair(), "primary");
+    let fairSig = null;
+    const fairCols = ["p10", "median", "p90", "ge50", "ge80"];
+    function runFair() {
+      fairBtn.disabled = true;
+      fairBtn.textContent = t("fairRunning");
+      setTimeout(() => {
+        const bp = D.battleParams();
+        fairSig = JSON.stringify(bp);
+        let r;
+        try { r = D.petTrials.fairness(bp, {seeds: SEEDS, games: GAMES}); } finally { fairBtn.disabled = false; fairBtn.textContent = t("fairRun"); }
+        const bad = new Set(r.checks.filter(c => !c.ok).map(c => c.what));
+        const badCell = (row, col) => {
+          const pre = row.pet + " " + row.skill;
+          if (col === "median") return bad.has(pre + " median 50-60") || bad.has(row.pet + " skilled median 80-90") && row.skill === "good" || bad.has(row.skill + " medians within 5");
+          if (col === "p90") return bad.has(row.skill + " p90 within 5") || row.skill === "good" && bad.has(row.pet + " skilled p90 under 100");
+          if (col === "ge80") return row.skill === "first" ? bad.has(row.pet + " first >= 80 at most 10%") : bad.has(row.pet + " skilled >= 80 at least half");
+          return false;
+        };
+        const petName = k => I18N.t("dev.pet." + k);
+        fairBody.textContent = "";
+        for (const row of r.rows) {
+          fairBody.append(el("tr", null, el("th", {scope: "row", text: petName(row.pet)}), el("td", {text: t(row.skill === "good" ? "fairGood" : "fairFirst")}),
+            ...fairCols.map(c => el("td", {class: "num" + (badCell(row, c) ? " dbg-bad" : ""), text: String(row[c]) + (c.startsWith("ge") ? "%" : "")}))));
+        }
+        fairTop.textContent = t("fairTop5", {n: GAMES, a: r.top5.ember, b: r.top5.tide, c: r.top5.sprout});
+        const miss = r.checks.filter(c => !c.ok);
+        fairChecks.className = miss.length ? "dbg-bad" : "dbg-ok";
+        fairChecks.textContent = miss.length ? t("fairBad", {s: miss.map(c => c.what + " (" + c.detail + ")").join(", ")}) : t("fairOk");
+      }, 30);
+    }
+    // the prototype's tuning lives in this browser: run again when it changed
+    toggles.push(() => { if (fairSig != null && fairSig !== JSON.stringify(D.battleParams()) && !fairBtn.disabled) runFair(); });
+    root.append(el("section", {class: "dbg-card wide"}, el("h3", {text: t("fair")}),
+      el("p", {class: "dbg-muted", text: t("fairNote", {n: SEEDS})}), row(fairBtn),
+      el("div", {class: "dbg-table-wrap"}, el("table", {class: "dbg-table"},
+        el("thead", null, el("tr", null, el("th", {text: t("fairPet")}), el("th", {text: t("fairSkill")}),
+          ...["p10", "p50", "p90", ">= 50", ">= 80"].map(h => el("th", {class: "num", text: h})))), fairBody)),
+      fairTop, fairChecks));
 
     /* ---------- per handheld readouts (SPI budget table) ---------- */
     const C = D.C;

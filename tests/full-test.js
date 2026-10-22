@@ -210,6 +210,9 @@ async function run(browser, o) {
       await until(`F.key(0) === 'battle.hud' && F.key(1) === 'battle.hud'`, 15000, 'battle: rematch hud');
       await step(4000);
       await E(() => DEVICE.bot(0, false));
+      // no pause while my own attack trial or block chain runs (a busy board drops the hold):
+      // let one the bot started finish first (a trial is 5.1 s)
+      await until(`!DEVICE.mode('battle').player.busy(DEVICE.hh(0).ctx)`, 8000, 'battle: own trial / chain over');
       // hold M: pauses at once as the attacker, else at the next safe point (§4.11)
       await press(0, 'MENU', 1150, 300);
       if (await until(`F.key(0).endsWith('ov.pause')`, 30000, 'battle: pause')) {

@@ -13,7 +13,7 @@
 
 ## 怎么跑
 
-    bash tests/run.sh quick     # 约 2 分钟（本机实测 ~110-145 s）
+    bash tests/run.sh quick     # 约 4 分钟（本机实测 ~250 s，其中 pet-trials ~110 s）
     bash tests/run.sh full      # 约 13 分钟（本机实测 ~740-780 s，包含 quick 和 3D 引脚图）
 
 脚本先 `cd` 到仓库根目录，所以从任何地方调用都行；不带参数时默认 `quick`。
@@ -34,6 +34,7 @@
 | `wave-test.js` | 竞速：挥手擦掉水花，只影响自己 |
 | `blurb-test.js` | 竞速：五条赛道的简介文字（zh/en） |
 | `s21-heartbeat-test.js` | 结算页上开着本地页面（S21 填名字、S20 排行榜）时，掌机照常发心跳（MSG_INPUT），中央板不判断线；竞速 / 对战 / 冒险各一遍（~5 s） |
+| `pet-trials-test.js` | 每只宠物的攻击测试（attack-trial.md §2–§2C）：`pet-trials.js` 的 §2A / §2B 例子、乱按 0 分、分数在 0–100、§2C 公平（默认参数下三只宠物的中位数和 p90 各差不超过 5）；对战原型（index.html）里三只宠物的测试从开始到结束、潮影的转向键、叶芽按在拍子上 / 拍子之间 / 乱按；模拟器里三只宠物的测试、潮影用调试滑杆和摇杆键、没有加速度计和设置关掉时的后备、叶芽的空拍 / 多按 / 排好的拍子声、S11 / S12 文字、bot 打完整局，zh + en 下 `DEVICE.errors()` 和 `lint()` 为空；390 px 不横向滚动、iOS 倾斜权限允许 / 拒绝都不报错（~2 分钟，截图 `tests/out/pettrial-*.png`） |
 | `adv/check-w1.js` | 世界 1 的几何、物件清单、求解器可解性、用真实中央代码回放（无浏览器，~60 s） |
 | `race-test.js` | 竞速全部部件（race, fix, steer, laps3, flash, sweep）× zh/en × 1200/390 px（长，~7-8 分钟；参数 `[PORT=8961] [PARTS] [LANGS] [WIDTHS]`） |
 | `full-test.js` | 端到端：启动、登录、三种模式、设置、语言切换；8 种组合 + 30% 丢包（~2 分钟；参数 `[SITE] [PORT]`，环境变量 `ONLY=zh-1200-light` 等只跑一组） |
@@ -57,7 +58,7 @@ Requirements: Node 18+, Playwright npm package installed globally with Chromium
 
 Run:
 
-    bash tests/run.sh quick     # ~2 min (~110-145 s measured here)
+    bash tests/run.sh quick     # ~4 min (~250 s measured here, pet-trials ~110 s of it)
     bash tests/run.sh full      # ~13 min (~740-780 s measured here, includes quick and the 3D pin map)
 
 The script `cd`s to the repository root, defaults to `quick`, creates `tests/out/`, compiles
@@ -68,6 +69,7 @@ and exits 1 if anything failed. A single browser test: `node -r ./tests/route.js
 What each file checks (one line each): `smoke.js` every simulator fixture in zh and en;
 `input-test.js` distance-sensor input (~15 s); `gate-test.js` adventure: hand / pad holds the winch gate;
 `wave-test.js` racing: a wave wipes the splash; `blurb-test.js` racing: the five track blurbs;
+`pet-trials-test.js` the per-pet attack trials (Ember's band, Tide's tilt, Sprout's beat): the shared code, fairness at the defaults, the battle prototype, the simulator (slider, stick keys, fallbacks, taps / rests / strays, bots), zh + en, 390 px and the iOS motion permission (~2 min);
 `s21-heartbeat-test.js` the heartbeat (MSG_INPUT) keeps flowing while S21 / S20 is open on top of results, so the central sees no link loss (racing, battle, adventure, ~5 s);
 `adv/check-w1.js` World 1 geometry, inventory, solver and real-central replay (no browser, ~60 s);
 `race-test.js` racing all parts × zh/en × 1200/390 px (long, ~7-8 min, args `[PORT=8961] [PARTS] [LANGS] [WIDTHS]`);

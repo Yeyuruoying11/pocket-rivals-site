@@ -71,7 +71,7 @@
       "dev.ov.w1": "No joystick", "dev.ov.w2": "No sound card", "dev.ov.w3": "Profile reset"},
   });
   D.registerStrings("dev.set.", {
-    zh: {"dev.set.title": "设置", "dev.set.lang": "语言", "dev.set.volume": "音量", "dev.set.clicks": "按键音", "dev.set.pad": "压力垫",
+    zh: {"dev.set.title": "设置", "dev.set.lang": "语言", "dev.set.volume": "音量", "dev.set.clicks": "按键音", "dev.set.pad": "压力垫", "dev.set.tilt": "倾斜",
       "dev.set.calibrate": "校准", "dev.set.channel": "无线信道", "dev.set.profile": "编辑资料", "dev.set.about": "关于", "dev.set.bright": "亮度",
       "dev.set.on": "开", "dev.set.off": "关", "dev.set.auto": "自动", "dev.set.langZh": "中文", "dev.set.langEn": "English",
       "dev.set.langNote": "切换会重新开始模拟", "dev.set.chNote": "离开时生效",
@@ -83,7 +83,7 @@
       "dev.set.hintSave": "保存", "dev.set.hintBack": "返回", "dev.set.hintRedo": "重来", "dev.set.hintOpen": "打开",
       "dev.set.rankClear": "清榜", "dev.set.rankClearAsk": "清空排行榜？", "dev.set.rankCleared": "{OK} 排行榜已清空",
       "dev.set.rankBusy": "对局中不能清空"},
-    en: {"dev.set.title": "SETTINGS", "dev.set.lang": "Language", "dev.set.volume": "Volume", "dev.set.clicks": "Clicks", "dev.set.pad": "Pad",
+    en: {"dev.set.title": "SETTINGS", "dev.set.lang": "Language", "dev.set.volume": "Volume", "dev.set.clicks": "Clicks", "dev.set.pad": "Pad", "dev.set.tilt": "Tilt",
       "dev.set.calibrate": "Calibrate", "dev.set.channel": "Channel", "dev.set.profile": "Edit profile", "dev.set.about": "About", "dev.set.bright": "Brightness",
       "dev.set.on": "On", "dev.set.off": "Off", "dev.set.auto": "Auto", "dev.set.langZh": "中文", "dev.set.langEn": "EN",
       "dev.set.langNote": "Restarts simulator", "dev.set.chNote": "Applies on exit",
@@ -1091,6 +1091,8 @@
       {id: "clicks", key: "dev.set.clicks", value: ctx.t(st.clicks ? "dev.set.on" : "dev.set.off"), arrows: true},
       {id: "pad", key: "dev.set.pad", value: ctx.t("dev.set." + (PADS.includes(st.pad) ? st.pad : "auto")), arrows: true},
       {id: "cal", key: "dev.set.calibrate", value: "{R}"},
+      // attack-trial.md §2A: only Tide's attack trial uses it (auto = the accelerometer answers)
+      {id: "tilt", key: "dev.set.tilt", value: ctx.t("dev.set." + (PADS.includes(st.tilt) ? st.tilt : "auto")), arrows: true},
       {id: "channel", key: "dev.set.channel", value: String(st.channel), arrows: true},
     ];
     if (cur && cur.slot !== "guest") rows.push({id: "profile", key: "dev.set.profile", value: "{R}"});
@@ -1107,6 +1109,7 @@
       ctx.saveSettings({volume: cycle ? ((st.volume | 0) + 1) % 5 : clamp((st.volume | 0) + d, 0, 4)}); return true;
     case "clicks": ctx.saveSettings({clicks: !st.clicks}); return true;
     case "pad": ctx.saveSettings({pad: PADS[(PADS.indexOf(st.pad) + d + 3) % 3]}); return true;
+    case "tilt": ctx.saveSettings({tilt: PADS[(Math.max(0, PADS.indexOf(st.tilt)) + d + 3) % 3]}); return true;
     case "channel": ctx.saveSettings({channel: 11 + ((st.channel - 11 + d + 16) % 16)}); return true;
     }
     return false;
@@ -1120,8 +1123,12 @@
       ui.topBar(g, ctx, "dev.set.title", {signal: false});
       const rows = settingRows(ctx);
       ctx.s.sel = Math.min(ctx.s.sel, rows.length - 1);
+      // 8 rows fit above the note line (y 130); a longer list scrolls with the cursor
+      const VIS = 8;
+      const top = rows.length <= VIS ? 0 : Math.max(0, Math.min(ctx.s.sel - VIS + 2, rows.length - VIS));
       rows.forEach((row, i) => {
-        const y = 16 + 14 * i, sel = i === ctx.s.sel;
+        if (i < top || i >= top + VIS) return;
+        const y = 16 + 14 * (i - top), sel = i === ctx.s.sel;
         if (sel) { g.rect(0, y, 128, 14, "panel"); g.rect(0, y, 3, 14, "accent"); }
         g.text(8, y, row.label, {w: row.id === "profile" ? 72 : 64, key: row.key});
         if (row.bars != null) drawBars(g, 120, y, row.bars, sel && row.arrows);
@@ -1175,7 +1182,7 @@
         } else if (settingChange(ctx, row, 1, true)) ctx.sfx("ui_ok");
       } else if (ev.btn === "SKILL") {
         const def = D.defaultSettings();
-        const k = {volume: "volume", clicks: "clicks", pad: "pad", channel: "channel"}[row.id];
+        const k = {volume: "volume", clicks: "clicks", pad: "pad", tilt: "tilt", channel: "channel"}[row.id];
         if (k) { ctx.saveSettings({[k]: def[k]}); ctx.sfx("ui_ok"); }
         else if (row.id === "cal") { ctx.saveSettings({padCal: def.padCal, padCalSet: false}); ctx.sfx("ui_ok"); }
       }
