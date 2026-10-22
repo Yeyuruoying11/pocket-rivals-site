@@ -495,10 +495,10 @@
         "name": "TFT 屏",
         "iface": "SPI",
         "owner": "harvey",
-        "detail": "1.8\" ST7735S，128×160，SPI（SPIM2，8 MHz）。所有画面都画在这块屏上；绘图核心和驱动草稿已写好，等上板核对偏移、颜色顺序和时钟。",
+        "detail": "1.8\" ST7735S，128×160，SPI（SPIM2，8 MHz）。所有画面都画在这块屏上；驱动由我们自己写（见驱动清单），绘图核心只需要它提供\"设窗口 + 写像素\"两个函数。",
         "en": {
           "name": "TFT screen",
-          "detail": "1.8\" ST7735S, 128×160, SPI (SPIM2, 8 MHz). Every screen is drawn here; the drawing core and a draft driver are written and wait for on-board checks of offsets, colour order and clock."
+          "detail": "1.8\" ST7735S, 128×160, SPI (SPIM2, 8 MHz). Every screen is drawn here; we write the driver ourselves (see the driver list), and the drawing core only needs two functions from it: set window and write pixels."
         },
         "kind": "actuator"
       },
@@ -644,14 +644,14 @@
     "player": [
       {
         "id": "input",
-        "name": "输入 driver",
-        "file": "lib/input.c · joystick.c · buttons.c · fsr.c",
+        "name": "输入快照",
+        "file": "lib/input.c · input_map.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "读摇杆（I2C）、按钮（去抖）、压力垫（ADC），合成一份输入快照；A / B 按下的时刻用 GPIOTE 中断记录，精确到 1 ms。外设都可选，光板子也能玩。还没上板实测。",
+        "detail": "把摇杆、按钮、压力垫的读数合成一份输入快照：去抖、摇杆死区和中心校准、压力换算成 0–100、按下时刻。和驱动之间用固定接口，驱动见「硬件与 Pin」页的驱动清单。",
         "en": {
-          "name": "Input driver",
-          "detail": "Reads the joystick (I2C), buttons (debounced) and pressure pad (ADC) into one input snapshot; A / B press times are recorded by GPIOTE interrupt to 1 ms. Every peripheral is optional, so a bare board still plays. Not yet tested on hardware."
+          "name": "Input snapshot",
+          "detail": "Combines the joystick, button and pressure-pad readings into one input snapshot: debouncing, joystick dead zone and centre calibration, pressure scaled to 0–100, press times. It talks to the drivers through fixed interfaces; the drivers are listed on the Hardware & pins tab."
         }
       },
       {
@@ -692,26 +692,26 @@
       },
       {
         "id": "screen",
-        "name": "屏幕与界面",
-        "file": "lib/gfx.c · tft_st7735.c（分支 r3-gfx）",
+        "name": "绘图核心与界面",
+        "file": "lib/gfx.c · ui.c · ui_battle.c",
         "owner": "harvey",
         "status": "doing",
-        "detail": "绘图核心（16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分）和 ST7735S 驱动草稿正在写，用测试和模拟器逐像素对齐；驱动要上板核对偏移、颜色顺序和 SPI 时钟。界面按 docs/ui-design.md 分 T0–T3 实现。",
+        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面已经和模拟器逐像素一致，T1 的连接、大厅、暂停等界面在写。TFT 屏驱动见驱动清单。",
         "en": {
-          "name": "Screen and UI",
-          "detail": "The drawing core (16-colour 4 bpp double buffer, refreshing only the 8×8 blocks that changed) and a draft ST7735S driver are being written and checked pixel-for-pixel against the simulator; the driver still needs on-board checks of offsets, colour order and SPI clock. The UI follows docs/ui-design.md in stages T0–T3."
+          "name": "Drawing core and screens",
+          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens match the simulator pixel for pixel, and the T1 screens (connect, lobby, pause…) are in progress. The TFT driver is in the driver list."
         }
       },
       {
         "id": "sound",
-        "name": "音效",
-        "file": "lib/audio.c · beep_pwm.c · dfplayer.c",
+        "name": "声音调度",
+        "file": "lib/audio.c · audio_table.c",
         "owner": "harvey",
-        "status": "doing",
-        "detail": "声音调度：板载喇叭（PWM）放界面音、节奏音和引擎声（音量只有音效的 1/4），DFPlayer（UART）按优先级放音效；音效表从模拟器自动生成。主机测试通过，还没上板试听；游戏事件还没接上声音。",
+        "status": "done",
+        "detail": "决定什么时候放什么声音：板载喇叭放界面音、节奏音和引擎声（音量只有音效的 1/4），DFPlayer 按优先级放音效；音效表从模拟器自动生成。喇叭和 DFPlayer 的驱动见驱动清单。",
         "en": {
-          "name": "Sound effects",
-          "detail": "Sound scheduling: the on-board speaker (PWM) plays UI sounds, rhythm cues and the engine (at a quarter of the sfx level), the DFPlayer (UART) plays sound effects by priority; the sound table is generated from the simulator. Host tests pass; not yet heard on a board, and game events are not wired to sounds yet."
+          "name": "Sound scheduling",
+          "detail": "Decides which sound plays when: the on-board speaker plays UI sounds, rhythm cues and the engine (at a quarter of the sfx level), the DFPlayer plays sound effects by priority; the sound table is generated from the simulator. The speaker and DFPlayer drivers are in the driver list."
         }
       }
     ],
@@ -768,13 +768,13 @@
     "shared": [
       {
         "id": "radio",
-        "name": "无线收发",
-        "file": "lib/radio_link.c · protocol.h",
+        "name": "无线协议",
+        "file": "lib/protocol.h · radio_link.c（队列和去重）",
         "owner": "yihao",
         "status": "done",
         "detail": "802.15.4 广播帧 + 发送队列；协议 v6（HELLO、大厅消息、会话动作、动作计数），版本号不对的帧照样丢但会计数（错误 E1 用）。中央板发完整快照，玩家发带 step_id 的动作。",
         "en": {
-          "name": "Radio link",
+          "name": "Radio protocol",
           "detail": "802.15.4 broadcast frames plus a send queue; protocol v6 (HELLO, lobby message, session actions, action counters); frames of another version are dropped but counted (for error E1). The central sends full snapshots, players send step-tagged actions."
         }
       },
