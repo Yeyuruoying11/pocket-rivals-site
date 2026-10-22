@@ -2471,19 +2471,38 @@
     if (hh.ov && hh.ov.def.tick) safe(hh.ov.id + ".tick", () => hh.ov.def.tick(hh.ov.ctx, C.TICK_MS));
     if (hh.settingsDirty && !hh.link.inMode && !hh.local.stack.length) writeFlash(hh);
     const now = hh.now();
+    // A frame planned at a slower rate than the current one is pulled in to
+    // now: a new effect on a quiet screen (6 fps: up to 166 ms away) is drawn
+    // at once, so a 120 ms border flash is never skipped. A frame held back
+    // by a long SPI push (spi > frameMs) is not pulled in.
+    if (hh.nextFrame - now > Math.max(frameMsOf(hh, now), hh.lastSpi || 0)) hh.nextFrame = now;
     if (now >= hh.nextFrame) {
       const spi = renderFrame(hh);
-      const d = (hh.ov && hh.ov.def) || hh.screenDef;
-      let fps = d && d.fps != null ? (typeof d.fps === "function" ? safe("fps", () => d.fps(hh.ov ? hh.ov.ctx : ctx)) : d.fps) : 30;
-      if (hh.ov && hh.screenDef && hh.screenDef.fps != null) {
-        const f2 = typeof hh.screenDef.fps === "function" ? safe("fps", () => hh.screenDef.fps(ctx)) : hh.screenDef.fps;
-        fps = Math.max(fps || 0, f2 || 0);
-      }
-      if (hh.g.wiping) fps = Math.max(fps || 30, 30);
-      const frameMs = 1000 / clamp(fps || 30, 1, 60);
+      hh.lastSpi = spi;
+      const frameMs = frameMsOf(hh, now);
       hh.nextFrame += Math.max(frameMs, spi);
       if (hh.nextFrame < now) hh.nextFrame = now + frameMs;
     }
+  }
+  // Frame pacing (§2.5 rule 3; the firmware does the same in lib/ui_t0.c fps() and
+  // ui_t0_poll()): the screen's rate (an overlay: the faster of the two),
+  // at least 30 fps while the screen wipes or an effect runs (border flash,
+  // pop, dissolve, invert, shake), so running effects never step at a quiet
+  // screen's 4-10 fps. Only frame times change, never what a frame draws.
+  function fxBusy(hh, now) {
+    const fx = hh.fx;
+    return (fx.border != null && now < fx.border.until) || fx.pops.some(pp => now - pp.at < 400)
+      || fx.dissolves.some(d => now - d.at < 240) || now < hh.invertUntil || now - hh.shakeAt < 120;
+  }
+  function frameMsOf(hh, now) {
+    const ctx = hh.ctx, d = (hh.ov && hh.ov.def) || hh.screenDef;
+    let fps = d && d.fps != null ? (typeof d.fps === "function" ? safe("fps", () => d.fps(hh.ov ? hh.ov.ctx : ctx)) : d.fps) : 30;
+    if (hh.ov && hh.screenDef && hh.screenDef.fps != null) {
+      const f2 = typeof hh.screenDef.fps === "function" ? safe("fps", () => hh.screenDef.fps(ctx)) : hh.screenDef.fps;
+      fps = Math.max(fps || 0, f2 || 0);
+    }
+    if (hh.g.wiping || fxBusy(hh, now)) fps = Math.max(fps || 30, 30);
+    return 1000 / clamp(fps || 30, 1, 60);
   }
 
   function renderFrame(hh) {
