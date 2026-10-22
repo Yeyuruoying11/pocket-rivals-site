@@ -796,10 +796,10 @@
         "file": "lib/race_core.c · race_track.c",
         "owner": "yihao",
         "status": "done",
-        "detail": "双人赛车的物理、计圈、宠物特性（玩家板）和倒计时、比赛时钟、冲线顺序、技能（中央板），和模拟器逐步完全一致（27 万多项对照检查）。还没接到两块板的主程序里，画面也还没做。",
+        "detail": "双人赛车的物理、计圈、宠物特性（玩家板）和倒计时、比赛时钟、冲线顺序、技能（中央板），覆盖模拟器的 5 条赛道（经典 + 4 条 32×32：斜线、交叉口、沙地、加速板），和模拟器逐步完全一致（约 60 万项对照检查）；赛道表和参数都从模拟器自动导出。还没接到两块板的主程序里，画面也还没做。",
         "en": {
           "name": "Racing core",
-          "detail": "Two-player racing physics, laps and pet traits (player board) plus countdown, race clock, finish order and skills (central board), step-for-step identical to the simulator (over 270,000 parity checks). Not yet wired into either board's main program, and no screens yet."
+          "detail": "Two-player racing physics, laps and pet traits (player board) plus countdown, race clock, finish order and skills (central board) on all five of the simulator's tracks (Classic plus four 32×32 tracks with diagonals, crossings, sand and boost pads), step-for-step identical to the simulator (about 600,000 parity checks); the track table and parameters are exported from the simulator. Not yet wired into either board's main program, and no screens yet."
         }
       },
       {
@@ -808,10 +808,10 @@
         "file": "software/test",
         "owner": "yihao",
         "status": "done",
-        "detail": "约 30 万项单元和对照测试（规则、按键计时、声音、赛车和模拟器逐步对齐），加上丢包模拟器（0% / 30% / 60% 丢包下打完整局）和终端版对战 play.c。",
+        "detail": "约 60 万项单元和对照测试（规则、按键计时、声音、赛车、排行榜和画面都和模拟器逐步 / 逐像素对齐），加上丢包模拟器（0% / 30% / 60% 丢包下打完整局）和终端版对战 play.c。网页模拟器的浏览器测试在网站仓库的 tests/。",
         "en": {
           "name": "Tests and simulator",
-          "detail": "About 300,000 unit and parity checks (rules, button timing, sound, racing step-for-step against the simulator), plus the lossy-radio simulator (full matches at 0% / 30% / 60% loss) and the terminal battle play.c."
+          "detail": "About 600,000 unit and parity checks (rules, button timing, sound, racing, the leaderboard and the screens, step for step and pixel for pixel against the simulator), plus the lossy-radio simulator (full matches at 0% / 30% / 60% loss) and the terminal battle play.c. The web simulator's browser tests live in the site repository under tests/."
         }
       },
       {
@@ -844,10 +844,10 @@
         "file": "device.html",
         "owner": "yihao",
         "status": "done",
-        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准。",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准；距离传感器用挥手键或手高滑杆模拟（赛车挥手擦浪花、冒险手托升降门）。",
         "en": {
           "name": "Handheld simulator",
-          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration."
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration; the distance sensor is simulated with a wave key or a hand-height slider (wave to wipe the splash in racing, hold the gate by hand in adventure)."
         }
       },
       {
