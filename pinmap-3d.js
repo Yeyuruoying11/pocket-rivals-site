@@ -341,7 +341,7 @@ export function mount(stage, api) {
       reg("finger", {pin: f.pin}, mesh, {finger: f});
       if (f.pin) {
         const hw = f.ring ? RING.w : PM.PITCH;
-        hitBox(hw, 2.4, f.ring ? 9 : 7, new THREE.Vector3(f.x, TOP + 0.6, f.ring ? EDGE_Z - 4.4 : EDGE_Z - 3), selv);
+        hitBox(hw, 2.4, f.ring ? 9 : 7, new THREE.Vector3(f.x, TOP + 0.6, f.ring ? EDGE_Z - 4.4 : EDGE_Z - 3), selv).userData.finger = true;
       }
       if (f.warn) {
         // a small warning triangle just above the contact (NFC pins)
@@ -647,8 +647,8 @@ export function mount(stage, api) {
     const obj = new CSS2DObject(el);
     root.add(obj);
     const tags = {pin: l.pin, part: l.pin ? null : l.part, alias: l.alias};
-    // the big labels (modules, on-board callouts) are measured, kept inside the view and decluttered
-    labelObjs.push({obj, el, tags, l, secondary: !!l.secondary, id: l.id, big: l.cls === "mod", w: 0, h: 0, nudge: ""});
+    // the big labels (modules, on-board callouts, the two player boards) are measured, kept inside the view and decluttered
+    labelObjs.push({obj, el, tags, l, secondary: !!l.secondary, id: l.id, big: l.cls === "mod" || l.cls === "onb ghost", pin: l.cls === "pin", w: 0, h: 0, nudge: ""});
     return obj;
   }
 
@@ -666,7 +666,7 @@ export function mount(stage, api) {
   function measureLabels() {
     labels.render(scene, camera);
     for (const lo of labelObjs) {
-      if (!lo.big) continue;
+      if (!lo.big && !lo.pin) continue;
       // measure even the ones the camera can't see right now
       if (lo.el.parentNode !== labels.domElement) labels.domElement.appendChild(lo.el);
       const disp = lo.el.style.display;
@@ -688,7 +688,9 @@ export function mount(stage, api) {
   function declutter() {
     const W = stage.clientWidth, H = stage.clientHeight;
     const list = labelObjs.filter(lo => lo.big && lo.w && lo.el.style.display !== "none");
-    const nudges = PM.declutter(list.map(lo => labelBox(lo, camera, W, H)), W, H);
+    // the pin numbers on the wires stay where they are (phones hide them): big labels keep off them
+    const fixed = small ? [] : labelObjs.filter(lo => lo.pin && lo.w && lo.el.style.display !== "none").map(lo => labelBox(lo, camera, W, H));
+    const nudges = PM.declutter(list.map(lo => labelBox(lo, camera, W, H)), W, H, 3, fixed);
     list.forEach((lo, i) => {
       const m = `${Math.round(nudges[i].dy)}px 0 0 ${Math.round(nudges[i].dx)}px`;
       if (m !== lo.nudge) { lo.nudge = m; lo.el.style.margin = m; }
@@ -711,7 +713,7 @@ export function mount(stage, api) {
       } else {
         el.textContent = l.title;
       }
-      if (selv) {
+      if (selv && !l.passive) {
         el.classList.add("hot");
         el.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") choose(selv); });
         el.addEventListener("click", () => choose(selv, true));
@@ -797,7 +799,9 @@ export function mount(stage, api) {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(picks, false)[0];
+    const hits = ray.intersectObjects(picks, false);
+    // a wire running over the connector must not hide the contacts under it: a contact wins
+    const hit = hits.find(h => h.object.userData.finger) || hits[0];
     return hit ? {sel: hit.object.userData.sel} : null;
   }
   let down = null, dragging = false, hoverQueued = null;
@@ -828,8 +832,10 @@ export function mount(stage, api) {
   /* ---------------- camera, idle rotation, reset ---------------- */
 
   const DEFAULT = {polar: 0.62, az: 0.0, target: new THREE.Vector3(0, 0, 18), dist: 200};
+  // idle rotation: one slow sweep (right, left, back to the default angle), then
+  // it stops so an untouched page stops drawing
   let auto = !reduced;
-  let autoDir = 1;
+  let autoDir = 1, autoTurns = 0;
   let tween = null;
   // Points that must be in view: the board, every module and the ghost boards.
   // The labels are checked separately, by their measured size in pixels.
@@ -903,7 +909,7 @@ export function mount(stage, api) {
     if (!animate) { placeCamera(DEFAULT.polar, DEFAULT.az, dist, DEFAULT.target); controls.update(); invalidate(); return; }
     const from = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
     tween = {t0: performance.now(), from, fromT: controls.target.clone(), dist};
-    auto = !reduced;
+    auto = !reduced; autoDir = 1; autoTurns = 0;
     invalidate();
   }
   function stopAuto() { auto = false; tween = null; }
@@ -912,11 +918,13 @@ export function mount(stage, api) {
 
   /* ---------------- render loop (on demand) ---------------- */
 
-  let raf = 0, onScreen = true, pageVisible = !document.hidden;
+  let raf = 0, onScreen = true, pageVisible = !document.hidden, lastFrame = 0;
   function invalidate() { if (!raf && onScreen && pageVisible) raf = requestAnimationFrame(frame); }
   function frame(now) {
     raf = 0;
-    if (!stage.offsetParent) return;   // the tab was switched away: stop until shown again
+    if (!stage.offsetParent) { lastFrame = 0; return; }   // the tab was switched away: stop until shown again
+    // seconds since the last frame, so the idle sweep has the same speed at any frame rate
+    const dt = lastFrame ? Math.min(0.25, (now - lastFrame) / 1000) : 1 / 60;
     let more = false;
     if (tween) {
       const k = Math.min(1, (now - tween.t0) / 650), e = 1 - Math.pow(1 - k, 3);
@@ -926,12 +934,19 @@ export function mount(stage, api) {
       if (k >= 1) tween = null;
       more = true;
     } else if (auto) {
+      // the idle sweep turns the camera itself (not OrbitControls' autoRotate, whose
+      // damping would carry it on past the point where it should stop)
       const az = controls.getAzimuthalAngle();
-      if (az > 0.3) autoDir = -1; else if (az < -0.3) autoDir = 1;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.35 * autoDir;
-      more = true;
-    } else controls.autoRotate = false;
+      if (az > DEFAULT.az + 0.3 && autoDir > 0) { autoDir = -1; autoTurns++; }
+      else if (az < DEFAULT.az - 0.3 && autoDir < 0) { autoDir = 1; autoTurns++; }
+      const last = autoTurns >= 2 && autoDir > 0;   // the way home: slow down
+      const ease = last ? Math.max(0.15, Math.min(1, (DEFAULT.az - az) / 0.2)) : 1;
+      let next = az + autoDir * 0.05 * ease * dt;     // rad/s
+      if (last && next >= DEFAULT.az) { next = DEFAULT.az; auto = false; }   // back where it started: rest
+      else more = true;
+      placeCamera(controls.getPolarAngle(), next, camera.position.distanceTo(controls.target), controls.target.clone());
+    }
+    lastFrame = more ? now : 0;
     if (controls.update()) more = true;
     renderer.render(scene, camera);
     labels.render(scene, camera);

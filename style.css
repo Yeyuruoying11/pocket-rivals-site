@@ -329,6 +329,7 @@ table.drivers { border-collapse: collapse; width: 100%; min-width: 880px; font-s
 .p3d-legend i.tri { width: 0; height: 0; border-radius: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid var(--doing); }
 
 /* labels (shared by both views) */
+.p3d-lab:not(.hot) { pointer-events: none; }   /* plain names (logo, chip…) never block the contacts under them */
 .p3d-lab { pointer-events: auto; font-size: 12px; line-height: 1.25; white-space: nowrap; color: var(--ink); transition: opacity .2s; user-select: none; }
 .p3d-lab.hot { cursor: pointer; }
 .p3d-lab.dim { opacity: .2; }

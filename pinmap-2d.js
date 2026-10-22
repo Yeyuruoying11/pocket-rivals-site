@@ -244,7 +244,7 @@ export function mount(stage, api) {
       else if (l.cls === "pin") e.innerHTML = `${api.esc(l.title)}${l.warn ? `<i class="w">⚠</i>` : ""}`;
       else e.textContent = l.title;
       const selv = l.pin ? {pin: l.pin} : l.part ? {part: l.part} : l.alias ? {part: l.alias} : null;
-      if (selv) {
+      if (selv && !l.passive) {
         e.classList.add("hot");
         e.addEventListener("pointerenter", ev => { if (ev.pointerType === "mouse") choose(selv); });
         e.addEventListener("click", () => choose(selv, true));
@@ -278,9 +278,11 @@ export function mount(stage, api) {
       const [ax, ay] = PM.ALIGN[a.align || "top"];
       it.w = it.el.offsetWidth; it.h = it.el.offsetHeight;
       it.box = {x: x - ax * it.w, y: y - ay * it.h, w: it.w, h: it.h};
-      if (it.l.cls === "mod" && it.w) boxes.push(it);
+      if ((it.l.cls === "mod" || it.l.cls === "onb ghost") && it.w) boxes.push(it);
     }
-    const nudges = PM.declutter(boxes.map(it => it.box), stage.clientWidth, stage.clientHeight);
+    // the pin numbers stay put; the big labels keep off them
+    const fixed = labelEls.filter(it => it.l.cls === "pin" && it.w).map(it => it.box);
+    const nudges = PM.declutter(boxes.map(it => it.box), stage.clientWidth, stage.clientHeight, 3, fixed);
     boxes.forEach((it, i) => { it.box.x += nudges[i].dx; it.box.y += nudges[i].dy; });
     for (const it of labelEls) if (it.box) it.el.style.transform = `translate(${f1(it.box.x)}px, ${f1(it.box.y)}px)`;
     placeTip();

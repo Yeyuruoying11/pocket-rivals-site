@@ -29,7 +29,7 @@ export const BOARD = {w: 51.6, d: 42, t: 1.6, r: 4};
 export const TOP = BOARD.t;                  // y of the board's top surface
 export const EDGE_Z = BOARD.d / 2;           // the connector edge
 export const STRIP = {w: 0.86, len: 4.4};    // narrow strip
-export const RING = {w: 4.7, outer: 2.35, hole: 1.45, z: EDGE_Z - 6.4};  // ring pad: hole centre z
+export const RING = {w: 4.9, outer: 2.45, hole: 1.9, z: EDGE_Z - 6.4};   // ring pad: ~4 mm hole (takes 4 mm banana plugs); hole centre z
 
 // Parts on the board itself (front-view positions; back-side parts are drawn
 // "seen through" the board, dashed). Positions are approximate.
@@ -290,7 +290,8 @@ export function buildModel(api) {
     const my = Math.max(...mids.map(p => p.y));
     const mz = mids.reduce((s, p) => s + p.z, 0) / mids.length;
     const title = /I2C/.test(m.iface) ? "I2C · Qwiic" : m.iface;
-    model.labels.push({id: "bus-" + m.id, cls: "bus", part: m.id, title, align: "center", pos: v(mx, my + 2.5, mz), color: m.color, secondary: true});
+    // passive: it sits just off the connector, so it must not catch the pointer meant for a contact
+    model.labels.push({id: "bus-" + m.id, cls: "bus", part: m.id, title, align: "center", pos: v(mx, my + 2.5, mz), color: m.color, secondary: true, passive: true});
   }
   for (const l of model.links) {
     const p = l.pts[1];
@@ -306,7 +307,7 @@ export function buildModel(api) {
   const back = " · " + tr("p3d.back");
   if (compById.beep) {
     const c = compById.beep;
-    callout("ob-beep", v(B.speaker.x - 4, TOP, B.speaker.z - 2), v(-34, 3, -15),
+    callout("ob-beep", v(B.speaker.x - 4, TOP, B.speaker.z - 2), v(-34, 3, -23),
       {cls: "mod", part: "beep", kind: kindBadge(c.kind), title: L(c, "name"), sub: c.iface + " · P0.00" + back, color: partColor("beep")});
   }
   if (compById.accel) {
@@ -316,12 +317,12 @@ export function buildModel(api) {
   }
   const matrixPins = ledPins.filter(l => !(l.f.status === "used")).map(l => l.f.pin);
   if (matrixComp) {
-    callout("ob-matrix", v(B.matrix.x - 8.4, TOP + 0.6, B.matrix.z - 8.4), v(-34, 3, -6),
+    callout("ob-matrix", v(B.matrix.x - 8.4, TOP + 0.6, B.matrix.z - 8.4), v(-34, 3, -10),
       {cls: "mod", part: "matrix", kind: kindBadge(matrixComp.kind), title: L(matrixComp, "name"),
         sub: matrixOn ? tr("p3d.matrixBusy", {pins: matrixPins.join(" ")}) : tr("p3d.matrixOff", {pins: ledPinIds.join(" ")}),
         color: partColor("matrix"), off: !matrixOn});
   } else {
-    callout("ob-matrix", v(B.matrix.x - 8.4, TOP + 0.6, B.matrix.z + 2), v(-34, 3, 2),
+    callout("ob-matrix", v(B.matrix.x - 8.4, TOP + 0.6, B.matrix.z + 2), v(-34, 3, -7),
       {cls: "mod", part: null, alias: "@matrix", kind: "actuator", title: tr("p3d.matrix"),
         sub: matrixOn ? tr("p3d.matrixBusy", {pins: matrixPins.join(" ")}) : tr("p3d.matrixOff", {pins: ledPinIds.join(" ")}),
         color: "var(--muted)", off: !matrixOn, pins: ledPinIds});
@@ -336,10 +337,12 @@ export function buildModel(api) {
     callout("ob-logic", v(B.chip.x, TOP + 0.8, B.chip.z), v(34, 3, 4),
       {cls: "mod", part: "logic", kind: kindBadge(c.kind), title: L(c, "name"), sub: "nRF52833" + back, color: partColor("logic")});
   } else {
-    model.labels.push({id: "ob-chip", cls: "onb", title: "nRF52833" + back, pos: v(B.chip.x, TOP + 1, B.chip.z + 4.6), secondary: true});
+    // on the chip, clear of the 0 / 1 / 2 / 3V / GND names printed above the rings
+    model.labels.push({id: "ob-chip", cls: "onb", title: "nRF52833" + back, pos: v(B.chip.x + 3, TOP + 1, B.chip.z + 0.6), secondary: true});
   }
-  model.labels.push({id: "ob-mic", cls: "onb", title: tr("p3d.mic"), pos: v(B.mic.x + 4, TOP + 1, B.mic.z), secondary: true});
-  model.labels.push({id: "ob-logo", cls: "onb", title: tr("p3d.logo"), pos: v(B.logo.x - 5.5, TOP + 1, B.logo.z), secondary: true});
+  // the logo's name above it, the microphone's to its right, so the two never run into each other
+  model.labels.push({id: "ob-mic", cls: "onb", title: tr("p3d.mic"), pos: v(B.mic.x + 1.8, TOP + 1, B.mic.z), align: "right", secondary: true});
+  model.labels.push({id: "ob-logo", cls: "onb", title: tr("p3d.logo"), pos: v(B.logo.x, TOP + 1, B.logo.z - 2.4), secondary: true});
 
   // central board: the two player boards it talks to (ghosts)
   if (boardKind === "central" && compById.radio) {
@@ -360,25 +363,28 @@ export function buildModel(api) {
 
 // Keep the big labels inside the stage (W × H px) and off each other: boxes
 // {x, y, w, h} (top-left corner, px) → a nudge {dx, dy} for each. A label is
-// first slid sideways back inside the stage, then pushed just past any label
-// it overlaps, down or up, whichever is shorter and stays inside. Greedy, in
-// order of height on screen.
-export function declutter(boxes, W, H, gap = 3) {
+// first slid sideways back inside the stage, then moved up or down to the
+// nearest spot that is free (just above or below one of the labels already
+// placed, or of the fixed boxes, which never move). Greedy, in order of height
+// on screen; a label with no free spot stays where it is.
+export function declutter(boxes, W, H, gap = 3, fixed = []) {
   const order = boxes.map((b, i) => i).sort((a, b) => boxes[a].y - boxes[b].y);
-  const placed = [];
+  const placed = [...fixed];   // small labels that stay put (pin numbers): the big ones move around them
   const out = boxes.map(() => ({dx: 0, dy: 0}));
   const hits = (r, p) => r.x < p.x + p.w + gap && p.x < r.x + r.w + gap && r.y < p.y + p.h + gap && p.y < r.y + r.h + gap;
   for (const i of order) {
     const b = boxes[i];
-    let r = {...b};
+    const r = {...b};
     r.x = Math.max(2, Math.min(W - 2 - r.w, r.x));
     r.y = Math.max(2, Math.min(H - 2 - r.h, r.y));
-    for (let k = 0; k < 8; k++) {
-      const p = placed.find(q => hits(r, q));
-      if (!p) break;
-      const down = p.y + p.h + gap - r.y, up = r.y + r.h + gap - p.y;
-      const canDown = r.y + down + r.h <= H - 2, canUp = r.y - up >= 2;
-      r = {...r, y: r.y + ((canUp && (!canDown || up < down)) ? -up : down)};
+    if (placed.some(q => hits(r, q))) {
+      const y0 = r.y;
+      const cands = [];
+      for (const p of placed) cands.push(p.y - gap - r.h, p.y + p.h + gap);
+      const free = cands.filter(y => y >= 2 && y + r.h <= H - 2)
+        .sort((a, c) => Math.abs(a - y0) - Math.abs(c - y0))
+        .find(y => !placed.some(q => hits({...r, y}, q)));
+      if (free !== undefined) r.y = free;
     }
     out[i] = {dx: r.x - b.x, dy: r.y - b.y};
     placed.push(r);
