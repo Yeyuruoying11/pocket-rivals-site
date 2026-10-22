@@ -491,7 +491,9 @@
     g.text(x + 28, 92, ctx.t(labelKey), {align: "c", w: 52, c: "muted", key: labelKey});
     if (pr) {
       ui.avatar(g, x + 18, 107, pr, {scale: 2});
-      g.text(x + 28, 127, pr.name, {align: "c", w: 52});
+      // the rival is on the leaderboard page (presence 4, §9.4)
+      if (pr.presence === C.PRESENCE.RANKS) g.text(x + 28, 127, ctx.t("dev.ui.atRanks"), {align: "c", w: 52, c: "muted", key: "dev.ui.atRanks"});
+      else g.text(x + 28, 127, pr.name, {align: "c", w: 52});
     } else {
       g.dither(x + 18, 107, 20, 20, "panel", null);
       g.text(x + 28, 107, "?", {align: "c", font: "s", scale: 2, c: "muted"});
@@ -515,6 +517,8 @@
     input(ctx, ev) {
       if (ev.btn === "B" && ev.type === "down") { ctx.sfx("ui_back"); ctx.profiles.logout(); }
       if (ev.btn === "MENU" && ev.type === "click") { ctx.sfx("ui_ok"); ctx.go("settings"); }
+      // §9.4: once a lobby came in, A opens today's leaderboard while waiting
+      if (ev.btn === "A" && ev.type === "down" && ctx.lobby) { ctx.sfx("ui_ok"); ctx.go("ranks"); }
     },
     draw(ctx, g) {
       ui.topBar(g, ctx, "dev.conn.title", {right: "P" + (ctx.p + 1)});
@@ -535,7 +539,8 @@
         card(ctx, g, 6, "dev.ui.you", ctx.me(), ctx.color());
         card(ctx, g, 66, "dev.ui.rival", rival, rival ? D.PLAYER_COLORS[rival.color % 6] : "line");
       }
-      ui.hintBar(g, ctx, [["B", "dev.ui.back"], ["M", "dev.conn.hintSetup"]]);
+      ui.hintBar(g, ctx, ctx.lobby ? [["A", "dev.conn.hintRanks"], ["B", "dev.ui.back"], ["M", "dev.conn.hintSetup"]]
+        : [["B", "dev.ui.back"], ["M", "dev.conn.hintSetup"]]);
     },
   });
   // S09 settings and S10 calibrate live in screens-menu.js.

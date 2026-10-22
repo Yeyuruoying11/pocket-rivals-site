@@ -1023,6 +1023,8 @@
       if (s.phase === PH.RESULTS) return;
       s.winner = leader();
       s.phase = PH.RESULTS;
+      // today's leaderboard (§9.2): best lap per track (board 0x10 | track index; no board = nothing kept)
+      if (api.rank) api.rank.submit(0x10 | s.track, [0, 1].filter(p => s.cars[p].best > 0).map(p => ({who: [p], value: s.cars[p].best, pets: [s.pet[p]]})));
       api.nextStep();
       api.broadcast();
     }
@@ -2355,6 +2357,12 @@
       keys: [["STICK", "dev.race.k1n", "dev.race.k1"], ["PAD", "dev.race.k2n", "dev.race.k2"],
         ["B", "dev.race.k3n", "dev.race.k3"], ["S", "dev.race.k4n", "dev.race.k4"]]},
     central: {periodMs: 50, create: centralCreate},
+    // today's leaderboard (§9.2): best lap on the first two non-test tracks (variant = track index: the table only grows);
+    // any pause excludes the race; the lap count does not change a lap time
+    rank: TRACKS.filter(T => !T.test).slice(0, 2).map(T => ({variant: T.idx, titleKey: "dev.rank.race", subKey: "dev.race.trk." + T.id,
+      ruleKey: "dev.rank.ruleRace", better: "low", pause: "exclude", ignoreParams: ["laps", "countdownMs", "finishWaitMs", "timeLimitS"],
+      minLapCs: Math.floor(T.LEN * 100 / (DEFAULTS.topSpeed * 1.5)),
+      valid: v => v >= Math.floor(T.LEN * 100 / (DEFAULTS.topSpeed * 1.5)) && v <= 12000, format: D.rankFmt.lapCs})),
     player: {
       create: playerCreate,
       destroy(ctx) { ctx.tone(0); },

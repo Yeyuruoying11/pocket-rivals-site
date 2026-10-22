@@ -571,6 +571,7 @@
         b.st = BS.IDLE; b.until = s.t + P.bossIdleMs;
       } else if (b.st === BS.DEAD && s.t >= b.until) {
         s.phase = PH.CLEAR; ev(EV.CLEAR); api.nextStep();
+        if (api.rank) api.rank.submit(0x20 | ((s.world || 1) - 1), [{who: [0, 1], value: (s.totalMs / 100) | 0, pets: s.heroes.map(h => h.pet)}]);   // today's leaderboard, keyed by world (§9.2)
       }
     }
     function exits() {
@@ -1584,6 +1585,7 @@
       keys: [["STICK", "dev.adv.k1n", "dev.adv.k1"], ["A", "dev.adv.k2n", "dev.adv.k2"], ["S", "dev.adv.k3n", "dev.adv.k3"],
         ["PAD", "dev.adv.k4n", "dev.adv.k4"], ["M", "dev.adv.k5n", "dev.adv.k5"]]},
     central: {periodMs: 100, create: createCentral},
+    rank: [{variant: 0, titleKey: "dev.rank.adv", subKey: "dev.rank.world", subVars: {n: 1}, ruleKey: "dev.rank.ruleAdv", better: "low", coop: true, pause: "add", pauseExtraMs: p => p.resumeCountMs, format: D.rankFmt.clockDs}],
     player,
     bot,
   });

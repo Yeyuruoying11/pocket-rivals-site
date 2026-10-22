@@ -234,6 +234,7 @@
       ev: {id: 0, type: EV.NONE, target: 0, amount: 0, result: 0},
       next: "begin", phaseAt: 0,
       best: [0, 0], perfects: [0, 0], quitBy: null, trialFlag: false,
+      bestPet: [NO_PET, NO_PET],      // §9.2: the pet out when best[] was scored (leaderboard icon)
     };
     const rand32 = () => api.randInt(0x10000) * 0x10000 + api.randInt(0x10000);
     const pl = i => g.players[i];
@@ -317,6 +318,9 @@
           g.winner = 1 - i;
           setEvent(EV.WIN, g.winner, 0, 0);
           enterPhase(PH.GAME_OVER, 3);
+          // today's leaderboard (§9.2): best trial of the match, ties on perfect blocks; a QUIT never gets here
+          if (api.rank) api.rank.submit(0x00, [0, 1].filter(p => g.best[p] > 0)
+            .map(p => ({who: [p], value: g.best[p] << 8 | Math.min(g.perfects[p], 255), pets: [g.bestPet[p]]})));
           return;
         }
         need |= 1 << i;
@@ -342,6 +346,7 @@
       const d = 1 - g.turn;
       const pct = R.petTypePct(pl(g.turn).active, pl(d).active);
       g.attackScore = Math.min(score, 100);
+      if (g.attackScore > g.best[g.turn]) g.bestPet[g.turn] = pl(g.turn).active;
       g.best[g.turn] = Math.max(g.best[g.turn], g.attackScore);
       g.attackTier = R.tierOf(g.attackScore);
       g.attackDamage = R.attackDamage(g.attackScore, pct);
@@ -1352,6 +1357,9 @@
       keys: [["A", "dev.battle.k1n", "dev.battle.k1"], ["S", "dev.battle.k2n", "dev.battle.k2"],
         ["M", "dev.battle.k3n", "dev.battle.k3"], ["A", "dev.battle.k4n", "dev.battle.k4"]]},
     central: {periodMs: C.STATE_PERIOD_MS, create: createCentral},
+    // today's leaderboard (§9.2): top trial score 0..100, ties on perfect blocks (value = score << 8 | perfects)
+    rank: [{variant: 0, titleKey: "dev.rank.battle", subKey: "dev.rank.battleSub", ruleKey: "dev.rank.tieBattle", better: "high",
+      valid: v => (v >> 8) >= 1 && (v >> 8) <= 100, format: D.rankFmt.score}],
     player,
     bot,
   });

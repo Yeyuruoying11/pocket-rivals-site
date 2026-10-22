@@ -30,6 +30,8 @@
       "dev.dbg.centralCard": "中央板", "dev.dbg.mode": "模式", "dev.dbg.phase": "阶段", "dev.dbg.stepN": "step",
       "dev.dbg.links": "链路", "dev.dbg.paused": "暂停中", "dev.dbg.none": "无", "dev.dbg.yes": "是", "dev.dbg.no": "否",
       "dev.dbg.snapshot": "快照", "dev.dbg.off": "没电",
+      "dev.dbg.rank": "今日排行榜", "dev.dbg.rankClear": "清空排行榜", "dev.dbg.rankHoldAB": "开机时按住 A+B",
+      "dev.dbg.rankLine": "今日编号 {e}，记录 {n}/255，第 {p} 页", "dev.dbg.rankPend": "待填名次：{s}", "dev.dbg.rankEmpty": "（空）",
       "dev.dbg.msgs": "消息大小", "dev.dbg.flash": "flash 预算",
       "dev.dbg.glyphLine": "汉字和全角标点 {n} 个 x 18 B = {b} B", "dev.dbg.spriteLine": "sprite {n} 个 = {b} B",
       "dev.dbg.drawn": "画过的字 {n} 个", "dev.dbg.missing": "缺字：{s}", "dev.dbg.fontNull": "字库表没有加载，中文用 fillText 代替",
@@ -64,6 +66,8 @@
       "dev.dbg.centralCard": "Central board", "dev.dbg.mode": "Mode", "dev.dbg.phase": "Phase", "dev.dbg.stepN": "step",
       "dev.dbg.links": "Links", "dev.dbg.paused": "Paused", "dev.dbg.none": "none", "dev.dbg.yes": "yes", "dev.dbg.no": "no",
       "dev.dbg.snapshot": "Snapshot", "dev.dbg.off": "off",
+      "dev.dbg.rank": "Today's leaderboard", "dev.dbg.rankClear": "Clear leaderboard", "dev.dbg.rankHoldAB": "Power up holding A+B",
+      "dev.dbg.rankLine": "day {e}, records {n}/255, page {p}", "dev.dbg.rankPend": "waiting for initials: {s}", "dev.dbg.rankEmpty": "(empty)",
       "dev.dbg.msgs": "Message sizes", "dev.dbg.flash": "Flash budget",
       "dev.dbg.glyphLine": "{n} CJK glyphs x 18 B = {b} B", "dev.dbg.spriteLine": "{n} sprites = {b} B",
       "dev.dbg.drawn": "{n} glyphs drawn so far", "dev.dbg.missing": "Missing: {s}", "dev.dbg.fontNull": "Font table not loaded: CJK drawn with fillText",
@@ -288,7 +292,25 @@
     /* ---------- central board ---------- */
     const centralLine = el("div");
     const snapPre = el("pre", {class: "dbg-pre"});
-    root.append(card(t("centralCard"), centralLine, el("h4", {text: t("snapshot")}), snapPre));
+    // today's leaderboard (§9.9): every board, the store, the open window; clear = the central's A+B
+    const rankPre = el("pre", {class: "dbg-pre"});
+    const rankRow = row(btn(t("rankClear"), () => { D.rank.clear(); setTimeout(refresh, 0); }),
+      btn(t("rankHoldAB"), () => { D.radio.powerCentral(false); D.radio.powerCentral(true, {holdAB: 3000}); setTimeout(refresh, 0); }));
+    rankRow.dataset.rank = "1";
+    root.append(card(t("centralCard"), centralLine, el("h4", {text: t("snapshot")}), snapPre, el("h4", {text: t("rank")}), rankRow, rankPre));
+    function rankText() {
+      if (!W().central.powered) return t("off");
+      const d = D.rank.dump(), defs = D.rank.defs();
+      const lines = [t("rankLine", {e: d.epoch, n: d.recCount, p: d.pageSeq})];
+      for (const b of defs) {
+        lines.push("0x" + b.id.toString(16).padStart(2, "0") + " " + I18N.t(b.titleKey));
+        const rows = d.boards[b.id] || [];
+        if (!rows.length) lines.push("  " + t("rankEmpty"));
+        rows.forEach((e, i) => lines.push("  " + (i + 1) + " " + e.ini.filter(Boolean).join(" + ").padEnd(9) + " " + (b.format ? b.format(e.value).main : e.value) + "  seq " + e.seq));
+      }
+      if (d.pending.length) lines.push(t("rankPend", {s: d.pending.map(q => "P" + (q.p + 1) + " #" + q.rank + (q.open ? " open" : "") + (q.excluded ? " " + q.why : "")).join(", ")}));
+      return lines.join("\n");
+    }
 
     /* ---------- message sizes + flash ---------- */
     const msgBody = el("tbody");
@@ -544,6 +566,8 @@
       const snap = cv.mode ? cv.mode.snapshot : cv.session;
       const txt = json(snap);
       if (snapPre.textContent !== txt) snapPre.textContent = txt;
+      const rtxt = rankText();
+      if (rankPre.textContent !== rtxt) rankPre.textContent = rtxt;
       const gl = D.glyphs();
       const sprites = Object.values(D.registry.sprites);
       const spriteBytes = sprites.reduce((a, s) => a + Math.ceil(s.w * s.h / 2) * (s.frames ? s.frames.length : 1), 0);

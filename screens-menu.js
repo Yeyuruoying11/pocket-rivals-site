@@ -16,6 +16,7 @@
     zh: {"dev.menu.battle": "对抗", "dev.menu.race": "双人赛车", "dev.menu.adv": "双人冒险",
       "dev.menu.battleSub": "宠物三对三", "dev.menu.raceSub": "{n}圈卡丁车", "dev.menu.advSub": "合作解谜",
       "dev.menu.settings": "设置", "dev.menu.beta": "试玩", "dev.menu.soon": "未做",
+      "dev.menu.ranks": "排行榜", "dev.menu.rivalRanks": "对方在看排行榜",
       "dev.menu.rivalVote": "对方：{mode}{OK}", "dev.menu.rivalLook": "对方在看：{mode}", "dev.menu.rivalSet": "对方在设置里",
       "dev.menu.differ": "不一样！{S}同意对方", "dev.menu.agreed": "一致！", "dev.menu.notBuilt": "固件还没有这个模式",
       "dev.menu.logout": "退出登录？", "dev.menu.rivalOut": "{name}退出登录了",
@@ -23,6 +24,7 @@
     en: {"dev.menu.battle": "BATTLE", "dev.menu.race": "RACING", "dev.menu.adv": "ADVENTURE",
       "dev.menu.battleSub": "Pet duel 3v3", "dev.menu.raceSub": "{n} laps", "dev.menu.advSub": "Co-op",
       "dev.menu.settings": "SETTINGS", "dev.menu.beta": "BETA", "dev.menu.soon": "SOON",
+      "dev.menu.ranks": "RANKS", "dev.menu.rivalRanks": "Rival: rankings",
       "dev.menu.rivalVote": "Rival: {mode} {OK}", "dev.menu.rivalLook": "Rival: {mode}?", "dev.menu.rivalSet": "Rival in settings",
       "dev.menu.differ": "Differ! {S} agree", "dev.menu.agreed": "AGREED!", "dev.menu.notBuilt": "Not built yet",
       "dev.menu.logout": "Log out?", "dev.menu.rivalOut": "{name} logged out",
@@ -78,7 +80,9 @@
       "dev.set.calTitle": "校准", "dev.set.cal1": "松开摇杆和压力垫", "dev.set.cal2": "用力捏 3 秒", "dev.set.cal3": "跟着光带 2 秒",
       "dev.set.calRaw": "读数", "dev.set.calPeak": "峰值", "dev.set.calSecs": "{n}秒", "dev.set.calSmall": "压力变化太小",
       "dev.set.calOk": "完成！{A}保存", "dev.set.noPad1": "没检测到压力垫", "dev.set.noPad2": "用{A}代替",
-      "dev.set.hintSave": "保存", "dev.set.hintBack": "返回", "dev.set.hintRedo": "重来", "dev.set.hintOpen": "打开"},
+      "dev.set.hintSave": "保存", "dev.set.hintBack": "返回", "dev.set.hintRedo": "重来", "dev.set.hintOpen": "打开",
+      "dev.set.rankClear": "清榜", "dev.set.rankClearAsk": "清空排行榜？", "dev.set.rankCleared": "{OK} 排行榜已清空",
+      "dev.set.rankBusy": "对局中不能清空"},
     en: {"dev.set.title": "SETTINGS", "dev.set.lang": "Language", "dev.set.volume": "Volume", "dev.set.clicks": "Clicks", "dev.set.pad": "Pad",
       "dev.set.calibrate": "Calibrate", "dev.set.channel": "Channel", "dev.set.profile": "Edit profile", "dev.set.about": "About", "dev.set.bright": "Brightness",
       "dev.set.on": "On", "dev.set.off": "Off", "dev.set.auto": "Auto", "dev.set.langZh": "中文", "dev.set.langEn": "EN",
@@ -88,8 +92,36 @@
       "dev.set.calTitle": "CALIBRATE", "dev.set.cal1": "Release all", "dev.set.cal2": "Squeeze hard 3 s", "dev.set.cal3": "Hold in band 2 s",
       "dev.set.calRaw": "raw", "dev.set.calPeak": "peak", "dev.set.calSecs": "{n}s", "dev.set.calSmall": "Too little change",
       "dev.set.calOk": "Done! {A} save", "dev.set.noPad1": "No pad found", "dev.set.noPad2": "Use {A} instead",
-      "dev.set.hintSave": "Save", "dev.set.hintBack": "Back", "dev.set.hintRedo": "Redo", "dev.set.hintOpen": "Open"},
+      "dev.set.hintSave": "Save", "dev.set.hintBack": "Back", "dev.set.hintRedo": "Redo", "dev.set.hintOpen": "Open",
+      "dev.set.rankClear": "Clear", "dev.set.rankClearAsk": "Clear today's ranks?", "dev.set.rankCleared": "{OK} Ranks cleared",
+      "dev.set.rankBusy": "Not during a match"},
   });
+
+  // today's leaderboard (§9.4): S20 ranks, S21 initials, the S19 badge
+  D.registerStrings("dev.rank.", {
+    zh: {"dev.rank.title": "今日排行榜", "dev.rank.pageN": "{n}/{m}",
+      "dev.rank.battle": "对抗 最高测试", "dev.rank.race": "赛车 最快一圈", "dev.rank.adv": "冒险 最快通关",
+      "dev.rank.battleSub": "满分100", "dev.rank.world": "世界{n}",
+      "dev.rank.tieBattle": "同分看完美格挡", "dev.rank.ruleRace": "暂停过的比赛不算", "dev.rank.ruleAdv": "暂停时间也算",
+      "dev.rank.loading": "读取中…", "dev.rank.noReply": "读不到排行榜", "dev.rank.empty": "还没有纪录", "dev.rank.hintBoard": "换榜",
+      "dev.rank.nameTitle": "新纪录！", "dev.rank.place": "今日第{n}名", "dev.rank.badge": "{STAR}今日第{n}名",
+      "dev.rank.excluded": "这局不计榜", "dev.rank.autoSave": "{n}秒后自动保存",
+      "dev.rank.hintLeft": "退格", "dev.rank.hintEdit": "改字", "dev.rank.hintNext": "下位",
+      "dev.rank.saved": "{OK} 已保存", "dev.rank.notSaved": "名字没存上", "dev.rank.rivalNaming": "{name}在写名字…"},
+    en: {"dev.rank.title": "TODAY'S BEST", "dev.rank.pageN": "{n}/{m}",
+      "dev.rank.battle": "BATTLE top trial", "dev.rank.race": "RACING best lap", "dev.rank.adv": "ADVENTURE best time",
+      "dev.rank.battleSub": "max 100", "dev.rank.world": "World {n}",
+      "dev.rank.tieBattle": "Tie: more perfects", "dev.rank.ruleRace": "No paused races", "dev.rank.ruleAdv": "Pauses count too",
+      "dev.rank.loading": "Loading...", "dev.rank.noReply": "Can't reach central", "dev.rank.empty": "No records yet", "dev.rank.hintBoard": "Page",
+      "dev.rank.nameTitle": "NEW RECORD!", "dev.rank.place": "TODAY #{n}", "dev.rank.badge": "{STAR}TODAY #{n}",
+      "dev.rank.excluded": "Not ranked", "dev.rank.autoSave": "Auto-save in {n}s",
+      "dev.rank.hintLeft": "Back", "dev.rank.hintEdit": "Edit", "dev.rank.hintNext": "Next",
+      "dev.rank.saved": "{OK} Saved", "dev.rank.notSaved": "Name not saved", "dev.rank.rivalNaming": "{name} naming..."},
+  });
+  D.registerStrings("dev.ui.", {zh: {"dev.ui.atRanks": "看榜中"}, en: {"dev.ui.atRanks": "at ranks"}});
+  D.registerStrings("dev.conn.", {zh: {"dev.conn.hintRanks": "看榜"}, en: {"dev.conn.hintRanks": "Ranks"}});
+  // §9.4 sound: C6-E6-G6-C7, 60 ms each, not muted by "Clicks off"
+  D.registerSfx("rank", {rank_fanfare: {ch: "BEEP", tones: [[1047, 60], [1319, 60], [1568, 60], [2093, 60]]}});
 
   // 12x12 art for S16 / S18 (drawn at x2 = 24x24)
   D.registerSprites("ov.", {
@@ -112,6 +144,8 @@
   const cards = () => D.modes().slice(0, 3);
   const nameOf = (lobby, p) => lobby && lobby.profile[p] ? D.bytesToStr(lobby.profile[p].name) : "";
   const presenceOf = (lobby, p) => lobby ? lobby.hover[p] >> 4 : PR.MENU;
+  // away from the session: the settings page or the leaderboard (§9.6: PRESENCE_RANKS counts as settings)
+  const isAway = pr => pr === PR.SETTINGS || pr === PR.RANKS;
   const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
   const hasStick = ctx => ctx.hw.caps.joy !== false;
   // A results screen under an overlay (S17 after a QUIT(1), the rival still gone): let it through
@@ -194,7 +228,7 @@
             return true;
           }
           case A.READY:
-            if (s.phase !== LB.LOBBY || s.presence[p] === PR.SETTINGS) return false;
+            if (s.phase !== LB.LOBBY || isAway(s.presence[p])) return false;
             s.ready = arg ? s.ready | (1 << p) : s.ready & ~(1 << p);
             api.broadcast();
             return true;
@@ -259,7 +293,7 @@
               s.phase = LB.LOBBY; s.ready = 0; api.nextStep(); api.broadcast();
             } else if (s.phase === LB.LOBBY) {
               for (let p = 0; p < 2; p++) {
-                if (s.presence[p] === PR.SETTINGS && bit(s.ready, p)) { s.ready &= ~(1 << p); api.broadcast(); }
+                if (isAway(s.presence[p]) && bit(s.ready, p)) { s.ready &= ~(1 << p); api.broadcast(); }
               }
               if (s.ready === 3) start({first: api.randInt(2)});
             }
@@ -309,8 +343,9 @@
     fps: 15,
     enter(ctx) {
       const n = cards().length;
-      // a new visit starts on the first card; coming back from settings keeps the cursor
-      ctx.s.sel = ctx.local.menuKeep ? Math.min(ctx.local.hover | 0, n) : 0;
+      // a new visit starts on the first card; coming back from settings / the leaderboard keeps the cursor
+      ctx.s.sel = ctx.local.menuKeep ? Math.min(ctx.local.hover | 0, n + 1) : 0;
+      ctx.s.rowCell = ctx.s.sel === n + 1 ? n + 1 : n;      // bottom row: the cell the stick lands on (§9.4)
       ctx.local.menuKeep = false;
       ctx.setHover(ctx.s.sel);
       // W1 / W3 once per power-on
@@ -327,13 +362,14 @@
       const L = ctx.lobby, list = cards(), o = other(ctx);
       const me = ctx.me(), rival = ctx.rival();
       const rivalSet = !!rival && presenceOf(L, o) === PR.SETTINGS;
+      const rivalRanks = !!rival && presenceOf(L, o) === PR.RANKS;
       // top bar: me vs rival
       ui.topBar(g, ctx, null, {title: ""});
       if (me) { ui.avatar(g, 2, 2, me); g.text(14, 0, me.name, {w: 36}); }
       g.text(52, 0, "vs", {font: "s", c: "muted"});
       if (rival) {
         g.text(66, 0, rival.name, {w: 36});
-        if (rivalSet) g.sprite("icon.GEAR", 104, 3); else ui.avatar(g, 104, 2, rival);
+        if (rivalSet) g.sprite("icon.GEAR", 104, 3); else if (rivalRanks) g.sprite("icon.STAR", 104, 3); else ui.avatar(g, 104, 2, rival);
       }
       const myC = ctx.color(), rvC = colorOf(rival);
       const agreed = L && L.phase === LB.AGREED;
@@ -352,11 +388,14 @@
         if (L && L.vote[o] === m.modeId) g.sprite("icon.OK", 112, y + 5, {color: rvC});
         else if (rival && !rivalSet && L && (L.hover[o] & 0x0f) === i) g.frame(112, y + 5, 8, 8, rvC);
       });
-      // settings row
-      const sy = 118, onSet = ctx.s.sel === list.length;
-      if (onSet) g.frame(4, sy - 1, 120, 15, "accent", 2);
-      g.sprite("icon.GEAR", 8, sy + 3);
-      g.text(20, sy, ctx.t("dev.menu.settings"), {w: 90, key: "dev.menu.settings"});
+      // bottom row, two cells (§9.4): settings x 4-67, today's leaderboard x 68-123
+      const sy = 118;
+      if (ctx.s.sel === list.length) g.frame(4, sy - 1, 64, 15, "accent", 2);
+      if (ctx.s.sel === list.length + 1) g.frame(68, sy - 1, 56, 15, "accent", 2);
+      g.sprite("icon.GEAR", 6, sy + 3);
+      g.text(16, sy, ctx.t("dev.menu.settings"), {w: 52, key: "dev.menu.settings"});
+      g.sprite("icon.STAR", 70, sy + 3);
+      g.text(80, sy, ctx.t("dev.menu.ranks"), {w: 44, key: "dev.menu.ranks"});
       // status line
       const status = menuStatus(ctx);
       if (status) g.text(4, 132, ctx.t(status[0], status[1]), {w: 120, c: "muted", key: status[0]});
@@ -365,10 +404,21 @@
       ui.hintBar(g, ctx, h.items, {blink: h.blink, disabled: agreed});
     },
     input(ctx, ev) {
-      const L = ctx.lobby, list = cards(), n = list.length + 1, o = other(ctx);
+      const L = ctx.lobby, list = cards(), SET = list.length, RK = SET + 1, n = RK + 1, o = other(ctx);
       if (!L || L.phase === LB.AGREED) return;
-      const move = d => { ctx.s.sel = (ctx.s.sel + d + n) % n; ctx.setHover(ctx.s.sel); ctx.sfx("ui_move"); };
-      if (isMove(ev) && (ev.btn === "UP" || ev.btn === "DOWN")) { move(ev.btn === "UP" ? -1 : 1); return; }
+      const goTo = i => { ctx.s.sel = i; if (i >= SET) ctx.s.rowCell = i; ctx.setHover(i); ctx.sfx("ui_move"); };
+      const move = d => goTo((ctx.s.sel + d + n) % n);       // no stick: short B walks 0 -> 1 -> 2 -> 3 -> 4 -> 0
+      if (isMove(ev) && (ev.btn === "UP" || ev.btn === "DOWN")) {
+        const sel = ctx.s.sel, row = ctx.s.rowCell >= SET ? ctx.s.rowCell : SET;
+        if (ev.btn === "DOWN") goTo(sel < SET - 1 ? sel + 1 : sel === SET - 1 ? row : sel === SET ? RK : 0);
+        else goTo(sel === 0 ? row : sel < SET ? sel - 1 : SET - 1);
+        return;
+      }
+      if (isMove(ev) && (ev.btn === "LEFT" || ev.btn === "RIGHT")) {
+        const want = ev.btn === "LEFT" ? SET : RK;
+        if (ctx.s.sel >= SET && ctx.s.sel !== want) goTo(want);
+        return;
+      }
       const stick = hasStick(ctx);
       if (ev.btn === "B") {
         // no stick: short B = next, hold B = back (§3.1)
@@ -381,7 +431,8 @@
       if (ev.btn === "MENU" && ev.type === "click") { ctx.local.menuKeep = true; ctx.sfx("ui_ok"); ctx.go("settings"); return; }
       if (!isDown(ev)) return;
       if (ev.btn === "A") {
-        if (ctx.s.sel === list.length) { ctx.local.menuKeep = true; ctx.sfx("ui_ok"); ctx.go("settings"); return; }
+        if (ctx.s.sel === SET) { ctx.local.menuKeep = true; ctx.sfx("ui_ok"); ctx.go("settings"); return; }
+        if (ctx.s.sel === RK) { ctx.local.menuKeep = true; ctx.sfx("ui_ok"); ctx.go("ranks"); return; }
         const m = list[ctx.s.sel], st = cardState(ctx, m);
         if (!st.built) { ctx.sfx("ui_deny"); ctx.toast("dev.menu.notBuilt"); return; }
         if (st.noStick) { ctx.sfx("ui_deny"); ctx.toast("dev.core.needStick"); return; }
@@ -409,6 +460,7 @@
     const L = ctx.lobby, o = other(ctx), rival = ctx.rival();
     if (!L || !rival) return null;
     if (presenceOf(L, o) === PR.SETTINGS) return ["dev.menu.rivalSet"];
+    if (presenceOf(L, o) === PR.RANKS) return ["dev.menu.rivalRanks"];
     if (ctx.s.differSince != null && ctx.now() - ctx.s.differSince >= 3000) return ["dev.menu.differ"];
     const modeName = id => { const d = D.mode(id); return d ? ctx.t(d.titleKey) : ""; };
     if (L.vote[o] !== NONE) return ["dev.menu.rivalVote", {mode: modeName(L.vote[o])}];
@@ -419,7 +471,7 @@
   function menuHints(ctx) {
     const L = ctx.lobby, o = other(ctx), list = cards();
     const mine = L ? L.vote[ctx.p] : NONE, theirs = L ? L.vote[o] : NONE;
-    const a = ctx.s.sel === list.length ? ["A", "dev.set.hintOpen"] : ["A", "dev.menu.hintVote"];
+    const a = ctx.s.sel >= list.length ? ["A", "dev.set.hintOpen"] : ["A", "dev.menu.hintVote"];
     const s = theirs !== NONE && theirs !== mine ? ["S", "dev.menu.hintAgree"] : null;
     const b = !hasStick(ctx) ? ["B", "dev.ui.next"] : ["B", mine !== NONE ? "dev.menu.hintUndo" : "dev.menu.hintLogout"];
     const differ = s && ctx.s.differSince != null && ctx.now() - ctx.s.differSince >= 3000;
@@ -455,8 +507,9 @@
       g.text(16, 128, ctx.t("dev.ui.you"), {w: 36, key: "dev.ui.you"});
       mark(52, bit(L.readyMask, ctx.p), ctx.color());
       if (rival) {
-        const inSet = presenceOf(L, o) === PR.SETTINGS;
-        if (inSet) g.sprite("icon.GEAR", 66, 131); else ui.avatar(g, 66, 130, rival);
+        const inSet = isAway(presenceOf(L, o));
+        if (presenceOf(L, o) === PR.RANKS) g.sprite("icon.STAR", 66, 131);
+        else if (inSet) g.sprite("icon.GEAR", 66, 131); else ui.avatar(g, 66, 130, rival);
         g.text(78, 128, rival.name, {w: 36, c: inSet ? "muted" : "white"});
         mark(114, bit(L.readyMask, o), colorOf(rival));
       }
@@ -489,14 +542,24 @@
   D.registerScreen("results", {
     fps: ctx => ctx.s.confetti ? 10 : 6,
     enter(ctx) {
-      ctx.s.t0 = ctx.now();
+      // back from S21 (initials): same match, the lock and the sound are not repeated
+      const m = ctx.m, again = !!(m && m.__resT0 != null);
+      ctx.s.t0 = again ? m.__resT0 : ctx.now();
+      if (m && !again) m.__resT0 = ctx.s.t0;
       const r = results(ctx);
       ctx.s.confetti = !!(r && r.win === true);
       if (ctx.s.confetti) ctx.s.bits = Array.from({length: 18}, () => ({x: 4 + ctx.rng.int(120), y: ctx.rng.int(26), v: 8 + ctx.rng.int(14), c: CONFETTI[ctx.rng.int(CONFETTI.length)]}));
       const snd = r && r.sfx ? r.sfx : r && r.win === true ? "victory" : r && r.win === false ? "defeat" : null;
-      if (snd) ctx.sfx(snd);
+      if (snd && !again) ctx.sfx(snd);
     },
     tick(ctx) {
+      // today's leaderboard (§9.4): fanfare when this board first sees its place, S21 once the lock is over
+      const pl = ctx.rank.placed(), key = rankKey(ctx, pl);
+      if (pl && !pl.excluded && pl.rank && ctx.local.rankFanfare !== key) { ctx.local.rankFanfare = key; ctx.sfx("rank_fanfare"); }
+      if (pl && pl.open && !pl.excluded && ctx.local.rankAsked !== key && ctx.now() - ctx.s.t0 >= RES_LOCK_MS) {
+        ctx.local.rankAsked = key;
+        ctx.go("ranks.name", {board: pl.board, rank: pl.rank, match: pl.match});
+      }
       // the lock is over: record this board's stats once per match
       if (!ctx.s.bumped && ctx.now() - ctx.s.t0 >= RES_LOCK_MS) {
         ctx.s.bumped = true;
@@ -519,7 +582,13 @@
       g.text(64, 16, ctx.t(r.titleKey, r.titleVars), {align: "c", scale: 2, w: 120, c: r.titleColor || "gold", key: r.titleKey});
       if (r.drawArt) r.drawArt(g, ctx, 4, 42, 120, 20);
       const rows = (r.rows || []).slice(0, 4);
-      if (r.noteKey) {
+      // the note slot: "today #n" / "not ranked" (§9.4), taking turns with the mode's own note every 1 s, place first
+      const pl = ctx.rank.placed();
+      const badge = !pl ? null : pl.excluded ? ["dev.rank.excluded", null, "muted"] : pl.rank ? ["dev.rank.badge", {n: pl.rank}, "gold"] : null;
+      if (badge && ctx.s.badgeAt == null) ctx.s.badgeAt = ctx.now();
+      if (badge && (!r.noteKey || Math.floor((ctx.now() - ctx.s.badgeAt) / 1000) % 2 === 0)) {
+        g.text(4, 62, ctx.t(badge[0], badge[1]), {w: 76, c: badge[2], key: badge[0]});
+      } else if (r.noteKey) {
         const blink = r.noteBlink && Math.floor((ctx.now() - ctx.s.t0) / 400) % 2;
         if (!blink) g.text(4, 62, ctx.t(r.noteKey, r.noteVars), {w: 76, c: "gold", key: r.noteKey});
       }
@@ -545,6 +614,9 @@
       if (L && bit(L.rematchMask, o)) {
         const k = kind === "retryRoom" ? "dev.res.partnerRetry" : coop ? "dev.res.partnerAgain" : "dev.res.rivalAgain";
         g.text(4, 132, ctx.t(k), {w: 120, key: k});
+      } else if (ctx.rank.rivalOpen()) {
+        const rv = ctx.rival();
+        g.text(4, 132, ctx.t("dev.rank.rivalNaming", {name: rv ? rv.name : ""}), {w: 120, c: "muted", key: "dev.rank.rivalNaming"});
       } else if (L && bit(L.rematchMask, ctx.p)) g.text(4, 132, ctx.t("dev.res.waitRival"), {w: 120, c: "muted", key: "dev.res.waitRival"});
       const locked = ctx.now() - ctx.s.t0 < RES_LOCK_MS;
       const again = r.again && r.again.labelKey ? r.again.labelKey : "dev.ui.again";
@@ -556,10 +628,192 @@
       const r = results(ctx), L = ctx.lobby;
       if (ev.btn === "A") {
         if (L && bit(L.rematchMask, ctx.p)) return;
+        const pl = ctx.rank.placed();
+        if (pl && pl.open && !pl.excluded && ctx.local.rankAsked !== rankKey(ctx, pl)) return;   // S21 comes first
         ctx.rt(A.REMATCH, r && r.again && r.again.kind === "retryRoom" ? 1 : 0); ctx.sfx("ui_ok");
       } else if (ev.btn === "B") { ctx.rt(A.LEAVE); ctx.sfx("ui_back"); }
     },
     bot(ctx, ctl) { if (!ctx.s.botDone && ctx.now() - ctx.s.t0 > 2000) { ctx.s.botDone = true; ctl.press("A"); } },
+  });
+
+  // one key per match and central power-on (match numbers start again after a central reboot)
+  const rankKey = (ctx, pl) => pl ? pl.match + ":" + (ctx.lobby ? ctx.lobby.centralBoot : 0) : null;
+
+  /* ============================== S20 today's leaderboard ============================== */
+
+  const RANK_ROW_Y = [44, 58, 72, 86, 100];
+  const RANK_NUM_C = ["gold", "white", "fire", "muted", "muted"];
+  const iniOf = (e, k) => String.fromCharCode(...e.ini.slice(k * 3, k * 3 + 3).filter(c => c > 0));
+  const lookColor = look => { const c = (look >> 2) & 7; return look !== 0xff && c < 6 ? D.PLAYER_COLORS[c] : "white"; };
+  // pet icon of an entry (avatar when the pet is unknown), 10x10 at scale 1
+  function rankFace(g, look, x, y, scale = 1) {
+    if (look === 0xff) return;
+    const pet = look & 3, av = (look >> 5) & 7, c = (look >> 2) & 7;
+    if (pet < 3) g.sprite(D.PETS[pet].sprite, x, y, {scale});
+    else if (av < 6) ui.avatar(g, x, y, {avatar: av, color: c < 6 ? c : 5}, {scale});
+  }
+  // one row in the S20 layout; edit = {slot, ini} draws that half with the letters being typed (S21 preview)
+  function drawRankRow(g, ctx, def, msg, i, y, edit) {
+    const e = msg && i < msg.count ? msg.e[i] : null;
+    g.text(4, y, String(i + 1), {c: RANK_NUM_C[i]});
+    if (!e) { g.text(28, y, "---", {c: "muted"}); return; }
+    const ini = k => (edit && edit.slot === k ? edit.ini : iniOf(e, k));
+    if (def.coop) {
+      rankFace(g, e.look[0], 14, y + 2); g.text(26, y, ini(0), {c: lookColor(e.look[0]), w: 18});
+      rankFace(g, e.look[1], 48, y + 2); g.text(60, y, ini(1), {c: lookColor(e.look[1]), w: 18});
+    } else {
+      rankFace(g, e.look[0], 14, y + 2); g.text(28, y, ini(0), {c: lookColor(e.look[0]), w: 18});
+    }
+    const f = def.format ? def.format(e.value) : {main: String(e.value), side: null};
+    if (f.side) g.text(92, y, f.side, {font: "s", align: "r", w: 24, c: "muted"});
+    g.text(123, y, f.main, {align: "r", w: 36});
+  }
+  const rankCur = ctx => ctx.rank.boards()[ctx.s.i] || null;
+  // only what arrived since this page opened (the cache lives in the page: no old board after a clear)
+  const rankShown = (ctx, b) => { const c = b && ctx.rank.get(b.id); return c && c.at >= ctx.s.t0 ? c.msg : null; };
+  D.registerScreen("ranks", {
+    local: true, fps: 10,
+    enter(ctx) { ctx.s.i = 0; ctx.s.t0 = ctx.now(); ctx.s.switchAt = -1e9; ctx.s.asked = false; },
+    tick(ctx) {
+      const b = rankCur(ctx);
+      if (!b) return;
+      // on entry at once, after a board change once it has stayed 200 ms (§9.6 rule 1)
+      if (!ctx.s.asked && ctx.now() - ctx.s.switchAt >= 200) { ctx.s.asked = true; ctx.rank.request(b.id); }
+      else if (ctx.s.asked && ctx.rank.status(b.id) == null) ctx.rank.request(b.id);   // the link was reset meanwhile
+    },
+    draw(ctx, g) {
+      const list = ctx.rank.boards(), b = rankCur(ctx);
+      ui.topBar(g, ctx, "dev.rank.title", {signal: false, right: ctx.t("dev.rank.pageN", {n: Math.min(ctx.s.i + 1, list.length), m: list.length})});
+      const st = b ? ctx.rank.status(b.id) : "error", err = st === "error";
+      if (b) {
+        const def = b.def, msg = rankShown(ctx, b);
+        g.text(4, 16, ctx.t(def.titleKey), {w: 120, key: def.titleKey});
+        if (def.subKey) g.text(4, 30, ctx.t(def.subKey, def.subVars), {w: 120, c: "muted", key: def.subKey});
+        for (let i = 0; i < 5; i++) drawRankRow(g, ctx, def, msg, i, RANK_ROW_Y[i]);
+        // a row still waiting for its initials: 1 px accent box, 2 Hz
+        if (msg && Math.floor(ctx.now() / 250) % 2 === 0) {
+          for (const pb of msg.pend) if (pb & C.RANK.PEND_OPEN && (pb & 7)) g.frame(2, RANK_ROW_Y[(pb & 7) - 1], 124, 14, "accent");
+        }
+        if (def.ruleKey) g.text(4, 114, ctx.t(def.ruleKey), {w: 120, c: "muted", key: def.ruleKey});
+        const sk = err ? "dev.rank.noReply" : st === "loading" || !msg ? "dev.rank.loading" : msg.count === 0 ? "dev.rank.empty" : null;
+        if (sk) g.text(4, 128, ctx.t(sk), {w: 120, c: err ? "danger" : "muted", key: sk});
+      }
+      const retry = err ? ["A", "dev.ui.retry"] : null;
+      ui.hintBar(g, ctx, hasStick(ctx) ? [["LR", "dev.rank.hintBoard"], ["B", "dev.ui.back"], retry]
+        : [["B", "dev.rank.hintBoard"], ["M", "dev.ui.back"], retry]);
+    },
+    input(ctx, ev) {
+      const n = ctx.rank.boards().length;
+      const flip = d => {
+        if (n < 2) { ctx.sfx("ui_deny"); return; }
+        ctx.s.i = (ctx.s.i + d + n) % n; ctx.s.switchAt = ctx.now(); ctx.s.asked = false; ctx.sfx("ui_move");
+      };
+      const leave = () => { ctx.sfx("ui_back"); ctx.back(); };
+      if (isMove(ev) && (ev.btn === "LEFT" || ev.btn === "RIGHT")) { flip(ev.btn === "LEFT" ? -1 : 1); return; }
+      if (ev.btn === "MENU" && ev.type === "click") { leave(); return; }
+      if (ev.btn === "B") {
+        if (!hasStick(ctx)) { if (ev.type === "click") flip(1); if (ev.type === "long") leave(); return; }   // short B = next, hold B = back
+        if (isDown(ev)) leave();
+        return;
+      }
+      if (isDown(ev) && ev.btn === "A") {
+        const b = rankCur(ctx);
+        if (b && ctx.rank.status(b.id) === "error") { ctx.sfx("ui_ok"); ctx.s.asked = true; ctx.rank.request(b.id); }
+      }
+    },
+    bot(ctx, ctl) { if (!ctx.s.botDone && ctx.now() - ctx.s.t0 > 600) { ctx.s.botDone = true; ctl.press("B"); } },
+  });
+
+  /* ============================== S21 initials ============================== */
+
+  const RANK_CH = D.RANK_CHARS, LETTER_X = [40, 64, 88];
+  function rankNameDone(ctx) {
+    if (ctx.s.sent != null) return;
+    ctx.s.sent = ctx.now();
+    const match = ctx.s.match;
+    // pop this page only if it is still the top one (the 1 s timeout may have popped it already)
+    const pop = () => { const top = ctx.local.stack[ctx.local.stack.length - 1]; if (top && top.id === "ranks.name" && top.params && top.params.match === match) ctx.back(); };
+    const ok = ctx.rank.name(ctx.s.ini.join(""), acc => {
+      ctx.toast(acc ? "dev.rank.saved" : "dev.rank.notSaved");
+      if (!acc) ctx.sfx("ui_deny");
+      pop();
+    });
+    if (!ok) { ctx.toast("dev.rank.notSaved"); ctx.sfx("ui_deny"); pop(); }
+  }
+  D.registerScreen("ranks.name", {
+    local: true, fps: 10, repeat: {delay: 300, rate: 120},
+    enter(ctx, params) {
+      const p = params || {};
+      const b = ctx.rank.boards().find(x => x.id === p.board);
+      ctx.s.def = b ? b.def : null; ctx.s.board = p.board; ctx.s.match = p.match; ctx.s.rank = p.rank | 0;
+      ctx.s.slot = ctx.s.def && ctx.s.def.coop ? ctx.p : 0;
+      // the default the central already put on the board, else this board's own
+      const c = ctx.rank.get(p.board), e = c && p.rank ? c.msg.e[p.rank - 1] : null;
+      let ini = e ? iniOf(e, ctx.s.slot) : "";
+      if (ini.length !== 3) { const me = ctx.me(); ini = D.rankInitials(me ? me.name : "", ctx.p); }
+      ctx.s.look = e ? e.look[ctx.s.slot] : 0xff;
+      ctx.s.ini = [...ini].map(ch => (RANK_CH.includes(ch) ? ch : " "));
+      ctx.s.pos = 0; ctx.s.t0 = ctx.now(); ctx.s.sent = null;
+    },
+    tick(ctx) {
+      const pl = ctx.rank.placed(), now = ctx.now();
+      const pop = () => { const top = ctx.local.stack[ctx.local.stack.length - 1]; if (top && top.id === "ranks.name") ctx.back(); };
+      if (ctx.s.sent == null) {
+        if (!pl || pl.match !== ctx.s.match || !pl.open) { pop(); return; }      // the central's 30 s window closed
+        if (pl.rank) ctx.s.rank = pl.rank;
+        if (now - ctx.s.t0 >= C.RANK.NAME_MS) rankNameDone(ctx);               // 20 s: save what is on the screen
+      } else if (now - ctx.s.sent >= 1000) pop();                               // no ACK yet: the queue keeps sending
+    },
+    draw(ctx, g) {
+      const def = ctx.s.def;
+      ui.topBar(g, ctx, "dev.rank.nameTitle", {signal: false});
+      if (!def) return;
+      g.text(64, 16, ctx.t("dev.rank.place", {n: ctx.s.rank}), {align: "c", scale: 2, w: 120, c: "gold", key: "dev.rank.place"});
+      g.text(4, 44, ctx.t(def.titleKey), {w: 120, c: "muted", key: def.titleKey});
+      const c = ctx.rank.get(ctx.s.board), msg = c ? c.msg : null;
+      const e = msg && ctx.s.rank ? msg.e[ctx.s.rank - 1] : null;
+      rankFace(g, e ? e.look[ctx.s.slot] : ctx.s.look, 10, 64, 2);
+      const col = e && e.look[ctx.s.slot] !== 0xff ? lookColor(e.look[ctx.s.slot]) : ctx.color();
+      const blink = Math.floor(ctx.now() / 250) % 2 === 0;
+      for (let k = 0; k < 3; k++) {
+        const ch = ctx.s.ini[k];
+        if (ch !== " ") g.text(LETTER_X[k], 58, ch, {scale: 3, c: col});
+        if (k !== ctx.s.pos) g.rect(LETTER_X[k], 98, 18, 2, "line");
+        else if (blink && ctx.s.sent == null) g.rect(LETTER_X[k], 98, 18, 2, "accent");
+      }
+      // preview: the place above and mine (first: mine and the second), mine with the letters being typed
+      const r = Math.max(0, ctx.s.rank - 1), rows = r === 0 ? [0, 1] : [r - 1, r];
+      rows.forEach((i, k) => {
+        const y = 104 + 14 * k;
+        drawRankRow(g, ctx, def, msg, i, y, i === r ? {slot: ctx.s.slot, ini: ctx.s.ini.join("")} : null);
+        if (i === r) g.frame(2, y, 124, 14, "accent");
+      });
+      if (ctx.s.sent == null) {
+        const n = Math.max(0, Math.ceil((C.RANK.NAME_MS - (ctx.now() - ctx.s.t0)) / 1000));
+        g.text(4, 132, ctx.t("dev.rank.autoSave", {n}), {w: 120, c: "muted", key: "dev.rank.autoSave"});
+      }
+      ui.hintBar(g, ctx, hasStick(ctx) ? [["A", "dev.ui.done"], ["B", "dev.rank.hintLeft"], ["STICK", "dev.rank.hintEdit"]]
+        : [["B", "dev.rank.hintEdit"], ["S", "dev.rank.hintNext"], ["A", "dev.ui.done"]]);
+    },
+    input(ctx, ev) {
+      if (ctx.s.sent != null || !ctx.s.def) return;
+      const s = ctx.s;
+      const cyc = d => { const i = RANK_CH.indexOf(s.ini[s.pos]); s.ini[s.pos] = RANK_CH[(i + d + RANK_CH.length) % RANK_CH.length]; ctx.sfx("key_type"); };
+      if (isMove(ev) && (ev.btn === "UP" || ev.btn === "DOWN")) { cyc(ev.btn === "UP" ? 1 : -1); return; }
+      if (isMove(ev) && (ev.btn === "LEFT" || ev.btn === "RIGHT")) {
+        const np = s.pos + (ev.btn === "LEFT" ? -1 : 1);
+        if (np < 0 || np > 2) ctx.sfx("ui_deny"); else { s.pos = np; ctx.sfx("ui_move"); }
+        return;
+      }
+      if (ev.btn === "MENU" && ev.type === "click") { ctx.sfx("ui_ok"); rankNameDone(ctx); return; }
+      if (!isDown(ev)) return;
+      if (ev.btn === "A") { ctx.sfx("ui_ok"); rankNameDone(ctx); }
+      else if (ev.btn === "B") {
+        if (!hasStick(ctx)) cyc(1);                                  // no stick: B = next character
+        else if (s.pos > 0) { s.pos--; ctx.sfx("ui_move"); } else ctx.sfx("ui_deny");
+      } else if (ev.btn === "SKILL" && !hasStick(ctx)) { s.pos = (s.pos + 1) % 3; ctx.sfx("ui_move"); }
+    },
+    bot(ctx, ctl) { if (!ctx.s.botDone && ctx.now() - ctx.s.t0 > 300) { ctx.s.botDone = true; ctl.press("A"); } },
   });
 
   /* ============================== S15 pause ============================== */
@@ -878,6 +1132,15 @@
     },
     input(ctx, ev) {
       if (ctx.s.view === "about") {
+        if (isDown(ev) && ev.btn === "SKILL") {
+          // §9.4: clear today's leaderboard, hold A 3 s in the shared confirm box
+          ctx.sfx("ui_ok");
+          ctx.confirm({textKey: "dev.set.rankClearAsk", holdMs: 3000, onYes: () => {
+            const sent = ctx.rank.clear(acc => { ctx.toast(acc ? "dev.set.rankCleared" : "dev.set.rankBusy"); if (!acc) ctx.sfx("ui_deny"); });
+            if (!sent) ctx.toast("dev.set.rankBusy");
+          }});
+          return;
+        }
         if (isDown(ev) && (ev.btn === "B" || ev.btn === "A") || ev.btn === "MENU" && ev.type === "click") { ctx.s.view = "list"; ctx.sfx("ui_back"); ctx.fx.wipe(); }
         return;
       }
@@ -924,7 +1187,7 @@
       ["dev.set.aboutRx", {n: ctx.link.up ? ctx.link.rxPerSec : 0}],
     ];
     lines.forEach(([k, v], i) => g.text(4, 16 + 14 * i, ctx.t(k, v), {w: 120, key: k}));
-    ui.hintBar(g, ctx, [["B", "dev.ui.back"]]);
+    ui.hintBar(g, ctx, [["B", "dev.ui.back"], ["S", "dev.set.rankClear"]]);
   }
 
   /* ============================== S10 calibrate ============================== */
