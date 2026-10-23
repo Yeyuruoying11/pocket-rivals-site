@@ -18,13 +18,13 @@ CE346 Pocket Rivals 的静态项目网站（GitHub Pages），固件代码在私
 
 模拟两台 128×160 的掌机和一块虚拟中央板（含无线链路）：两台掌机的屏幕、按键、摇杆和压力垫都是模拟的，中央板负责跑模式逻辑，三块板之间的消息、丢包、延迟也一起模拟。
 
-- **操作**：键盘 P1 用 W A S D 摇杆、F = A、G = B、R = SKILL、T = MENU、V = 压力垫（重）、C = 压力垫（轻）；P2 用方向键、K = A、L = B、I = SKILL、O = MENU、`,` = 压力垫（重）、`.` = 压力垫（轻）；挥手（距离传感器）P1 是 E、P2 是 P。`` ` `` 暂停 / 继续，Tab 交换两组按键控制哪台掌机。触屏 / 鼠标：屏幕下方有虚拟摇杆和 A / B / S / M 按钮，还有一根竖直压力条（手指高度当力度）和一个「挥手」键。接上手柄也能用。
-- **调试面板**（`device-debug.js`）：种子与重来、把某台掌机交给电脑、暂停 / 单步 / 速度；无线预设（完美 / 一般 / 很差 / 几乎断开）、丢包、延迟、同信道冲突、拔掉无线、重启、关机、切信道、改烧录版本；硬件开关（拔摇杆、拿 SD 卡、拔压力垫、FSR 分压反接、SPI 时钟）；每台掌机上方手的高度（模拟距离传感器）；每台掌机的画面、帧率、上一帧像素和 SPI 预算；中央板的模式 / 阶段 / 链路；消息大小和 flash 预算；字库、lint、错误列表；调参导出；今日排行榜的查看和清空。
+- **操作**：键盘 P1 用 W A S D 摇杆、F = A、G = B、R = SKILL、T = MENU、V = 压力垫（重）、C = 压力垫（轻）；P2 用方向键、K = A、L = B、I = SKILL、O = MENU、`,` = 压力垫（重）、`.` = 压力垫（轻）；划手（手势传感器，每按一次划一下，左右交替）P1 是 E、P2 是 P。`` ` `` 暂停 / 继续，Tab 交换两组按键控制哪台掌机。触屏 / 鼠标：屏幕下方有虚拟摇杆和 A / B / S / M 按钮，还有一根竖直压力条（手指高度当力度）和「←划」「划→」两个划手键。接上手柄也能用。
+- **调试面板**（`device-debug.js`）：种子与重来、把某台掌机交给电脑、暂停 / 单步 / 速度；无线预设（完美 / 一般 / 很差 / 几乎断开）、丢包、延迟、同信道冲突、拔掉无线、重启、关机、切信道、改烧录版本；硬件开关（拔摇杆、拿 SD 卡、拔压力垫、FSR 分压反接、SPI 时钟）；每台掌机的手势传感器（向左划 / 向右划按钮、接近值 0–255 滑杆）；每台掌机的画面、帧率、上一帧像素和 SPI 预算；中央板的模式 / 阶段 / 链路；消息大小和 flash 预算；字库、lint、错误列表；调参导出；今日排行榜的查看和清空。
 - **URL 选项**（见 `device-core.js` 开头的注释）：`?seed=N`、`?test=1`、`?view=p1|p2|both`、`?gallery`、`?fixture=id`、`?pad=auto|on|off`、`?mode=battle|racing|adventure|echo`、`?speed=0.25..2`、`?scale=2|3|4`。`?test=1` 是给脚本和截图用的确定性模式：模拟不自己走，由测试脚本一步步推进（`DEVICE.step`），随机数按种子固定，不轮询手柄，排行榜写进内存而不是 localStorage。窗口窄于 900 px 且没写 `?view` 时只显示 P1，P2 交给电脑。
 - **模式**：
   - **对抗**（`mode-battle.js`）：两人各带 3 只宠物，暗中选出场的宠物；进攻方做攻击测试（跟住光带，分数决定伤害），防守方看时机格挡，先打倒对方 3 只宠物的一方获胜。公式和玩法原型 `battle.js` 一致。
-  - **双人赛车**（`mode-racing.js`）：五条赛道，**经典**（16×16 小图，原版俯视赛道）、**林荫公园**、**八字激流**、**疾风环**、**回头湾**（这四条是 32×32 大图）。视角有三种：**俯视**、**车后**、**车内**；只有 16×16 的经典三种都能选，32×32 的赛道只有 车后 和 车内。被潮影的浪花挡住视线时，在掌机上方挥手可以更快擦掉（计划中的距离传感器，模拟器里用挥手键或调试面板的手高滑杆）。
-  - **双人冒险**（`mode-adventure.js`）：两人合作，先一起投票选世界，各选一只宠物，共享 5 颗心，每个世界 4 个房间（第 4 个是 boss）。世界 1：1-1 入口、1-2 绞盘、1-3 双拉杆、1-4 守卫；世界 2（神龛主题）：2-1 双口袋、2-2 三色廊、2-3 墙中龛、2-4 独眼像；世界 3（配合主题）：3-1 接力、3-2 分头、3-3 同步、3-4 石犀。打完一个世界的 boss 可以按 A 进下一个世界（宠物保留）。每个世界有 3 颗星，看通关时间、剩余心等。
+  - **双人赛车**（`mode-racing.js`）：五条赛道，**经典**（16×16 小图，原版俯视赛道）、**林荫公园**、**八字激流**、**疾风环**、**回头湾**（这四条是 32×32 大图）。视角有三种：**俯视**、**车后**、**车内**；只有 16×16 的经典三种都能选，32×32 的赛道只有 车后 和 车内。被潮影的浪花挡住视线时，在掌机上方左右划手可以更快擦掉，每划一次少挡 0.5 秒（计划中的手势传感器 APDS-9960，模拟器里用划手键 / 按钮或调试面板的划手按钮）。
+  - **双人冒险**（`mode-adventure.js`）：两人合作，先一起投票选世界，各选一只宠物，共享 5 颗心，每个世界 4 个房间（第 4 个是 boss）。世界 1：1-1 入口、1-2 绞盘、1-3 双拉杆、1-4 守卫；世界 2（神龛主题）：2-1 双口袋、2-2 三色廊、2-3 墙中龛、2-4 独眼像；世界 3（配合主题）：3-1 接力、3-2 分头、3-3 同步、3-4 石犀。打完一个世界的 boss 可以按 A 进下一个世界（宠物保留）。每个世界有 3 颗星，看通关时间、剩余心等。绞盘升降门可以捏压力垫托住，也可以把手悬在掌机上方托住（手势传感器的接近值，模拟器里用调试面板的接近值滑杆或按住划手键）。
   - **今日排行榜**（`screens-menu.js`）：菜单里的「排行榜」页面，分 对抗 最高测试 / 赛车 最快一圈 / 冒险 最快通关（按世界）三个榜，进榜要输 3 个字母的名字；记录存在中央板上（`localStorage` 的 `pr.device.central.rank`），设置页里可以清榜。
 
 ## 怎么更新
@@ -94,7 +94,7 @@ Project site for CE346 Pocket Rivals, served from GitHub Pages; the firmware liv
 - **Battle prototype**: the local two-player battle prototype in `battle.js`, including tunable parameters.
 - **Guestbook**: reviews are GitHub issues on this repo, read through the GitHub API and parsed with the `review.yml` form headings; writing one opens the pre-filled issue form, closing an issue hides the entry.
 
-`device.html` is the handheld simulator: two 128×160 handhelds plus a virtual central board and radio, keyboard (P1 WASD / F G R T V C, wave E; P2 arrows / K L I O , ., wave P), touch sticks and pressure bar, and a debug panel (seed, bots, speed, radio loss / latency, hardware faults, SPI budget, leaderboard). URL options include `?test=1` (deterministic, fixtures and screenshots), `?seed=N`, `?view=p1|p2|both`, `?mode=...`, `?speed=`, `?scale=`. Modes: Battle 对抗 (`mode-battle.js`), two-player Racing 双人赛车 (`mode-racing.js`: five tracks, Classic, Park Avenue, Riptide Eight, Gale Loop and Switchback Bay; views Top / Chase / Cockpit, only the 16×16 Classic offers Top), co-op Adventure 双人冒险 (`mode-adventure.js`: three worlds of four rooms, the fourth a boss), and Today's Best 今日排行榜 (three boards kept on the central board).
+`device.html` is the handheld simulator: two 128×160 handhelds plus a virtual central board and radio, keyboard (P1 WASD / F G R T V C, swipe E; P2 arrows / K L I O , ., swipe P), touch sticks, pressure bar and swipe buttons, and a debug panel (seed, bots, speed, radio loss / latency, hardware faults, the gesture sensor's swipes and proximity, SPI budget, leaderboard). URL options include `?test=1` (deterministic, fixtures and screenshots), `?seed=N`, `?view=p1|p2|both`, `?mode=...`, `?speed=`, `?scale=`. Modes: Battle 对抗 (`mode-battle.js`), two-player Racing 双人赛车 (`mode-racing.js`: five tracks, Classic, Park Avenue, Riptide Eight, Gale Loop and Switchback Bay; views Top / Chase / Cockpit, only the 16×16 Classic offers Top), co-op Adventure 双人冒险 (`mode-adventure.js`: three worlds of four rooms, the fourth a boss), and Today's Best 今日排行榜 (three boards kept on the central board).
 
 Run it locally with `python3 -m http.server` in this folder, then open `http://localhost:8000/index.html` or the `device.html` on the same port — the pages fetch JSON, so a static server is required.
 

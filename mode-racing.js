@@ -84,10 +84,8 @@
     ["dashMs", "RACE_DASH_MS", 200, 3000, 100, 1200, "ms", "冲刺时长", "Dash ms", ""],
     ["splashMs", "RACE_SPLASH_MS", 200, 4000, 100, 1500, "ms", "浪花", "Splash", "潮影 浪花"],
     ["splashWindow", "RACE_SPLASH_WINDOW", 16, 96, 4, 40, "px", "浪花视野", "Splash view", "被浪花盖住时，车周围还看得清的方框边长 px"],
-    ["wipeFarMm", "RACE_WIPE_FAR_MM", 150, 600, 10, 250, "mm", "挥手远", "Wave far", "距离传感器读数大于这个值算手离开"],
-    ["wipeNearMm", "RACE_WIPE_NEAR_MM", 40, 240, 10, 120, "mm", "挥手近", "Wave near", "小于这个值算手到传感器前面"],
-    ["wipeCutMs", "RACE_WIPE_CUT_MS", 0, 1500, 50, 500, "ms", "挥手擦", "Wave wipe", "每挥一次手，被浪花挡住的时间减少这么多"],
-    ["wipeGapMs", "RACE_WIPE_GAP_MS", 50, 500, 10, 150, "ms", "挥手间隔", "Wave gap", "两次挥手之间至少隔这么久"],
+    ["wipeCutMs", "RACE_WIPE_CUT_MS", 0, 1500, 50, 500, "ms", "划手擦", "Swipe wipe", "手势传感器每认出一次左 / 右划手，被浪花挡住的时间减少这么多"],
+    ["wipeGapMs", "RACE_WIPE_GAP_MS", 50, 500, 10, 150, "ms", "划手间隔", "Swipe gap", "两次划手至少隔这么久才都算数"],
     ["vineMs", "RACE_VINE_MS", 1000, 30000, 1000, 15000, "ms", "藤蔓存在", "Vine life", "叶芽 藤蔓陷阱存在多久"],
     ["vinePct", "RACE_VINE_PCT", 10, 100, 5, 40, "%", "藤蔓速度", "Vine speed", "压到藤蔓后剩下的最高速度 %"],
     ["snareMs", "RACE_SNARE_MS", 100, 3000, 100, 800, "ms", "缠住", "Snare", ""],
@@ -1348,7 +1346,7 @@
       goAt: null, cdStep: -1, cdIsStart: false, went: false, cdShown: 0, goShowUntil: 0, frozenNoSig: false,
       evSeen: -1, banner: null, parts: [], partAt: 0, lastSend: -1e9, toneHz: 0, warnAt: 0, myPet: NO_PET,
       noteKey: null, noteDone: false, rh: [],
-      wave: {buf: [], armed: true, lastAt: -1e9, count: 0, wipeAt: -1e9},
+      wave: {lastAt: -1e9, count: 0, wipeAt: -1e9, dir: "RIGHT"},   // swipes over the gesture sensor (§5.11)
     };
   }
   function banner(ctx, key, c = "gold", ms = 1500, vars) {
@@ -1510,30 +1508,25 @@
     if (nosig) m.frozenNoSig = true;
     else if (m.frozenNoSig) { m.frozenNoSig = false; if (live) m.raceT = st.raceCs * 10; }
     const rel = viewOf(ctx, T) !== "top";     // 3D: relative steering
+    // gesture sensor over the handheld (§5.11): each LEFT / RIGHT swipe, at least
+    // RACE_WIPE_GAP_MS after the last one counted, wipes RACE_WIPE_CUT_MS off my
+    // splash (UP / DOWN do nothing; this board only, nothing goes on the radio)
+    const gs = ctx.input.gesture;
+    if (live && (gs === "LEFT" || gs === "RIGHT")) {
+      const w = m.wave;
+      if (m.raceT - w.lastAt >= P.wipeGapMs) {
+        w.count++; w.lastAt = m.raceT;
+        if (c.splashUntil > m.raceT) {
+          c.splashUntil = max(m.raceT, c.splashUntil - P.wipeCutMs);
+          w.wipeAt = ctx.now(); w.dir = gs;
+        }
+      }
+    }
     m.acc += dt;
     while (m.acc >= STEP_MS) {
       m.acc -= STEP_MS;
       const u = ctx.padLevel(m.pl, STEP_MS);
       if (!live) { c.u = c.finished ? 0 : u; continue; }
-      // distance sensor over the handheld: far -> near -> far = one wave, wipes the splash faster
-      const d = ctx.input.distMm;
-      if (d >= 0) {
-        const w = m.wave;
-        w.buf.push(d);
-        if (w.buf.length > 3) w.buf.shift();
-        const med = w.buf.slice().sort((a, b) => a - b)[w.buf.length >> 1];
-        if (med > P.wipeFarMm) w.armed = true;
-        else if (med < P.wipeNearMm && w.armed) {
-          w.armed = false;
-          if (m.raceT - w.lastAt >= P.wipeGapMs) {
-            w.count++; w.lastAt = m.raceT;
-            if (c.splashUntil > m.raceT) {
-              c.splashUntil = max(m.raceT, c.splashUntil - P.wipeCutMs);
-              w.wipeAt = ctx.now();
-            }
-          }
-        }
-      }
       const rv = rivalView(ctx);
       const env = {t: m.raceT, laps: st.laps, vineTile: vineOf(st.vines[1 - ctx.p]), draft: false, catchup: false, pet: myPet(ctx, m), T};
       if (rv && P.draftPct > 0) {
@@ -1726,8 +1719,9 @@
     }
   }
 
-  // A wave wipes one streak: a waterLt band sweeps the water left to right for
-  // WIPE_SWEEP_MS, on a y row picked from the wave count (decoration only).
+  // A swipe wipes one streak: a waterLt band sweeps the water in the swipe's
+  // direction (RIGHT: left to right, LEFT: right to left) for WIPE_SWEEP_MS,
+  // on a y row picked from the swipe count (decoration only).
   // x0..x1 = water width, yTop..yTop+hAll = water height, wy/win = the clear window's rows.
   const WIPE_SWEEP_MS = 250;
   function drawWipe(g, ctx, m, x0, x1, yTop, hAll, wy, win) {
@@ -1735,11 +1729,11 @@
     if (!wv || ctx.now() - wv.wipeAt >= WIPE_SWEEP_MS) return;
     const k = ctx.now() - wv.wipeAt;
     const half = max(4, hAll >> 1);
-    let y = half + (wv.count * 13) % (half - 3);       // a new row for every wave, lower half (banners sit up top)
+    let y = half + (wv.count * 13) % (half - 3);       // a new row for every swipe, lower half (banners sit up top)
     if (y > wy - 3 && y < wy + win) y = wy + win + 2;
     if (y > hAll - 3) y = max(0, wy - 4);              // never over the clear window
-    const xb = x0 + trunc((x1 - x0) * k / WIPE_SWEEP_MS);   // the row is clear of the window
-    if (xb > x0) g.rect(x0, yTop + y, xb - x0, 3, "waterLt");
+    const len = trunc((x1 - x0) * k / WIPE_SWEEP_MS);   // the row is clear of the window
+    if (len > 0) g.rect(wv.dir === "LEFT" ? x1 - len : x0, yTop + y, len, 3, "waterLt");
   }
   function drawHud(ctx, g) {
     const m = ctx.m, st = ctx.state;

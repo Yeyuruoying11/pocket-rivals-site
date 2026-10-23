@@ -295,23 +295,28 @@
 //
 // ctx.input = {x, y (-100..100, + = up), a, b, skill, menu, pressure (0..255),
 //   padPresent, aDownMs, bDownMs, stickClick, aBtn [+] (A without the stick
-//   click: trial, throttle and winch "hold A" use this), distMm [+] (distance
-//   sensor over the handheld: 80 while the wave key is held, otherwise the hand
-//   height in mm, 1300 = no hand), raw: {fsr, joyX, joyY}}
+//   click: trial, throttle and winch "hold A" use this), gesture [+] (the
+//   APDS-9960 gesture sensor over the handheld, like gesture_poll(): "LEFT" |
+//   "RIGHT" | "UP" | "DOWN" for the one tick a swipe is recognised, else null;
+//   one per tick, more wait in a FIFO), prox [+] (its proximity reading PDATA,
+//   like gesture_proximity(): 0..255, larger = closer; the debug slider's value,
+//   at least 200 while a swipe key or button is held), raw: {fsr, joyX, joyY}}
 //   Only this board's input; the central sees each player's MSG_INPUT in
 //   central.input(p, fields).
 // ev = {btn: "A"|"B"|"SKILL"|"MENU"|"UP"|"DOWN"|"LEFT"|"RIGHT",
 //   type: "down"|"up"|"click" (released < 500 ms)|"long" (held 1000 ms)|"repeat",
 //   t (board ms), fromStick [+] (A came from the stick click)}
 // Keyboard (event.code, so layout / IME do not matter):
-//          stick     A   B   SKILL  MENU  pad hard (230)  pad light (130)  wave
+//          stick     A   B   SKILL  MENU  pad hard (230)  pad light (130)  swipe
 //   P1     W A S D   F   G   R      T     V               C                E
 //   P2     arrows    K   L   I      O     ,               .                P
+//   (swipe: each press is one swipe, alternately RIGHT and LEFT)
 //   ` (Backquote) pauses / resumes the simulation; Tab swaps which handheld
 //   each key group drives (DEVICE.keySwap(), badge in the toolbar), then
 //   tells DEVICE.on("tab").
 // Touch / mouse: under each screen a virtual stick (drag, dead zone 15),
-// A / B / S / M buttons and a vertical pressure bar (finger height = force).
+// A / B / S / M buttons, a vertical pressure bar (finger height = force) and
+// two swipe buttons (one LEFT, one RIGHT swipe per press).
 // Pad force goes through a simulated FSR (lag 120 / 60 ms, seeded +-3 noise,
 // 12-bit raw reading) and settings.padCal into pressure 0..255.
 //
@@ -323,9 +328,12 @@
 //   battleParams = {key: value} (DEVICE.battleParams keys): this world only,
 //   win over saved tuning, never written to localStorage (fixtures pass the
 //   values they depend on). mode = start it at once with the stub session.
-// press(p, btn, holdMs = 50) (btn also "UP".."RIGHT", "PAD", "PAD_LIGHT", "STICK", "WAVE");
+// press(p, btn, holdMs = 50) (btn also "UP".."RIGHT", "PAD", "PAD_LIGHT", "STICK",
+//   "SWIPE" (alternating), "SWIPE_L", "SWIPE_R");
 // hold(p, btn, down); stick(p, x, y); pressure(p, v); bot(p, on);
-// hand(p, mm) (hand height over that handheld, 0..1300; omitted: read it);
+// swipe(p, dir) (one recognised swipe "LEFT" | "RIGHT" | "UP" | "DOWN" on the
+//   next tick, the proximity unchanged); prox(p, v) (the gesture sensor's
+//   proximity reading with nothing pressed, 0..255; omitted: read it);
 //   (unlike a bot's, these are not held back: a script, like a person, loses
 //   a press made within 150 ms of a screen change, so step(200) after one)
 // screen(p) -> {id, overlay, mode, params}; texts(p); find(p, substr);
@@ -392,6 +400,8 @@
     // controls_config.h
     CTL_PRESS_PRESENT: 30, CTL_PRESS_START: 40, CTL_PRESS_RELEASE: 20, CTL_PRESS_FULL: 220,
     CTL_JOY_PUSH: 60, CTL_JOY_RELEASE: 30, CTL_JOY_REPEAT_DELAY_MS: 400, CTL_JOY_REPEAT_MS: 200,
+    // simulator only: the APDS-9960 proximity (0..255) while a swipe key / button is held
+    PROX_SWIPE: 200,
     // game_config.h (battle defaults; the tuning sliders win, DEVICE.battleParams)
     TRIAL_READY_MS: 600, TRIAL_STAGE_MS: 1500, TRIAL_STAGES: 3, TRIAL_BAND_PCT: 24,
     TRIAL_SPEEDS: Object.freeze([35, 65, 100]), TRIAL_RISE_PER_S: 140, TRIAL_FALL_PER_S: 140,
@@ -1216,44 +1226,53 @@
   const BTNS = ["A", "B", "SKILL", "MENU"];
   const KEYMAP = {
     KeyW: [0, "up"], KeyS: [0, "down"], KeyA: [0, "left"], KeyD: [0, "right"],
-    KeyF: [0, "a"], KeyG: [0, "b"], KeyR: [0, "skill"], KeyT: [0, "menu"], KeyV: [0, "padHard"], KeyC: [0, "padLight"], KeyE: [0, "wave"],
+    KeyF: [0, "a"], KeyG: [0, "b"], KeyR: [0, "skill"], KeyT: [0, "menu"], KeyV: [0, "padHard"], KeyC: [0, "padLight"], KeyE: [0, "swipe"],
     ArrowUp: [1, "up"], ArrowDown: [1, "down"], ArrowLeft: [1, "left"], ArrowRight: [1, "right"],
-    KeyK: [1, "a"], KeyL: [1, "b"], KeyI: [1, "skill"], KeyO: [1, "menu"], Comma: [1, "padHard"], Period: [1, "padLight"], KeyP: [1, "wave"],
+    KeyK: [1, "a"], KeyL: [1, "b"], KeyI: [1, "skill"], KeyO: [1, "menu"], Comma: [1, "padHard"], Period: [1, "padLight"], KeyP: [1, "swipe"],
   };
   DEVICE.KEYMAP = KEYMAP;
   const KEY_LABEL = [
-    {a: "F", b: "G", skill: "R", menu: "T", pad: "V", light: "C", wave: "E", stick: "WASD"},
-    {a: "K", b: "L", skill: "I", menu: "O", pad: ",", light: ".", wave: "P", stick: "↑←↓→"},
+    {a: "F", b: "G", skill: "R", menu: "T", pad: "V", light: "C", swipe: "E", stick: "WASD"},
+    {a: "K", b: "L", skill: "I", menu: "O", pad: ",", light: ".", swipe: "P", stick: "↑←↓→"},
   ];
   const newSource = () => ({x: 0, y: 0, a: false, b: false, skill: false, menu: false, stick: false,
-    force: 0, target: 0, up: false, down: false, left: false, right: false, padHard: false, padLight: false, wave: false});
+    force: 0, target: 0, up: false, down: false, left: false, right: false, padHard: false, padLight: false, swipe: false, swipeL: false, swipeR: false});
 
   function makeInput(hh) {
     const src = {kbd: newSource(), touch: newSource(), pad: newSource(), script: newSource(), bot: newSource()};
     const queue = [];   // {t (sim ms), src, field, value}
     const st = {x: 0, y: 0, a: false, b: false, skill: false, menu: false, pressure: 0, padPresent: false,
-      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, distMm: 1300, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
+      aDownMs: 0, bDownMs: 0, stickClick: false, aBtn: false, gesture: null, prox: 0, raw: {fsr: C.FSR_REST, joyX: 512, joyY: 512}};
     const btn = {};
     for (const b of BTNS) btn[b] = {down: false, at: 0, long: false, gen: 0, fromStick: false};
     const stick = {dir: null, next: 0, latched: false};
     let force = 0;
     const rng = () => hh.world.streams["input." + hh.p];
+    // simulated APDS-9960 (§5.11, §6.11): recognised swipes wait in a FIFO, one per tick
+    const gestures = [];
+    let swipeNext = "RIGHT";
 
     function merged() {
-      let x = 0, y = 0, a = false, b = false, skill = false, menu = false, stickC = false, wave = false, target = 0, analog = 0;
+      let x = 0, y = 0, a = false, b = false, skill = false, menu = false, stickC = false, swipe = false, swipeL = false, swipeR = false, target = 0, analog = 0;
       for (const s of Object.values(src)) {
         x += s.x + (s.right ? 100 : 0) - (s.left ? 100 : 0);
         y += s.y + (s.up ? 100 : 0) - (s.down ? 100 : 0);
         a = a || s.a; b = b || s.b; skill = skill || s.skill; menu = menu || s.menu; stickC = stickC || s.stick;
-        wave = wave || s.wave;
+        swipe = swipe || s.swipe; swipeL = swipeL || s.swipeL; swipeR = swipeR || s.swipeR;
         target = Math.max(target, s.target, s.padHard ? 230 : 0, s.padLight ? 130 : 0);
         analog = Math.max(analog, s.force);
       }
       if (!hh.hw.caps.joy) { x = 0; y = 0; stickC = false; }
-      return {x: clamp(x, -100, 100), y: clamp(y, -100, 100), A: a || stickC, B: b, SKILL: skill, MENU: menu, stickC, wave, aBtn: a, target, analog};
+      return {x: clamp(x, -100, 100), y: clamp(y, -100, 100), A: a || stickC, B: b, SKILL: skill, MENU: menu, stickC, swipe, swipeL, swipeR, aBtn: a, target, analog};
     }
     let last = merged();
 
+    // a swipe key / button going down = one swipe; the key alternates RIGHT, LEFT
+    function swipes(m, was) {
+      if (m.swipe && !was.swipe) { gestures.push(swipeNext); swipeNext = swipeNext === "RIGHT" ? "LEFT" : "RIGHT"; }
+      if (m.swipeL && !was.swipeL) gestures.push("LEFT");
+      if (m.swipeR && !was.swipeR) gestures.push("RIGHT");
+    }
     function edges(m, t, out) {
       for (const b of BTNS) {
         const was = btn[b].down, is = m[b];
@@ -1284,6 +1303,7 @@
         for (const k of Object.keys(s)) this.set(srcName, k, typeof s[k] === "boolean" ? false : 0);
       },
       latch() { stick.latched = Math.max(Math.abs(st.x), Math.abs(st.y)) > C.CTL_JOY_RELEASE; },
+      gesture(dir) { gestures.push(dir); },
       // Process [t0, t1): source changes at their own times, then timed events
       process(t0, t1) {
         const out = [];
@@ -1293,6 +1313,7 @@
           src[e.src][e.field] = e.value;
           const m = merged();
           edges(m, Math.max(e.t, t0), out);
+          swipes(m, last);
           last = m;
         }
         const m = last = merged();
@@ -1349,7 +1370,10 @@
         st.raw.joyX = hh.hw.caps.joy ? Math.round(512 + m.x * 5.11) : 0;
         st.raw.joyY = hh.hw.caps.joy ? Math.round(512 + m.y * 5.11) : 0;
         st.aBtn = m.aBtn;
-        st.distMm = m.wave ? 80 : hh.handMm;   // the wave key = a hand held at 80 mm (ui-design §6.11)
+        // the gesture sensor: one recognised swipe per tick; a held swipe key or
+        // button is a hand right over it (proximity at least C.PROX_SWIPE)
+        st.gesture = gestures.length ? gestures.shift() : null;
+        st.prox = m.swipe || m.swipeL || m.swipeR ? Math.max(hh.prox, C.PROX_SWIPE) : hh.prox;
         return out;
       },
     };
@@ -2294,7 +2318,7 @@
     const wr = world.streams.world;
     const hh = {
       world, p, node: p + 1,
-      handMm: 1300,
+      prox: 0,
       offset: wr.int(10001),
       bootNonce: 1 + wr.int(255),
       hw: {caps: Object.assign({joy: true, pad: true, snd: true}, (world.opts.caps || [])[p] || {})},
@@ -3455,8 +3479,9 @@
       "dev.page.pad": "捏", "dev.page.stick": "摇杆", "dev.page.screen": "玩家 {n} 的屏幕",
       "dev.page.paused": "模拟已暂停（按 ` 继续）", "dev.page.swapped": "键位已对调（Tab）",
       "dev.page.help": "两人共用一个键盘。屏幕上的 A / B / S / M 是掌机的按键，不是键盘上的同名键，按下表找：",
-      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键和压力条。` 暂停或继续模拟；Tab 对调两组键位（一个人也能操作任意一台）。",
-      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏", "dev.page.colWave": "挥手"},
+      "dev.page.helpTouch": "手机上直接按每台掌机下面的摇杆、按键、压力条和划手键。` 暂停或继续模拟；Tab 对调两组键位（一个人也能操作任意一台）。",
+      "dev.page.colPlayer": "玩家", "dev.page.colHard": "用力捏", "dev.page.colLight": "轻捏", "dev.page.colSwipe": "划手",
+      "dev.page.swipeL": "←划", "dev.page.swipeR": "划→", "dev.page.swipeLAria": "向左划手", "dev.page.swipeRAria": "向右划手"},
     en: {"dev.page.title": "Device simulator", "dev.page.back": "← Back to progress",
       "dev.page.intro": "Two handhelds and a virtual central board: all three modes, two players on one computer. The screens are the real 128×160 pixels, the same as on the TFT.",
       "dev.page.view": "Show", "dev.page.both": "Both", "dev.page.scale": "Scale", "dev.page.auto": "Auto",
@@ -3464,8 +3489,9 @@
       "dev.page.pad": "Pad", "dev.page.stick": "Stick", "dev.page.screen": "Player {n} screen",
       "dev.page.paused": "Simulation paused (press ` to resume)", "dev.page.swapped": "Keys swapped (Tab)",
       "dev.page.help": "Two players share one keyboard. A / B / S / M on the screens are the handheld's buttons, not the keyboard keys with those letters:",
-      "dev.page.helpTouch": "On a phone, use the stick, buttons and pressure bar under each handheld. ` pauses or resumes the simulation; Tab swaps the two key groups, so one person can drive either handheld.",
-      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light", "dev.page.colWave": "Wave"},
+      "dev.page.helpTouch": "On a phone, use the stick, buttons, pressure bar and swipe buttons under each handheld. ` pauses or resumes the simulation; Tab swaps the two key groups, so one person can drive either handheld.",
+      "dev.page.colPlayer": "Player", "dev.page.colHard": "Squeeze", "dev.page.colLight": "Light", "dev.page.colSwipe": "Swipe",
+      "dev.page.swipeL": "← sw", "dev.page.swipeR": "sw →", "dev.page.swipeLAria": "Swipe left", "dev.page.swipeRAria": "Swipe right"},
   });
 
   /* ================= 12b. stub helpers and the echo mode ================= */
@@ -3688,7 +3714,7 @@
   }
 
   // ctl for bots and the test hook: press / hold / stick / pressure on one source
-  const BTN_FIELD = {A: "a", B: "b", SKILL: "skill", MENU: "menu", STICK: "stick", UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right", PAD: "padHard", PAD_LIGHT: "padLight", WAVE: "wave"};
+  const BTN_FIELD = {A: "a", B: "b", SKILL: "skill", MENU: "menu", STICK: "stick", UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right", PAD: "padHard", PAD_LIGHT: "padLight", SWIPE: "swipe", SWIPE_L: "swipeL", SWIPE_R: "swipeR"};
   // A bot's presses wait until the 150 ms input lock after a screen / overlay
   // change has passed (otherwise its first press on a new screen is silently
   // dropped); changes are applied in the order they were made.
@@ -3754,14 +3780,14 @@
     const handhelds = [0, 1].map(p => buildShell(p));
     handhelds.forEach(h => row.append(h.shell));
     const kb = txt => el("kbd", {text: txt});
-    const head = ["dev.page.colPlayer", "dev.page.stick", null, null, null, null, "dev.page.colHard", "dev.page.colLight", "dev.page.colWave"];
+    const head = ["dev.page.colPlayer", "dev.page.stick", null, null, null, null, "dev.page.colHard", "dev.page.colLight", "dev.page.colSwipe"];
     const btnHead = ["A", "B", "S", "M"];
     const table = el("table", {class: "dv-keytable"},
       el("thead", null, el("tr", null, ...head.map((k, i) => el("th", {scope: "col", text: k ? t(k) : btnHead[i - 2]})))),
       el("tbody", null, ...[0, 1].map(p => {
         const L = KEY_LABEL[p];
         return el("tr", null, el("th", {scope: "row", text: "P" + (p + 1)}),
-          ...[L.stick, L.a, L.b, L.skill, L.menu, L.pad, L.light, L.wave].map(k => el("td", null, kb(k))));
+          ...[L.stick, L.a, L.b, L.skill, L.menu, L.pad, L.light, L.swipe].map(k => el("td", null, kb(k))));
       })));
     const help = el("div", {class: "dv-help"},
       el("p", {text: t("dev.page.help")}), el("div", {class: "dv-keywrap"}, table), el("p", {text: t("dev.page.helpTouch")}));
@@ -3784,7 +3810,11 @@
       el("span", {text: name}), el("kbd", {text: kbdKey}));
     const bA = btn("A", "a", KEY_LABEL[p].a, "dv-a"), bB = btn("B", "b", KEY_LABEL[p].b, "dv-b");
     const bS = btn("S", "skill", KEY_LABEL[p].skill, "dv-s"), bM = btn("≡", "menu", KEY_LABEL[p].menu, "dv-m");
-    const bW = btn(t("dev.page.colWave"), "wave", KEY_LABEL[p].wave, "dv-w");
+    // gesture sensor: one swipe per press (the keyboard's E / P alternate)
+    const sw = (key, field) => el("button", {type: "button", class: "dv-btn dv-w", "data-field": field, "aria-label": t(key + "Aria"), title: t(key + "Aria")},
+      el("span", {text: t(key)}));
+    const bL = sw("dev.page.swipeL", "swipeL"), bR = sw("dev.page.swipeR", "swipeR");
+    const bW = el("div", {class: "dv-ws"}, bL, bR);
     const btns = el("div", {class: "dv-btns"}, bS, bM, bB, bA);
     const fill = el("i");
     const pad = el("div", {class: "dv-pad", role: "slider", "aria-label": t("dev.page.pad"), "aria-valuemin": "0", "aria-valuemax": "255", "aria-valuenow": "0"},
@@ -3793,7 +3823,7 @@
     const shell = el("section", {class: "dv-hh", "data-p": String(p)},
       el("div", {class: "dv-hh-head"}, el("b", {text: t("dev.page.player", {n})}), keysLine),
       screen, controls);
-    const h = {p, shell, canvas, screen, controls, knob, stick, pad, padFill: fill, buttons: {a: bA, b: bB, skill: bS, menu: bM, wave: bW}};
+    const h = {p, shell, canvas, screen, controls, knob, stick, pad, padFill: fill, buttons: {a: bA, b: bB, skill: bS, menu: bM, swipeL: bL, swipeR: bR}};
     wireTouch(h);
     return h;
   }
@@ -4048,10 +4078,15 @@
   const scriptCtl = p => DEVICE.ctl(p, "script");
   DEVICE.press = (p, btn, holdMs = 50) => scriptCtl(p).press(btn, holdMs);
   DEVICE.hold = (p, btn, down) => scriptCtl(p).hold(btn, down);
-  DEVICE.hand = (p, mm) => {                        // simulated VL53L4CD: 1300 = no hand over the handheld
+  // simulated APDS-9960 gesture sensor: one recognised swipe on the next tick
+  DEVICE.swipe = (p, dir = "RIGHT") => {
+    if (!["LEFT", "RIGHT", "UP", "DOWN"].includes(dir)) throw new Error("swipe: LEFT | RIGHT | UP | DOWN");
+    HH(p).input.gesture(dir);
+  };
+  DEVICE.prox = (p, v) => {                         // its proximity reading PDATA: 0 = no hand, 255 = touching
     const h = HH(p);
-    if (mm != null) h.handMm = clamp(Math.round(mm), 0, 1300);
-    return h.handMm;
+    if (v != null) h.prox = clamp(Math.round(v), 0, 255);
+    return h.prox;
   };
   DEVICE.stick = (p, x, y) => scriptCtl(p).stick(x, y);
   DEVICE.pressure = (p, v) => scriptCtl(p).pressure(v);

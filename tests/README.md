@@ -29,9 +29,9 @@
 | 文件 | 检查内容 |
 | --- | --- |
 | `smoke.js` | 每个模拟器 fixture 在 zh 与 en 下都通过，`DEVICE.errors()` 和 `lint()` 为空（含冒险世界 2、3 的回归） |
-| `input-test.js` | 距离传感器输入：手的远近、挥手、夹紧与复位（~15 s） |
-| `gate-test.js` | 冒险：用手（距离传感器）或压力垫托住绞盘闸门：两者取大、阈值、越托越重、参数 |
-| `wave-test.js` | 竞速：挥手擦掉水花，只影响自己 |
+| `input-test.js` | 手势传感器输入：划手键左右交替、触屏 ←划 / 划→、`DEVICE.swipe` 每拍一个、接近值设置与夹紧、调试面板按钮和滑杆（~15 s） |
+| `gate-test.js` | 冒险：用手（手势传感器的接近值）或压力垫托住绞盘闸门：两者取大、阈值、越托越重、参数 |
+| `wave-test.js` | 竞速：左右划手擦掉水花（上下划和接近值不算），水痕跟着划的方向，只影响自己 |
 | `blurb-test.js` | 竞速：五条赛道的简介文字（zh/en） |
 | `s21-heartbeat-test.js` | 结算页上开着本地页面（S21 填名字、S20 排行榜）时，掌机照常发心跳（MSG_INPUT），中央板不判断线；竞速 / 对战 / 冒险各一遍（~5 s） |
 | `adv/check-w1.js` | 世界 1 的几何、物件清单、求解器可解性、用真实中央代码回放（无浏览器，~60 s） |
@@ -66,8 +66,8 @@ header plus elapsed seconds each), keeps going after a failure, prints a PASS/FA
 and exits 1 if anything failed. A single browser test: `node -r ./tests/route.js tests/<file>.js ...`.
 
 What each file checks (one line each): `smoke.js` every simulator fixture in zh and en;
-`input-test.js` distance-sensor input (~15 s); `gate-test.js` adventure: hand / pad holds the winch gate;
-`wave-test.js` racing: a wave wipes the splash; `blurb-test.js` racing: the five track blurbs;
+`input-test.js` gesture-sensor input (~15 s); `gate-test.js` adventure: hand (proximity) / pad holds the winch gate;
+`wave-test.js` racing: a left / right swipe wipes the splash; `blurb-test.js` racing: the five track blurbs;
 `s21-heartbeat-test.js` the heartbeat (MSG_INPUT) keeps flowing while S21 / S20 is open on top of results, so the central sees no link loss (racing, battle, adventure, ~5 s);
 `adv/check-w1.js` World 1 geometry, inventory, solver and real-central replay (no browser, ~60 s);
 `race-test.js` racing all parts × zh/en × 1200/390 px (long, ~7-8 min, args `[PORT=8961] [PARTS] [LANGS] [WIDTHS]`);

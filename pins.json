@@ -22,8 +22,8 @@
     {"pin": "P14", "nrf": "P0.01", "caps": ["GPIO", "SPI MISO"], "builtin": null,  "player": {"use": "按钮 3：防御（TFT 不需要 MISO）", "part": "btn", "en": {"use": "Button 3: defend (the TFT doesn't need MISO)"}}},
     {"pin": "P15", "nrf": "P0.13", "caps": ["GPIO", "SPI MOSI"], "builtin": null,  "player": {"use": "TFT MOSI (SDA)", "part": "tft"}},
     {"pin": "P16", "nrf": "P1.02", "caps": ["GPIO"],        "builtin": null,       "player": {"use": "TFT CS", "part": "tft"}},
-    {"pin": "P19", "nrf": "P0.26", "caps": ["I2C SCL"],     "builtin": "Qwiic SCL", "player": {"use": "摇杆 + 距离传感器（计划）I2C SCL，Qwiic 串接", "part": "joy", "en": {"use": "Joystick + distance sensor (planned) I2C SCL, chained over Qwiic"}}},
-    {"pin": "P20", "nrf": "P1.00", "caps": ["I2C SDA"],     "builtin": "Qwiic SDA", "player": {"use": "摇杆 + 距离传感器（计划）I2C SDA，Qwiic 串接", "part": "joy", "en": {"use": "Joystick + distance sensor (planned) I2C SDA, chained over Qwiic"}}}
+    {"pin": "P19", "nrf": "P0.26", "caps": ["I2C SCL"],     "builtin": "Qwiic SCL", "player": {"use": "摇杆 + 手势传感器（计划，0x39）I2C SCL，Qwiic 串接", "part": "joy", "en": {"use": "Joystick + gesture sensor (planned, 0x39) I2C SCL, chained over Qwiic"}}},
+    {"pin": "P20", "nrf": "P1.00", "caps": ["I2C SDA"],     "builtin": "Qwiic SDA", "player": {"use": "摇杆 + 手势传感器（计划，0x39）I2C SDA，Qwiic 串接", "part": "joy", "en": {"use": "Joystick + gesture sensor (planned, 0x39) I2C SDA, chained over Qwiic"}}}
   ],
   "extra": [
     "TFT RST 直接接 3V，用软件复位指令代替，省一个 pin。",

@@ -20,7 +20,7 @@
       "dev.dbg.pPoor": "很差", "dev.dbg.pDead": "几乎断开", "dev.dbg.loss": "丢包 {v}%", "dev.dbg.latency": "延迟 {a} 到 {b} ms",
       "dev.dbg.collisions": "同信道会冲突", "dev.dbg.radioStats": "发出 {sent}，丢掉 {lost}，{bps} B/s，占空 {air}%",
       "dev.dbg.boards": "板子", "dev.dbg.player": "玩家 {n}", "dev.dbg.central": "中央板",
-      "dev.dbg.hand": "手的高度 {mm} mm",
+      "dev.dbg.prox": "手势传感器接近值 {v}", "dev.dbg.swipeL": "向左划", "dev.dbg.swipeR": "向右划",
       "dev.dbg.unplug": "拔掉无线", "dev.dbg.reboot": "重启", "dev.dbg.powerOff": "关掉电源", "dev.dbg.channel": "信道",
       "dev.dbg.version": "烧录版本", "dev.dbg.joy": "拔掉摇杆", "dev.dbg.sd": "拿掉SD卡", "dev.dbg.pad": "拔掉压力垫",
       "dev.dbg.hw": "硬件", "dev.dbg.fsrInv": "FSR分压反接", "dev.dbg.spi": "SPI时钟", "dev.dbg.blocks": "显示变化的块",
@@ -57,7 +57,7 @@
       "dev.dbg.pPoor": "Poor", "dev.dbg.pDead": "Nearly dead", "dev.dbg.loss": "Loss {v}%", "dev.dbg.latency": "Latency {a} to {b} ms",
       "dev.dbg.collisions": "Same-channel collisions", "dev.dbg.radioStats": "sent {sent}, lost {lost}, {bps} B/s, air {air}%",
       "dev.dbg.boards": "Boards", "dev.dbg.player": "Player {n}", "dev.dbg.central": "Central",
-      "dev.dbg.hand": "Hand height {mm} mm",
+      "dev.dbg.prox": "Gesture sensor proximity {v}", "dev.dbg.swipeL": "Swipe left", "dev.dbg.swipeR": "Swipe right",
       "dev.dbg.unplug": "Unplug radio", "dev.dbg.reboot": "Reboot", "dev.dbg.powerOff": "Power off", "dev.dbg.channel": "Channel",
       "dev.dbg.version": "Firmware", "dev.dbg.joy": "Unplug stick", "dev.dbg.sd": "Remove SD card", "dev.dbg.pad": "Unplug pad",
       "dev.dbg.hw": "Hardware", "dev.dbg.fsrInv": "FSR wired backwards", "dev.dbg.spi": "SPI clock", "dev.dbg.blocks": "Show changed blocks",
@@ -253,13 +253,14 @@
       box.addEventListener("change", () => D.bot(p, box.checked));
       toggles.push(() => { box.checked = D.bot(p); });
       const caps = k => !D.caps(p)[k];
-      const handIn = el("input", {type: "range", min: "0", max: "1300", step: "10", "aria-label": t("hand", {mm: ""})});
-      const handOut = el("span");
-      handIn.addEventListener("input", () => D.hand(p, +handIn.value));
+      // gesture sensor (APDS-9960): one swipe per click, the proximity reading 0..255
+      const proxIn = el("input", {type: "range", min: "0", max: "255", step: "1", "aria-label": t("prox", {v: ""})});
+      const proxOut = el("span");
+      proxIn.addEventListener("input", () => D.prox(p, +proxIn.value));
       toggles.push(() => {
-        const v = D.hand(p);
-        if (document.activeElement !== handIn) handIn.value = String(v);
-        handOut.textContent = t("hand", {mm: v});
+        const v = D.prox(p);
+        if (document.activeElement !== proxIn) proxIn.value = String(v);
+        proxOut.textContent = t("prox", {v});
       });
       return el("div", {class: "dbg-board"}, el("b", {text: t("player", {n: p + 1})}),
         row(el("label", {class: "dbg-check"}, box, t("bot", {n: p + 1}))),
@@ -270,7 +271,8 @@
         row(toggle(t("joy"), () => caps("joy"), v => D.caps(p, {joy: !v})),
           toggle(t("pad"), () => caps("pad"), v => D.caps(p, {pad: !v})),
           toggle(t("sd"), () => caps("snd"), v => D.caps(p, {snd: !v}))),
-        el("label", {class: "dbg-slider"}, handOut, handIn));
+        row(btn(t("swipeL"), () => D.swipe(p, "LEFT")), btn(t("swipeR"), () => D.swipe(p, "RIGHT"))),
+        el("label", {class: "dbg-slider"}, proxOut, proxIn));
     });
     const centralBoard = el("div", {class: "dbg-board"}, el("b", {text: t("central")}),
       row(toggle(t("powerOff"), () => !W().central.powered, v => D.radio.powerCentral(!v)),

@@ -569,10 +569,14 @@ export function mount(stage, api) {
         g.add(tube([{x: 8.6, y: 2.4, z: 8}, {x: 10.6, y: 5.2, z: 10.5}, {x: SPK.x + 1, y: 3.4, z: SPK.z - 7.4}], 0.35, fixed(0x1c1c1c)));
         break;
       }
-      case "tof": {
-        g.add(accent(s.w, s.d, 0.25), pcb(s.w, s.d, 0xb3262d, 0.5));
-        g.add(box(4.6, 1.2, 2.8, 0x0b0b0e, 0, 2.1, 0));
-        g.add(box(2.4, 0.3, 1.3, 0x5a6b8a, 0, 3.3, 0, {metalness: 0.5, roughness: 0.1}));
+      case "gesture": {
+        // APDS-9960 breakout (e.g. Adafruit 3595): black PCB, the sensor with its
+        // IR LED and photodiode windows in the middle, a Qwiic socket at each end
+        g.add(accent(s.w, s.d, 0.25), pcb(s.w, s.d, 0x1d1d22, 0.5));
+        g.add(box(3.9, 1.2, 2.4, 0x0b0b0e, 0, 2.1, 0));
+        g.add(box(1.1, 0.3, 1.1, 0x5a6b8a, -0.9, 3.3, 0, {metalness: 0.5, roughness: 0.1}));
+        g.add(box(1.1, 0.3, 1.1, 0x5a6b8a, 0.9, 3.3, 0, {metalness: 0.5, roughness: 0.1}));
+        g.add(box(1.6, 0.6, 1.0, 0xd9d6cc, 3.8, 1.6, 3.2));     // 3.3 V regulator
         g.add(box(6, 3, 4.2, 0xf1f1ee, 0, 2.1, -s.d / 2 + 2.6));
         g.add(box(6, 3, 4.2, 0xf1f1ee, 0, 2.1, s.d / 2 - 2.6));
         // dashed outline: planned

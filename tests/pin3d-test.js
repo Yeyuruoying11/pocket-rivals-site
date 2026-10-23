@@ -43,7 +43,7 @@ async function checkCoverage(p, label) {
     ok(wire && (wire.part === part), `${label}: ${pin} has a wire/trace to ${part}`);
     ok(info.modules.includes(part), `${label}: module for ${part}`);
   }
-  ok(info.modules.includes('dist') && info.links.some(l => l.from === 'joy' && l.part === 'dist'), `${label}: Qwiic chain joy -> dist`);
+  ok(info.modules.includes('gest') && info.links.some(l => l.from === 'joy' && l.part === 'gest'), `${label}: Qwiic chain joy -> gest (gesture sensor)`);
   return info;
 }
 

@@ -51,8 +51,8 @@
     ["winchNopadMs", "ADV_WINCH_NOPAD_MS", 6000, 1000, 20000, 500, "ms"],
     ["winchReholdMs", "ADV_WINCH_REHOLD_MS", 1000, 0, 5000, 100, "ms"],
     ["winchResetMs", "ADV_WINCH_RESET_MS", 1000, 0, 5000, 100, "ms"],
-    ["handFarMm", "ADV_HAND_FAR_MM", 200, 50, 1300, 10, "mm"],
-    ["handNearMm", "ADV_HAND_NEAR_MM", 50, 0, 600, 10, "mm"],
+    ["handProxLow", "ADV_HAND_PROX_LOW", 40, 0, 255, 5, ""],
+    ["handProxHigh", "ADV_HAND_PROX_HIGH", 200, 0, 255, 5, ""],
     ["gateCloseMs", "ADV_GATE_CLOSE_MS", 400, 0, 2000, 50, "ms"],
     ["leverWindowMs", "ADV_LEVER_WINDOW_MS", 1000, 200, 5000, 100, "ms"],
     ["pingMs", "ADV_PING_MS", 2000, 500, 5000, 100, "ms"],
@@ -107,7 +107,7 @@
     powerCdMs: ["能力冷却", "S cooldown"], slimeHp: ["史莱姆血", "Slime HP"], slimeStepMs: ["史莱姆步长", "Slime step"],
     winchOpenPct: ["绞盘起始", "Winch open"], winchStrainPerS: ["绞盘加重", "Winch strain"], winchMaxPct: ["绞盘上限", "Winch max"],
     winchNopadMs: ["无垫最长", "No-pad hold"], winchReholdMs: ["无垫再按", "No-pad rehold"], winchResetMs: ["绞盘复原", "Winch reset"],
-    handFarMm: ["手远", "Hand far"], handNearMm: ["手近", "Hand near"],
+    handProxLow: ["无手读数", "Hand prox low"], handProxHigh: ["托满读数", "Hand prox high"],
     gateCloseMs: ["闸门落下", "Gate close"], leverWindowMs: ["拉杆窗口", "Lever window"], pingMs: ["标记时长", "Ping time"],
     bossHp: ["守卫血量", "Boss HP"], bossPhase2Hp: ["二阶段血", "Phase 2 HP"], bossIdleMs: ["守卫待机", "Boss idle"],
     bossTeleMs: ["砸地预警", "Slam warn"], bossTele2Ms: ["二阶预警", "Slam warn 2"], bossStunMs: ["晕倒时长", "Stun time"],
@@ -545,11 +545,12 @@
     return y > 0 ? 0 : 2;
   }
   const padPct = pressure => Math.max(0, Math.min(100, Math.floor((pressure - C.CTL_PRESS_START) * 100 / (C.CTL_PRESS_FULL - C.CTL_PRESS_START))));
-  // §6.11: the hand over the sensor as a 0..100 level (far = no hand, near = full)
-  const handPct = (P, mm) => P.handFarMm <= P.handNearMm ? (mm <= P.handNearMm ? 100 : 0)
-    : Math.max(0, Math.min(100, Math.floor((P.handFarMm - mm) * 100 / (P.handFarMm - P.handNearMm))));
+  // §6.11: the gesture sensor's proximity reading (0..255, larger = closer) as a
+  // 0..100 hand level: ADV_HAND_PROX_LOW and below = no hand, ADV_HAND_PROX_HIGH and above = full
+  const handPct = (P, prox) => P.handProxHigh <= P.handProxLow ? (prox >= P.handProxHigh ? 100 : 0)
+    : Math.max(0, Math.min(100, Math.floor((prox - P.handProxLow) * 100 / (P.handProxHigh - P.handProxLow))));
   const pctPressure = pct => pct > 0 ? Math.min(255, C.CTL_PRESS_START + Math.ceil(pct * (C.CTL_PRESS_FULL - C.CTL_PRESS_START) / 100)) : 0;
-  const handPress = ctx => pctPressure(handPct(params(ctx), ctx.input.distMm));
+  const handPress = ctx => pctPressure(handPct(params(ctx), ctx.input.prox));
   const coreDamage = (P, score) => P.coreBase + Math.floor((P.coreBonus * score + 50) / 100);
   // the time star has its own limit per world (ADV_STAR_TIME_S, _W2_S, _W3_S)
   const starTime = (P, world) => [P.starTimeS, P.starTimeW2S, P.starTimeW3S][world | 0] || P.starTimeS;
@@ -1492,8 +1493,8 @@
         if (!ctx.padOn() && m.nopad.holding && !m.nopad.exhausted) {
           const left = Math.max(0, P.winchNopadMs - (now - m.nopad.start));
           g.rect(wx, wy + 10, Math.round(TS * left / P.winchNopadMs), 2, "gold");
-        } else if (ctx.padOn() || handPct(P, ctx.input.distMm) > 0) {
-          const lvl = Math.max(ctx.padOn() ? padPct(ctx.input.pressure) : 0, handPct(P, ctx.input.distMm));
+        } else if (ctx.padOn() || handPct(P, ctx.input.prox) > 0) {
+          const lvl = Math.max(ctx.padOn() ? padPct(ctx.input.pressure) : 0, handPct(P, ctx.input.prox));
           g.rect(wx + 11, wy, 1, TS, "void");
           g.rect(wx + 11, wy + TS - Math.round(TS * lvl / 100), 1, Math.round(TS * lvl / 100), "gold");
           g.px(wx + 10, wy + TS - 1 - Math.round((TS - 1) * st.winchNeed / 100), "white");
@@ -1501,7 +1502,7 @@
       }
       // §6.11: a small hand next to the gate shows who holds it and with what (own screen only)
       if (I.gate >= 0 && I.objs[I.gate].tiles.length && (st.heroes[ctx.p].petFlags & PF.WINCH)) {
-        const hl = handPct(P, ctx.input.distMm), pl = ctx.padOn() ? padPct(ctx.input.pressure) : 0;
+        const hl = handPct(P, ctx.input.prox), pl = ctx.padOn() ? padPct(ctx.input.pressure) : 0;
         if (hl > 0 && hl >= pl) {
           const t = I.objs[I.gate].tiles[0];
           g.sprite("adv.hand", tileX(t) + 2, tileY(t) + 3, {color: cols[ctx.p]});

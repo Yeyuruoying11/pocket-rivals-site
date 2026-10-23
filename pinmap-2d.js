@@ -214,9 +214,11 @@ export function mount(stage, api) {
         el("circle", {cx: PM.DF_SPEAKER.x, cy: PM.DF_SPEAKER.z, r: 6.2, class: "p2d-ring"}, n);
         el("path", {d: `M7.5,8 Q9.5,10.5 ${PM.DF_SPEAKER.x},${PM.DF_SPEAKER.z - 7.5}`, class: "p2d-cable"}, n);
         break;
-      case "tof":
+      case "gesture":
         body(s.w, s.d);
-        el("rect", {x: -2.3, y: -1.4, width: 4.6, height: 2.8, class: "p2d-dark"}, n);
+        el("rect", {x: -1.95, y: -1.2, width: 3.9, height: 2.4, class: "p2d-dark"}, n);
+        el("rect", {x: -1.45, y: -0.55, width: 1.1, height: 1.1, class: "p2d-metal"}, n);
+        el("rect", {x: 0.35, y: -0.55, width: 1.1, height: 1.1, class: "p2d-metal"}, n);
         break;
     }
   }

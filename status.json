@@ -446,17 +446,17 @@
       }
     },
     {
-      "name": "距离传感器（计划）",
-      "model": "VL53L4CD 激光测距，Qwiic / STEMMA QT 接口",
+      "name": "手势传感器（计划）",
+      "model": "APDS-9960 手势 / 接近传感器小板，Qwiic / STEMMA QT 接口（如 Adafruit 3595）",
       "qty": 3,
       "status": "choosing",
       "iface": "I2C",
       "owner": "all",
-      "use": "赛车挥手擦浪花、冒险手托升降门；每台掌机 1 个 + 1 个备用",
+      "use": "赛车左右划手擦浪花、冒险手托升降门；每台掌机 1 个 + 1 个备用",
       "en": {
-        "name": "Distance sensor (planned)",
-        "model": "VL53L4CD time-of-flight, Qwiic / STEMMA QT",
-        "use": "Wave to wipe the splash in racing, hold up the gate by hand in adventure; 1 per handheld + 1 spare"
+        "name": "Gesture sensor (planned)",
+        "model": "APDS-9960 gesture / proximity breakout, Qwiic / STEMMA QT (e.g. Adafruit 3595)",
+        "use": "Swipe left / right to wipe the splash in racing, hold up the gate by hand in adventure; 1 per handheld + 1 spare"
       }
     },
     {
@@ -466,11 +466,11 @@
       "status": "choosing",
       "iface": "I2C",
       "owner": "all",
-      "use": "把距离传感器串在摇杆后面",
+      "use": "把手势传感器串在摇杆后面",
       "en": {
         "name": "Qwiic cable",
         "model": "Qwiic 4-pin cable, 50–100 mm",
-        "use": "Chains the distance sensor after the joystick"
+        "use": "Chains the gesture sensor after the joystick"
       }
     },
     {
@@ -576,16 +576,16 @@
         }
       },
       {
-        "id": "dist",
+        "id": "gest",
         "kind": "sensor",
         "planned": true,
-        "name": "距离传感器（计划）",
+        "name": "手势传感器（计划）",
         "iface": "I2C",
         "owner": "all",
-        "detail": "建议 VL53L4CD 激光测距（Qwiic，I2C 地址 0x29），串在摇杆的 Qwiic 线上，不占引脚，朝上装、开孔。两个用途（已认可）：赛车里被浪花挡住时在掌机上方挥手擦掉；冒险里手悬在上方托住升降门，队友趁机过去（和压力垫二选一，取大的）。",
+        "detail": "APDS-9960 手势 / 接近传感器（3.3 V，I2C 地址 0x39，如 Adafruit 3595 的 STEMMA QT 小板），串在摇杆后面的 Qwiic 线上，不占引脚，朝上装、开孔。INT 脚不接（没有空闲 GPIO），驱动通过 I2C 轮询手势 FIFO 和接近值；红外 LED 电流设 25–50 mA，省 micro:bit 的 3 V 电源。两个用途：赛车里被浪花挡住时在掌机上方左右划手，每划一次擦掉一截；冒险里手悬在上方托住升降门（接近值越大托得越用力，和压力垫取大的）。",
         "en": {
-          "name": "Distance sensor (planned)",
-          "detail": "Suggested VL53L4CD time-of-flight sensor (Qwiic, I2C address 0x29), chained on the joystick's Qwiic cable, no pins, facing up through an opening. Two uses (agreed): in racing, wave over the handheld to wipe off a splash; in adventure, hover a hand to hold up the gate while your partner gets through (either this or the pressure pad, whichever is stronger)."
+          "name": "Gesture sensor (planned)",
+          "detail": "APDS-9960 gesture / proximity sensor (3.3 V, I2C address 0x39, e.g. the Adafruit 3595 STEMMA QT breakout), chained on the Qwiic cable after the joystick, no pins, facing up through an opening. Its INT pin is not wired (no GPIO left): the driver polls the gesture FIFO and the proximity reading over I2C; IR LED drive at 25–50 mA to spare the micro:bit's 3 V supply. Two uses: in racing, swipe left or right over the handheld to wipe a splash away a bit at a time; in adventure, hover a hand to hold up the gate (the closer the hand, the stronger the hold; the larger of this and the pressure pad counts)."
         }
       },
       {
@@ -844,10 +844,10 @@
         "file": "device.html",
         "owner": "yihao",
         "status": "done",
-        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准；距离传感器用挥手键或手高滑杆模拟（赛车挥手擦浪花、冒险手托升降门）。",
+        "detail": "网页上的两台 128×160 掌机 + 虚拟中央板，可以登录、投票选模式，玩对抗、双人赛车（每只宠物一辆车；5 条赛道：经典 + 4 条 32×32 的第一人称赛道，可选俯视 / 车后 / 车内视角）和双人冒险（3 个世界、12 个房间、3 个 Boss），中央板记今日排行榜；有暂停、掉线重连、设置和压力垫校准；手势传感器用划手键 / 按钮和接近值滑杆模拟（赛车左右划手擦浪花、冒险手托升降门）。",
         "en": {
           "name": "Handheld simulator",
-          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration; the distance sensor is simulated with a wave key or a hand-height slider (wave to wipe the splash in racing, hold the gate by hand in adventure)."
+          "detail": "Two 128×160 handhelds plus a virtual central board in the browser: log in, vote on a mode, and play battle, two-player racing (a kart per pet; five tracks: Classic plus four 32×32 first-person tracks, with top-down / chase / cockpit views) and co-op adventure (three worlds, 12 rooms, 3 bosses); the central board keeps today's leaderboard. Also pause, reconnect, settings and pad calibration; the gesture sensor is simulated with swipe keys / buttons and a proximity slider (swipe to wipe the splash in racing, hold the gate by hand in adventure)."
         }
       },
       {
@@ -993,22 +993,22 @@
       }
     },
     {
-      "id": "distance",
+      "id": "gesture",
       "board": "player",
-      "name": "距离传感器驱动（计划）",
-      "iface": "I2C，VL53L4CD 地址 0x29，Qwiic 串在摇杆后面",
+      "name": "手势传感器驱动（计划）",
+      "iface": "I2C，APDS-9960 地址 0x39，Qwiic 串在摇杆后面；轮询手势 FIFO 解出左 / 右 / 上 / 下，读接近值 0–255（INT 不接）",
       "pins": "P19 / P20",
-      "use": "赛车挥手擦浪花、冒险手托升降门",
+      "use": "赛车左右划手擦浪花、冒险手托升降门",
       "owner": "",
       "status": "todo",
-      "verify": "5–30 cm 的读数，每 20 ms 一次",
+      "verify": "离传感器约 5–15 cm 左右划手能认出方向；手靠近时接近值变大；在演示教室的灯光下也正常",
       "plan": "planned",
       "en": {
-        "name": "Distance sensor (planned)",
-        "iface": "I2C, VL53L4CD at 0x29, chained on Qwiic after the joystick",
+        "name": "Gesture sensor (planned)",
+        "iface": "I2C, APDS-9960 at 0x39, chained on Qwiic after the joystick; polls the gesture FIFO and decodes left / right / up / down, reads proximity 0–255 (INT not wired)",
         "pins": "P19 / P20",
-        "use": "Racing: wave to wipe off spray; adventure: hold up the lift gate",
-        "verify": "Readings from 5–30 cm, one every 20 ms"
+        "use": "Racing: swipe to wipe off spray; adventure: hold up the lift gate",
+        "verify": "Left / right swipes recognised at about 5–15 cm; proximity rises as the hand comes closer; works under the demo-room lights"
       }
     },
     {

@@ -57,7 +57,7 @@ const MODULES = {
   btn:   {type: "buttons",  x: -6,  z: 58, h: 4},
   tft:   {type: "tft",      x: 26,  z: 55, h: 5},
   joy:   {type: "joystick", x: 54,  z: 27, h: 5},
-  dist:  {type: "tof",      x: 58,  z: -4, h: 4},
+  gest:  {type: "gesture",  x: 58,  z: -4, h: 4},
 };
 // Size on the table (footprint w × d, top height) and the header (local z)
 export const MODULE_SIZE = {
@@ -66,7 +66,7 @@ export const MODULE_SIZE = {
   buttons:  {w: 34, d: 14, top: 5.5},
   tft:      {w: 34, d: 27, top: 6.5, hy: 11.9, hz: -9.4},   // tilted toward the viewer (pinmap-3d.js)
   joystick: {w: 25.4, d: 25.4, top: 14, hy: 3.6, hz: -12.6},
-  tof:      {w: 13, d: 22, top: 2.2},
+  gesture:  {w: 15, d: 22, top: 2.2},
 };
 
 // label alignment → which point of the label sits on its anchor (x, y fractions)
@@ -79,10 +79,10 @@ export const DF_SPEAKER = {x: 12, z: 19};
 const SMALL_LABEL = {
   dfplayer: m => ({pos: toWorld(m, DF_SPEAKER.x * 0.5, 1, DF_SPEAKER.z + 9), align: "below"}),   // under its speaker
   fsr: m => ({pos: toWorld(m, 0, 1, 14.5), align: "below"}),
-  tof: m => ({pos: toWorld(m, 0, 1, -m.size.d / 2 - 2), align: "top"}),                          // the joystick is below it
+  gesture: m => ({pos: toWorld(m, 0, 1, -m.size.d / 2 - 2), align: "top"}),                          // the joystick is below it
 };
 
-export const PART_IDS = ["tft", "audio", "joy", "btn", "fsr", "dist", "beep", "accel", "matrix", "radio", "logic"];
+export const PART_IDS = ["tft", "audio", "joy", "btn", "fsr", "gest", "beep", "accel", "matrix", "radio", "logic"];
 export const partColor = id => `var(--c-${id})`;
 
 /* ---------------- helpers ---------------- */
@@ -200,7 +200,7 @@ export function buildModel(api) {
     });
   }
 
-  // Qwiic chain (e.g. joystick → distance sensor)
+  // Qwiic chain (e.g. joystick → gesture sensor)
   for (const m of model.modules) {
     if (!m.chain || !modById[m.chain]) continue;
     const a = modById[m.chain];
