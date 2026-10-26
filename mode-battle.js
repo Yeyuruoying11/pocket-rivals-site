@@ -11,8 +11,12 @@
 //      canPause (§4.11), ATTACK / DEFEND still taken while paused, QUIT,
 //      over().res = best trial and perfect blocks of each player
 //   4. player board: controls.c / player_core.c behaviour; the attack trial
-//      runs on DEVICE.trial, the pointer on DEVICE.padLevel; chained blocks
-//      start when this board first sees DEFEND and are judged at ev.t
+//      of the pet on the field (attack-trial.md §2-§2C, pet-trials.js): Ember
+//      follows the band with DEVICE.padLevel (pad or hold A), Tide tilts the
+//      handheld (the accelerometer samples through PetTrials.tilt; hold A
+//      without one), Sprout taps A on the beat (PetTrials.beat, edges at ev.t,
+//      the beat on ctx.sfxAt); chained blocks start when this board first sees
+//      DEFEND and are judged at ev.t
 //   5. screens battle.pick (S11, DEVICE.ui.pickScreen) and battle.hud (S12)
 //   6. results hook, bot
 // Keep the dev.battle. prefix and the screen ids battle.pick / battle.hud.
@@ -26,14 +30,16 @@
   D.registerStrings("dev.battle.", {
     zh: {
       // lobby (S08)
-      "dev.battle.goal1": "打倒对方3只宠物", "dev.battle.goal2": "跟住光带打得更重",
-      "dev.battle.k1n": "A/捏垫", "dev.battle.k1": "攻击测试", "dev.battle.k2n": "S", "dev.battle.k2": "技能",
+      "dev.battle.goal1": "打倒对方3只宠物", "dev.battle.goal2": "测试越准打得越重",
+      "dev.battle.k1n": "A", "dev.battle.k1": "攻击测试", "dev.battle.k2n": "S", "dev.battle.k2": "技能",
       "dev.battle.k3n": "M", "dev.battle.k3": "换宠物", "dev.battle.k4n": "A", "dev.battle.k4": "格挡",
       "dev.battle.p.attackerFlag": "实验：对方攻击测试中提示",
       // S11
       "dev.battle.sendOut": "派出宠物", "dev.battle.nextPet": "选择下一只", "dev.battle.secret": "暗选",
       "dev.battle.secretNote": "对方看不到你的选择",
-      "dev.battle.beats": "克制：{pet}", "dev.battle.weakTo": "怕：{pet}",
+      "dev.battle.beatsShort": "{UP}{pet}", "dev.battle.weakShort": "{DN}{pet}",
+      "dev.battle.how.ember": "攻击：{PAD}捏压力垫", "dev.battle.how.tide": "攻击：{TILT}倾斜掌机",
+      "dev.battle.how.sprout": "攻击：{NOTE}跟拍子按{A}", "dev.battle.how.hold": "攻击：按住{A}",
       "dev.battle.rivalChoosing": "对方：选择中…", "dev.battle.rivalPicked": "对方：{OK} 已选好",
       "dev.battle.waitRival": "等待对方…", "dev.battle.ko": "倒下", "dev.battle.matchup": "{a} 克制 {b}",
       "dev.battle.hintPick": "选", "dev.battle.hintGo": "派出", "dev.battle.hintHold": "按住",
@@ -50,6 +56,8 @@
       // C
       "dev.battle.ready": "准备", "dev.battle.go": "开始计分！", "dev.battle.stage": "第{n}层", "dev.battle.faster": "第{n}层 加速！",
       "dev.battle.hintPad": "捏住压力垫跟随", "dev.battle.hintHoldA": "按住{A}右移",
+      "dev.battle.hintTilt": "倾斜掌机，跟住浪尖", "dev.battle.hintNoTilt": "无倾斜：按住{A}右移",
+      "dev.battle.hintBeat": "听拍子，到线按{A}", "dev.battle.hintBeatMute": "静音：到线按{A}",
       // D
       "dev.battle.tier0": "普通一击", "dev.battle.tier1": "强力一击", "dev.battle.tier2": "全力一击",
       "dev.battle.banner0": "普通一击！", "dev.battle.banner1": "强力一击！", "dev.battle.banner2": "全力一击！",
@@ -74,13 +82,15 @@
       "dev.battle.res.rounds": "回合",
     },
     en: {
-      "dev.battle.goal1": "KO all 3 rival pets", "dev.battle.goal2": "Track band: hit hard",
-      "dev.battle.k1n": "A/Pad", "dev.battle.k1": "Attack", "dev.battle.k2n": "S", "dev.battle.k2": "Skill",
+      "dev.battle.goal1": "KO all 3 rival pets", "dev.battle.goal2": "Aim well: hit hard",
+      "dev.battle.k1n": "A", "dev.battle.k1": "Attack", "dev.battle.k2n": "S", "dev.battle.k2": "Skill",
       "dev.battle.k3n": "M", "dev.battle.k3": "Switch", "dev.battle.k4n": "A", "dev.battle.k4": "Block",
       "dev.battle.p.attackerFlag": "Exp: rival attacking cue",
       "dev.battle.sendOut": "SEND OUT", "dev.battle.nextPet": "NEXT PET", "dev.battle.secret": "secret",
       "dev.battle.secretNote": "Your pick is secret",
-      "dev.battle.beats": "Beats: {pet}", "dev.battle.weakTo": "Weak to: {pet}",
+      "dev.battle.beatsShort": "{UP}{pet}", "dev.battle.weakShort": "{DN}{pet}",
+      "dev.battle.how.ember": "Attack: {PAD}squeeze", "dev.battle.how.tide": "Attack: {TILT}tilt",
+      "dev.battle.how.sprout": "Attack: {NOTE}tap {A}", "dev.battle.how.hold": "Attack: hold {A}",
       "dev.battle.rivalChoosing": "Rival: choosing...", "dev.battle.rivalPicked": "Rival: ready {OK}",
       "dev.battle.waitRival": "Waiting...", "dev.battle.ko": "KO", "dev.battle.matchup": "{a} beats {b}",
       "dev.battle.hintPick": "Pick", "dev.battle.hintGo": "Go", "dev.battle.hintHold": "Hold",
@@ -93,6 +103,8 @@
       "dev.battle.switchTo": "Switch to:", "dev.battle.hintSwitch": "Go", "dev.battle.hintBack": "Back",
       "dev.battle.ready": "GET READY", "dev.battle.go": "GO!", "dev.battle.stage": "STAGE {n}", "dev.battle.faster": "STAGE {n} FASTER!",
       "dev.battle.hintPad": "Squeeze to follow", "dev.battle.hintHoldA": "Hold {A}: right",
+      "dev.battle.hintTilt": "Tilt to follow", "dev.battle.hintNoTilt": "No tilt: hold {A}",
+      "dev.battle.hintBeat": "Tap {A} at line", "dev.battle.hintBeatMute": "Muted: watch line",
       "dev.battle.tier0": "NORMAL", "dev.battle.tier1": "STRONG", "dev.battle.tier2": "FULL POWER",
       "dev.battle.banner0": "NORMAL!", "dev.battle.banner1": "STRONG!", "dev.battle.banner2": "FULL POWER",
       "dev.battle.trialResult": "{score} > {tier}", "dev.battle.rivalBlocking": "Rival blocking...",
@@ -129,7 +141,21 @@
     burn_tick: {ch: "DF", file: 22, prio: 2, ms: 400},
     switch: {ch: "DF", file: 23, prio: 2, ms: 400},
     faint: {ch: "DF", file: 24, prio: 3, ms: 800},
+    // Sprout's beat (ui-design §2.6, attack-trial.md §2B): rhythm sounds, not clicks
+    beat_tick: {ch: "BEEP", tones: [[1600, 30]]},
+    beat_accent: {ch: "BEEP", tones: [[2400, 40]]},
+    beat_count: {ch: "BEEP", tones: [[1000, 20]]},
+    beat_bad: {ch: "BEEP", tones: [[180, 40]]},
   });
+
+  // §4.8 C2 / C3 (ui-design §2.4): Tide's drop pointer and Sprout's leaf note
+  D.registerSprites("battle.", {
+    "battle.drop": {w: 5, h: 9, map: {"#": "waterLt", "+": "white"},
+      frames: [["..#..", "..#..", ".###.", ".#+##", "#+###", "#+###", "#####", "#####", ".###."]]},
+    "battle.leaf": {w: 6, h: 8, map: {"#": "grassLt", "+": "grass"},
+      frames: [["....##", "...#+#", "..#++#", ".#++#.", "#++#..", "#+#...", "##....", "#....."]]},
+  });
+  const PT = D.petTrials;
 
   // msg_state_t (protocol.h), field for field: 47 B with the header
   D.registerMessage("battle.state", C.MSG.BATTLE_STATE, [
@@ -219,6 +245,10 @@
   RULES.tau100 = t => D.trial.tau100(t, RULES.trialCfg());
   RULES.bandCenter = (seed, t) => D.trial.bandCenter(seed, t, RULES.trialCfg());
   RULES.inBand = (center, level) => D.trial.inBand(level, center, RULES.trialCfg());
+  // per-pet trials (attack-trial.md §2A-§2C): the shared code and this tuning's configs
+  RULES.petTrials = D.petTrials;
+  RULES.tideCfg = () => D.trial.cfgFrom(D.battleParams(), D.battleParams().tideBandPct);
+  RULES.beatCfg = () => D.petTrials.beat.cfgFrom(D.battleParams());
 
   /* ================= 3. central board (game.c) ================= */
 
@@ -526,31 +556,101 @@
     ctx.act(action, arg, data);
   }
 
+  // Which trial the pet on the field plays (attack-trial.md §2A: decided when
+  // the trial starts, kept to its end). Ember: "pad" or "btn" (hold A, no pad);
+  // Tide: "tilt", or "btn" without a usable accelerometer; Sprout: "beat"
+  const myPet = ctx => { const st = ctx.state; return st ? st.players[ctx.p].active : NO_PET; };
   function startTrial(ctx, m, t, src) {
-    const st = ctx.state;
-    m.trial = {step: st.step, T: D.trial.create(st.trialSeed, m.cfg, t), src, pad: D.padLevel.create(), lastT: t,
-      cue: -2, cueAt: t, tickAt: -1e9};
+    const st = ctx.state, pet = myPet(ctx);
+    if (pet === 1 && ctx.tiltOn()) {
+      const tr = {step: st.step, kind: "tilt", pet, T: D.trial.create(st.trialSeed, D.trial.cfgFrom(m.P, m.P.tideBandPct), t), src: "tilt",
+        lastT: t, cue: -2, cueAt: t, tickAt: -1e9, accSeq: ctx.input.accSeq, levelM: 0};
+      // §2A: start from the last sample before the trial, not from 0
+      tr.levelM = PT.tilt.step(0, ctx.input.acc.x, true, m.P.tiltFullMg, m.P.tiltSmoothPct);
+      m.trial = tr;
+      ctx.tiltSteer(true);
+    } else if (pet === 2) {
+      const B = PT.beat.create(st.trialSeed, PT.beat.cfgFrom(m.P), t);
+      m.trial = {step: st.step, kind: "beat", pet, B, start: t, src: "beat", cues: PT.beat.cues(B), cueI: 0,
+        epoch: ctx.sfxEpoch(), marks: [], endSeen: false, cue: -2, cueAt: t};
+    } else {
+      // Ember (pad or hold A), or Tide without tilt: the band trial as before
+      m.trial = {step: st.step, kind: "band", pet, T: D.trial.create(st.trialSeed, m.cfg, t), src: pet === 1 ? "btn" : src,
+        pad: D.padLevel.create(), lastT: t, cue: -2, cueAt: t, tickAt: -1e9};
+    }
     m.switching = null;
     m.anim = Math.max(m.anim, t + 200);
+  }
+  // A trial that is over or cancelled lets go of the tilt keys and the queued beat
+  function dropTrial(ctx, m) {
+    const tr = m.trial;
+    m.trial = null;
+    if (tr && tr.kind === "tilt") ctx.tiltSteer(false);
+    if (tr && tr.kind === "beat") ctx.sfxCancel();
+  }
+  function finishTrial(ctx, m, score, stages) {
+    const tr = m.trial;
+    const tier = m.R.tierOf(score);
+    m.trialResult = {step: tr.step, score, stages, tier};
+    dropTrial(ctx, m);
+    act(ctx, m, ACT.ATTACK, score);
+    showTierBanner(ctx, m, tier);
   }
   function trialTick(ctx, m) {
     const tr = m.trial, now = ctx.now();
     const st = ctx.state;
-    if (!st || st.step !== tr.step) { m.trial = null; return; }
-    const lvl = D.padLevel.update(tr.pad, ctx.input, {pad: tr.src === "pad" ? "on" : "off"}, now - tr.lastT);
+    if (!st || st.step !== tr.step) { dropTrial(ctx, m); return; }
+    if (tr.kind === "beat") { beatTick(ctx, m); return; }
+    let lvl;
+    if (tr.kind === "tilt") {
+      // every new sample through the filter, in order (two this loop = two steps)
+      for (const q of ctx.accSamples(tr.accSeq)) {
+        tr.levelM = PT.tilt.step(tr.levelM, q.x, false, m.P.tiltFullMg, m.P.tiltSmoothPct);
+        tr.accSeq = q.seq;
+      }
+      lvl = PT.tilt.level(tr.levelM);
+    } else {
+      lvl = D.padLevel.update(tr.pad, ctx.input, {pad: tr.src === "pad" ? "on" : "off"}, now - tr.lastT);
+    }
     tr.lastT = now;
     const done = D.trial.update(tr.T, lvl, now);
     const stg = D.trial.ready(tr.T) ? -1 : D.trial.stage(tr.T);
     if (stg !== tr.cue && !done) { tr.cue = stg; tr.cueAt = now; ctx.sfx("stage_up"); }
     if (tr.T.inside && now - tr.tickAt >= 120) { tr.tickAt = now; ctx.sfx("tick_in_band"); }
     if (!done) return;
-    const score = D.trial.score(tr.T);
-    const stages = [0, 1, 2].map(k => D.trial.stageScore(tr.T, k));
-    const tier = m.R.tierOf(score);
-    m.trialResult = {step: tr.step, score, stages, tier};
-    m.trial = null;
-    act(ctx, m, ACT.ATTACK, score);
-    showTierBanner(ctx, m, tier);
+    finishTrial(ctx, m, D.trial.score(tr.T), [0, 1, 2].map(k => D.trial.stageScore(tr.T, k)));
+  }
+  // Sprout (§2B): the beat goes out ahead on WebAudio (200 ms), notes whose
+  // window closed are missed; the trial ends one loop after R + 3S so a press
+  // edge from just before the end, delivered after this tick, still counts
+  function beatTick(ctx, m) {
+    const tr = m.trial, B = tr.B, now = ctx.now(), e = now - tr.start;
+    if (tr.epoch !== ctx.sfxEpoch()) {          // the queued beat was dropped (simulation paused): queue it again
+      tr.epoch = ctx.sfxEpoch();
+      tr.cueI = tr.cues.findIndex(c => tr.start + c.t > now);
+      if (tr.cueI < 0) tr.cueI = tr.cues.length;
+    }
+    while (tr.cueI < tr.cues.length && tr.cues[tr.cueI].t <= e + 200) {
+      const c = tr.cues[tr.cueI++];
+      ctx.sfxAt(c.id, tr.start + c.t);
+    }
+    PT.beat.update(B, e);
+    const stg = PT.beat.ready(B) ? -1 : PT.beat.stage(B);
+    if (stg !== tr.cue && e < PT.beat.endMs(B.cfg)) { tr.cue = stg; tr.cueAt = now; }
+    if (e < PT.beat.endMs(B.cfg)) return;
+    if (!tr.endSeen) { tr.endSeen = true; return; }
+    PT.beat.finish(B);
+    finishTrial(ctx, m, PT.beat.score(B), [0, 1, 2].map(k => PT.beat.stageScore(B, k)));
+  }
+  // An A press edge during Sprout's trial, timed at the edge (ev.t)
+  function beatTap(ctx, m, t) {
+    const tr = m.trial;
+    const r = PT.beat.tap(tr.B, t - tr.start);
+    if (r.kind === "ignored") return;
+    tr.marks.push({kind: r.kind, at: ctx.now()});
+    if (tr.marks.length > 8) tr.marks.shift();
+    if (r.kind === "stray") ctx.sfx("beat_bad");
+    m.anim = Math.max(m.anim, ctx.now() + 200);
   }
   function showTierBanner(ctx, m, tier) {
     const now = ctx.now();
@@ -735,7 +835,7 @@
         best: [0, 0], perfects: [0, 0], seenTrial: [false, false], statStep: -1, statEv: -1,
       };
     },
-    destroy() {},
+    destroy(ctx) { if (ctx && ctx.m && ctx.m.trial) dropTrial(ctx, ctx.m); },
     // battle.state has no match field (v5 layout): GAME_OVER -> SEND_OUT is a new match
     newMatch: (ctx, msg, prev) => prev.phase === PH.GAME_OVER && msg.phase === PH.SEND_OUT,
     onState(ctx, st, prev) {
@@ -752,7 +852,7 @@
         // my trial result carries over into the DEFEND step it caused
         if (m.trialResult && st.phase === PH.DEFEND && st.turn === me && m.trialResult.step === oldStep) m.trialResult.defStep = st.step;
         m.switching = null;                 // player_core: any new step ends the switch choice
-        if (m.trial && m.trial.step !== st.step) m.trial = null;
+        if (m.trial && m.trial.step !== st.step) dropTrial(ctx, m);
         if (st.phase === PH.TURN) m.padArmed = false;   // a squeeze held from before does not count
         if (st.phase === PH.DEFEND && ((st.waiting >> me) & 1) && (!m.defend || m.defend.step !== st.step)) chainStart(ctx, m, st);
         if (st.phase === PH.DEFEND && st.turn !== me && prev) showTierBanner(ctx, m, st.attackTier);
@@ -780,7 +880,8 @@
       const now = ctx.now();
       if (ctx.input.pressure < C.CTL_PRESS_RELEASE) m.padArmed = true;
       if (m.trial) trialTick(ctx, m);
-      else if (canStartTrial(ctx, m) && ctx.padOn() && m.padArmed && ctx.input.pressure > C.CTL_PRESS_START) {
+      // a squeeze starts only Ember's trial (§2A / §2B: Tide and Sprout start with A)
+      else if (canStartTrial(ctx, m) && myPet(ctx) === 0 && ctx.padOn() && m.padArmed && ctx.input.pressure > C.CTL_PRESS_START) {
         startTrial(ctx, m, now, "pad");
         m.padArmed = false;
       }
@@ -805,6 +906,9 @@
   /* ================= 5. screens ================= */
 
   // ---- S11: secret send-out (§4.7) ----
+  // y 118: how the pet under the cursor attacks on this handheld (hold A without its sensor)
+  const howKey = (ctx, pet) => pet === 0 ? (ctx.padOn() ? "dev.battle.how.ember" : "dev.battle.how.hold")
+    : pet === 1 ? (ctx.tiltOn() ? "dev.battle.how.tide" : "dev.battle.how.hold") : "dev.battle.how.sprout";
   const firstAlive = (pl, from = 0) => { for (let i = 0; i < 3; i++) { const k = (from + i) % 3; if (pl.hp[k] > 0) return k; } return 0; };
   D.registerScreen("battle.pick", {
     secret: true,
@@ -851,14 +955,18 @@
         titleKey: replace ? "dev.battle.nextPet" : "dev.battle.sendOut", badgeKey: "dev.battle.secret",
         noteKey: "dev.battle.secretNote", sel, locked,
         statusKey: rivalIn ? (rivalPicking ? "dev.battle.rivalChoosing" : "dev.battle.rivalPicked") : null,
-        info: locked ? ["dev.battle.waitRival", null]
-          : [["dev.battle.beats", {pet: petName(ctx, beatsIdx)}], ["dev.battle.weakTo", {pet: petName(ctx, weakIdx)}]],
+        info: locked ? ["dev.battle.waitRival", null] : [null, howKey(ctx, sel)],
         cards: [0, 1, 2].map(i => pl.hp[i] > 0
           ? {pet: i, line1: {hp: pl.hp[i], max: m.P.hp}, line2: String(pl.hp[i]), mark: locked && m.picked && m.picked.pet === i ? "ok" : null}
           : {pet: i, line1: "dev.battle.ko", disabled: true}),
         hints: locked ? (waitedLong ? [null, null, ["M", "dev.battle.hintHold"]] : [])
           : [["LR", "dev.battle.hintPick"], ["A", "dev.battle.hintGo"], waitedLong ? ["M", "dev.battle.hintHold"] : ["B", "dev.ui.next"]],
       });
+      // y 104: {UP} the pet it beats (grassLt), {DN} the pet that beats it (danger), §4.7
+      if (!locked) {
+        g.text(4, 104, ctx.t("dev.battle.beatsShort", {pet: petName(ctx, beatsIdx)}), {c: "grassLt", w: 56});
+        g.text(64, 104, ctx.t("dev.battle.weakShort", {pet: petName(ctx, weakIdx)}), {c: "danger", w: 56});
+      }
     },
   });
 
@@ -887,6 +995,11 @@
     if (lunge < 200) x += (p === me ? 1 : -1) * Math.round(6 * (1 - Math.abs(lunge - 100) / 100));
     const idle = st.phase === PH.TURN || st.phase === PH.SEND_OUT || st.phase === PH.GAME_OVER;
     if (idle && !busyTrial && Math.floor(now / 500) % 2 === (p === me ? 0 : 1)) y -= 1;
+    // Sprout's trial: my pet hops 2 px on every beat (§4.8 C3), so the rhythm shows without the lane
+    if (p === me && m.trial && m.trial.kind === "beat") {
+      const e = now - m.trial.start;
+      if (m.trial.B.sc.notes.some(nt => e >= nt.b && e - nt.b < 100)) y -= 2;
+    }
     const flash = now - m.flashAt[p] < 120;
     g.sprite(D.PETS[pet].sprite, x, y, {scale: 3, color: flash ? "white" : null});
     if (pl.shield && pl.active < TEAM_SIZE) g.frame(x - 2, y - 2, 34, 34, "waterLt");
@@ -1012,17 +1125,32 @@
     rows.filter(Boolean).slice(0, 3).forEach(([s, c], i) => g.text(4, ROW[i], s, {c, w: 120}));
   }
 
-  // C: the attack trial, horizontal, like the web prototype
+  // C: the attack trial, horizontal, like the web prototype. C1 Ember (and
+  // every hold-A fallback): the band; C2 Tide tilting: the wave and the drop;
+  // C3 Sprout: the note lane. Progress bar and text row are the same for all.
   function drawTrial(ctx, g, m) {
-    const tr = m.trial, T = tr.T, P = m.P, now = ctx.now();
-    D.ui.bandBar(g, 3, 106, 122, 14, {center: T.center, width: P.bandPct, level: T.level, inside: T.inside});
+    const tr = m.trial, P = m.P, now = ctx.now();
+    let ready, stg, stageScore, right;
+    if (tr.kind === "beat") {
+      const B = tr.B;
+      drawLane(ctx, g, m, tr);
+      ready = PT.beat.ready(B); stg = ready ? -1 : PT.beat.stage(B);
+      stageScore = k => PT.beat.stageScore(B, k);
+      if (!ready) { const v = PT.beat.stageLive(B, stg); right = v == null ? "--" : v + "%"; }
+    } else {
+      const T = tr.T;
+      if (tr.kind === "tilt") drawWave(ctx, g, T);
+      else D.ui.bandBar(g, 3, 106, 122, 14, {center: T.center, width: P.bandPct, level: T.level, inside: T.inside});
+      ready = D.trial.ready(T); stg = ready ? -1 : D.trial.stage(T);
+      stageScore = k => D.trial.stageScore(T, k);
+      if (!ready) right = D.trial.stageScore(T, stg) + "%";
+    }
     // progress: ready 14 px (x 4-17), three stages of 35 px (x 18-52 / 53-87 / 88-122)
-    const ready = D.trial.ready(T), stg = ready ? -1 : D.trial.stage(T);
     g.rect(4, 123, 14, 5, ready ? "accent" : "muted");
     for (let k = 0; k < 3; k++) {
       let c = "line";
       if (k < stg) {
-        const s = D.trial.stageScore(T, k);
+        const s = stageScore(k);
         c = s < P.tierStrong ? "white" : s < P.tierUlt ? "fire" : "gold";
       } else if (k === stg) c = "accent";
       g.rect(18 + 35 * k, 123, 34, 5, c);
@@ -1033,7 +1161,53 @@
     else if (now - tr.cueAt < 700) { left = ctx.t("dev.battle.faster", {n: stg + 1}); lc = "gold"; }
     else left = ctx.t("dev.battle.stage", {n: stg + 1});
     g.text(4, 130, left, {c: lc, w: 96});
-    if (!ready) g.text(123, 130, D.trial.stageScore(T, stg) + "%", {align: "r", w: 24});
+    if (!ready) g.text(123, 130, right, {align: "r", w: 24});
+  }
+  // C2 (ui-design §4.8): the band is a wave (water, a waterLt crest with 2 px
+  // bumps every 4 px that flow with the band time), the pointer a drop
+  function drawWave(ctx, g, T) {
+    const x = 3, y = 106, w = 122, h = 14;
+    g.frame(x, y, w, h, "line");
+    const ix = x + 1, iw = w - 2, iy = y + 1, ih = h - 2;
+    g.rect(ix, iy, iw, ih, "void");
+    const at = L => ix + Math.round(Math.max(0, Math.min(100, L)) * (iw - 1) / 100);
+    const half = T.cfg.bandPct / 2, a = at(T.center - half), b = at(T.center + half);
+    g.rect(a, iy, b - a + 1, ih, "water");
+    g.hline(a, iy, b - a + 1, "waterLt");
+    const phase = Math.floor(D.trial.tau100(T.elapsed, T.cfg) / 100 / 120) % 4;
+    for (let xx = a; xx <= b; xx++) if ((xx - ix + 4 - phase) % 4 < 2) g.px(xx, iy + 1, "waterLt");
+    for (const t of [25, 50, 75]) { g.rect(at(t), iy + ih - 2, 2, 2, "line"); g.rect(at(t), iy, 2, 2, "line"); }
+    const cx = 4 + Math.round(Math.max(0, Math.min(100, T.level)) * 119 / 100);
+    g.sprite("battle.drop", cx - 2, 108, T.inside ? {map: {"#": "white", "+": "gold"}} : {});
+    g.px(cx, 106, "white");
+    g.px(cx, 119, "white");
+  }
+  // C3: the note lane. Notes come from the right at BEAT_LANE_PX_PER_S and
+  // reach the judge line (x 13-14) on their beat; rests are small grey dots
+  function drawLane(ctx, g, m, tr) {
+    const B = tr.B, now = ctx.now(), e = now - tr.start, cfg = B.cfg;
+    g.frame(3, 106, 122, 14, "line");
+    g.rect(4, 107, 120, 12, "void");
+    g.hline(4, 112, 120, "line");
+    const xOf = b => 14 + Math.trunc((b - e) * cfg.lanePxPerS / 1000);
+    g.clip(4, 107, 120, 12);
+    for (const sl of B.sc.slots) {
+      const x = xOf(sl.b);
+      if (x > 123 || x < 4) continue;
+      if (sl.rest) { g.rect(x - 1, 111, 2, 2, "line"); continue; }
+      const i = B.sc.notes.indexOf(sl), r = B.res[i];
+      if (r === "perfect" || r === "good") continue;    // hit: shown as a mark on the line
+      g.sprite("battle.leaf", x - 3, 109, r === "miss" ? {color: "muted"} : {});
+    }
+    g.unclip();
+    // the judge line flashes gold for 80 ms on every beat and count-in click
+    const flash = B.sc.notes.some(nt => e >= nt.b && e - nt.b < 80) || B.sc.counts.some(c => e >= c && e - c < 80);
+    g.rect(13, 105, 2, 16, flash ? "gold" : "white");
+    for (const mk of tr.marks) {
+      if (now - mk.at >= 150) continue;
+      if (mk.kind === "stray") g.sprite("icon.NO", 4, 109);
+      else g.sprite(mk.kind === "perfect" ? "icon.STAR" : "icon.OK", 10, 109, mk.kind === "good" ? {color: "grassLt"} : {});
+    }
   }
 
   // F: chained blocks
@@ -1072,6 +1246,13 @@
     });
   }
 
+  function trialHint(ctx, tr) {
+    if (tr.kind === "tilt") return "dev.battle.hintTilt";
+    if (tr.kind === "beat") return ctx.settings.volume ? "dev.battle.hintBeat" : "dev.battle.hintBeatMute";
+    if (tr.pet === 1) return "dev.battle.hintNoTilt";
+    return tr.src === "pad" ? "dev.battle.hintPad" : "dev.battle.hintHoldA";
+  }
+
   function hudPhase(ctx, m, st) {
     const me = ctx.p;
     if (m.trial) return "trial";
@@ -1105,6 +1286,8 @@
       const me = ctx.p;
       // F: every A press edge is one block (the stick click does not count)
       if (m.defend && !m.defend.sent && ev.btn === "A" && ev.type === "down" && !ev.fromStick) { defendPress(ctx, m, ev.t); return; }
+      // Sprout's trial: every A press edge is a tap at its edge time (the stick click does not count)
+      if (m.trial && m.trial.kind === "beat" && ev.btn === "A" && ev.type === "down" && !ev.fromStick) { beatTap(ctx, m, ev.t); return; }
       if (m.trial) return;
       // B: switch box
       if (m.switching) {
@@ -1149,7 +1332,7 @@
       drawPet(ctx, g, m, st, rv, rivalHidden, false);
       if (rivalHidden) g.text(101, 36, "?", {align: "c", scale: 2, c: "muted"});
       drawPet(ctx, g, m, st, me, false, !!m.trial);
-      if (m.trial && Math.floor(now / 125) % 2 === 0) {
+      if (m.trial && m.trial.kind !== "beat" && Math.floor(now / 125) % 2 === 0) {
         const stg = D.trial.ready(m.trial.T) ? -1 : D.trial.stage(m.trial.T);
         g.frame(SPR.me[0] - 3, SPR.me[1] - 3, 36, 36, stg <= 0 ? "waterLt" : stg === 1 ? "gold" : "fire");
       }
@@ -1162,9 +1345,12 @@
       const pl = st.players[me];
       switch (ph) {
         case "turn": {
-          const pad = ctx.padOn();
-          g.text(4, 104, pad ? "{A}{PAD}" : "{A}");
-          g.text(pad ? 26 : 16, 104, t("dev.battle.attack"), {w: 62});
+          // {A} + this pet's trial icon (§4.8 A): Ember {PAD}, Tide {TILT}, Sprout {NOTE};
+          // without the pad / a usable accelerometer only {A}
+          const pet = pl.active;
+          const icon2 = pet === 0 ? (ctx.padOn() ? "{PAD}" : "") : pet === 1 ? (ctx.tiltOn() ? "{TILT}" : "") : pet === 2 ? "{NOTE}" : "";
+          g.text(4, 104, "{A}" + icon2);
+          g.text(icon2 ? 26 : 16, 104, t("dev.battle.attack"), {w: 62});
           const cd = pl.cooldown, deny = now - m.denyAt < 250;
           const c2 = cd || deny ? "muted" : "white";
           g.text(4, 118, "{S}", {c: c2});
@@ -1188,7 +1374,7 @@
         case "trial":
           drawTrial(ctx, g, m);
           statusBar(ctx, g, null, null);
-          g.text(4, 146, t(m.trial.src === "pad" ? "dev.battle.hintPad" : "dev.battle.hintHoldA"), {w: 110});
+          g.text(4, 146, t(trialHint(ctx, m.trial)), {w: 110});
           break;
         case "result": {
           const r = m.trialResult && (m.trialResult.step === st.step || m.trialResult.defStep === st.step) ? m.trialResult : null;
@@ -1326,6 +1512,33 @@
       }
       return;
     }
+    // Tide and Sprout play the attack-trial.md §2C models (PetTrials.MODELS), a
+    // first-time or a skilled player, picked per trial
+    if (m.trial && m.trial.kind !== "band") {
+      const tr = m.trial;
+      holdA(false);
+      if (b.trial !== tr) {
+        b.trial = tr;
+        b.skill = rng.int(2) ? "good" : "first";
+        const model = PT.MODELS[tr.kind][b.skill];
+        if (tr.kind === "beat") { b.presses = PT.beatPresses(tr.B, model, rng); b.pi = 0; }
+        else {
+          b.tracker = PT.tracker(model, rng, e => D.trial.bandCenter(tr.T.seed, e, tr.T.cfg), tr.levelM / 1000);
+          b.jitter = 0; b.jitterAt = -1e9;
+        }
+      }
+      if (tr.kind === "beat") {
+        // one press per planned time (§2C: late on average, forgotten notes, some on rests, a stray one)
+        while (b.pi < b.presses.length && now - tr.start >= b.presses[b.pi]) { ctl.press("A", 25); b.pi++; }
+      } else {
+        const model = PT.MODELS.tilt[b.skill], pos = b.tracker.hand(now - tr.T.start);
+        if (now - b.jitterAt >= 20) { b.jitterAt = now; b.jitter = PT.normal(rng, 0, model.jitterMg); }
+        ctl.tilt(PT.tilt.mgFor(pos, m.P.tiltFullMg) + b.jitter);
+        b.tilted = true;
+      }
+      return;
+    }
+    if (b.tilted && !m.trial) { b.tilted = false; ctl.tilt(0); }    // put the handheld down level again
     // attack trial: hold A while the pointer is under the band (bang-bang), with a drifting aim error
     if (m.trial) {
       const T = m.trial.T;

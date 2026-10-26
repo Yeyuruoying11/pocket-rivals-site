@@ -2,7 +2,7 @@
 # Test suite of the Pocket Rivals handheld simulator (device.html + device-*.js + mode-*.js)
 # and the site's 3D pin map (index.html + pinmap-*.js).
 # usage: tests/run.sh [quick|full]      (default: quick; works from any directory)
-#   quick  the fixtures, the input / gate / wave / blurb / S21 heartbeat tests and the World 1 solver checker
+#   quick  the fixtures, the input / gate / wave / blurb / S21 heartbeat / per-pet trial tests and the World 1 solver checker
 #   full   quick, then the racing track test, the end-to-end run, the World 1 play-through
 #          and the 3D pin map on the site's hardware tab (index.html)
 # Every browser test runs with the route.js preload, which answers the page requests from the
@@ -40,6 +40,7 @@ step gate     node -r ./tests/route.js tests/gate-test.js
 step wave     node -r ./tests/route.js tests/wave-test.js
 step blurb    node -r ./tests/route.js tests/blurb-test.js
 step s21-heartbeat node -r ./tests/route.js tests/s21-heartbeat-test.js
+step pet-trials node -r ./tests/route.js tests/pet-trials-test.js
 step check-w1 node tests/adv/check-w1.js
 
 if [ "$MODE" = full ]; then

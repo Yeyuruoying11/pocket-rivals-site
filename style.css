@@ -494,6 +494,31 @@ pre.snippet { background: var(--surface-2); border-radius: 10px; padding: 12px; 
 .trial-gauge .band.in { background: color-mix(in srgb, var(--good) 40%, transparent); border-color: var(--good); }
 .trial-gauge .ptr { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--ink); }
 .trial-gauge .ptr::before { content: ""; position: absolute; top: -5px; left: -4px; border: 6px solid transparent; border-top-color: var(--ink); border-bottom: 0; }
+/* per-pet trials (attack-trial.md §2A / §2B): Tide's wave + drop, Sprout's note lane */
+.trial-kind { margin-left: 6px; font-weight: 600; color: var(--ink); }
+.trial-kind:empty { display: none; }
+.trial-gauge.tide .band { border: 0; border-top: 3px dotted color-mix(in srgb, var(--water) 80%, white); border-radius: 10px 10px 4px 4px; background: color-mix(in srgb, var(--water) 30%, transparent); }
+.trial-gauge.tide .band.in { background: color-mix(in srgb, var(--water) 55%, transparent); border-top-color: var(--perfect); }
+.trial-gauge.tide .ptr { width: 12px; margin-left: -6px; top: 4px; bottom: 2px; background: var(--water); border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%; }
+.trial-gauge.tide .ptr::before { left: 0; top: -6px; border-width: 6px; border-top: 0; border-bottom: 7px solid var(--water); border-left-color: transparent; border-right-color: transparent; }
+.trial-gauge.tide .ptr.in { background: var(--perfect); }
+.trial-gauge.tide .ptr.in::before { border-bottom-color: var(--perfect); }
+.trial-gauge .lane { position: absolute; inset: 0; overflow: hidden; border-radius: 8px; }
+.trial-gauge .lane[hidden] { display: none; }
+.trial-gauge .lane::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line); }
+.trial-gauge .lane .judge { position: absolute; left: 8%; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--ink); }
+.trial-gauge .lane .judge.on { background: var(--perfect); }
+.trial-gauge .lane b { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 0 70% 0 70%; background: var(--grass); }
+.trial-gauge .lane b.miss { background: var(--muted); opacity: .6; }
+.trial-gauge .lane b.rest { width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--muted); }
+.trial-gauge .lane .mark { position: absolute; left: 8%; top: 50%; transform: translate(-50%, -50%); font-style: normal; font-weight: 800; font-size: 18px; }
+.trial-gauge .lane .mark.perfect { color: var(--perfect); }
+.trial-gauge .lane .mark.good { color: var(--good); }
+.trial-gauge .lane .stray { position: absolute; left: 1%; top: 50%; transform: translateY(-50%); font-style: normal; font-weight: 800; color: var(--danger); opacity: 0; }
+.trial-gauge .lane .stray.on { opacity: 1; }
+#params label.bad input[data-p^="beat"] { accent-color: var(--danger); }
+#params .pcheck { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--danger); }
+#params .pcheck:empty { display: none; }
 /* trial timeline: ready phase + 3 stages, the running one highlighted */
 .trial-track { display: flex; gap: 3px; margin-top: 7px; }
 .trial-track .seg { position: relative; display: flex; align-items: center; justify-content: center; flex: 1 1 0; min-width: 0; height: 15px; border-radius: 5px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); box-sizing: border-box; }
