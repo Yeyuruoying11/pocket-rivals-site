@@ -313,122 +313,226 @@
     },
     {
       "name": "彩色 TFT 屏",
-      "model": "1.8\" ST7735S 128×160",
-      "qty": 2,
-      "status": "buy",
+      "model": "Adafruit 358：1.8\" ST7735R 128×160，带 microSD 槽（Mouser）",
+      "qty": 3,
+      "status": "arrived",
       "iface": "SPI",
       "owner": "harvey",
-      "use": "每个玩家独立的游戏画面",
+      "use": "每个玩家独立的游戏画面；2 用 + 1 备用",
       "en": {
         "name": "Color TFT screen",
-        "use": "Each player's own game screen"
-      }
-    },
-    {
-      "name": "Edge connector 扩展板",
-      "model": "Kitronik 5601B",
-      "qty": 3,
-      "status": "buy",
-      "iface": "—",
-      "owner": "binqi",
-      "use": "引出 micro:bit 的 pin",
-      "en": {
-        "name": "Edge connector breakout",
-        "use": "Breaks out the micro:bit pins"
-      }
-    },
-    {
-      "name": "摇杆",
-      "model": "SparkFun Qwiic Joystick COM-15168",
-      "qty": 2,
-      "status": "buy",
-      "iface": "I2C",
-      "owner": "yihao",
-      "use": "移动和方向控制",
-      "en": {
-        "name": "Joystick",
-        "use": "Movement and direction control"
-      }
-    },
-    {
-      "name": "Qwiic 转排针线",
-      "model": "Qwiic-to-header",
-      "qty": 2,
-      "status": "buy",
-      "iface": "I2C",
-      "owner": "yihao",
-      "use": "连接摇杆",
-      "en": {
-        "name": "Qwiic-to-header cable",
-        "use": "Connects the joystick"
-      }
-    },
-    {
-      "name": "按钮",
-      "model": "16 mm 面板按钮（型号待定）",
-      "qty": 8,
-      "status": "buy",
-      "iface": "GPIO",
-      "owner": "yihao",
-      "use": "每人 4 个：技能、攻击、防御、菜单",
-      "en": {
-        "name": "Buttons",
-        "model": "16 mm panel-mount button (model TBD)",
-        "use": "4 per player: skill, attack, defend, menu"
-      }
-    },
-    {
-      "name": "压力传感器",
-      "model": "FSR（型号待定）",
-      "qty": 2,
-      "status": "choosing",
-      "iface": "ADC",
-      "owner": "yihao",
-      "use": "焰灵攻击测试、赛车油门、冒险绞盘",
-      "en": {
-        "name": "Pressure sensor",
-        "model": "FSR (model TBD)",
-        "use": "Ember's attack trial, racing throttle, adventure winch"
+        "model": "Adafruit 358: 1.8\" ST7735R 128×160 with microSD slot (Mouser)",
+        "use": "Each player's own game screen; 2 + 1 spare"
       }
     },
     {
       "name": "音频模块",
-      "model": "DFRobot DFPlayer Mini DFR0299",
-      "qty": 2,
-      "status": "buy",
+      "model": "DFRobot DFPlayer Mini DFR0299（Mouser 正品）",
+      "qty": 3,
+      "status": "arrived",
       "iface": "UART",
       "owner": "harvey",
-      "use": "播放音效（48 个文件，见 docs/sd-card.md）",
+      "use": "播放音效（48 个文件，见 docs/sd-card.md）；2 用 + 1 备用",
       "en": {
         "name": "Audio module",
-        "use": "Plays the sound effects (48 files, see docs/sd-card.md)"
-      }
-    },
-    {
-      "name": "喇叭",
-      "model": "40 mm 4Ω 3 W",
-      "qty": 2,
-      "status": "buy",
-      "iface": "—",
-      "owner": "harvey",
-      "use": "每块玩家板的音频输出",
-      "en": {
-        "name": "Speaker",
-        "use": "Audio output for each player board"
+        "model": "DFRobot DFPlayer Mini DFR0299 (genuine, Mouser)",
+        "use": "Plays the sound effects (48 files, see docs/sd-card.md); 2 + 1 spare"
       }
     },
     {
       "name": "microSD 卡",
-      "model": "DFPlayer 兼容",
+      "model": "Adafruit 5252，512 MB，出厂 FAT32",
       "qty": 2,
-      "status": "buy",
+      "status": "arrived",
       "iface": "—",
       "owner": "harvey",
-      "use": "存放音效文件",
+      "use": "存放音效文件（/mp3/0001.mp3 …）",
       "en": {
         "name": "microSD card",
-        "model": "DFPlayer-compatible",
-        "use": "Stores the sound files"
+        "model": "Adafruit 5252, 512 MB, FAT32 from the factory",
+        "use": "Stores the sound files (/mp3/0001.mp3 …)"
+      }
+    },
+    {
+      "name": "5 V 升压模块",
+      "model": "Adafruit MiniBoost TPS61023（4654）",
+      "qty": 2,
+      "status": "arrived",
+      "iface": "—",
+      "owner": "binqi",
+      "use": "把两节 AAA 升到 5 V，只供 DFPlayer 和 TFT；5 V 绝不接 micro:bit",
+      "en": {
+        "name": "5 V boost module",
+        "model": "Adafruit MiniBoost TPS61023 (4654)",
+        "use": "Boosts two AAA cells to 5 V for the DFPlayer and TFT only; 5 V never goes to the micro:bit"
+      }
+    },
+    {
+      "name": "彩色轻触按钮",
+      "model": "Adafruit 1010，12 mm，5 色各 3 个带键帽",
+      "qty": 1,
+      "status": "arrived",
+      "iface": "GPIO",
+      "owner": "yihao",
+      "use": "每台 4 个外接键（技能、攻击、防御、菜单），装外壳时用",
+      "en": {
+        "name": "Colored tactile buttons",
+        "model": "Adafruit 1010, 12 mm, 5 colors × 3 with caps",
+        "use": "4 external buttons per handheld (skill, attack, defend, menu), for the enclosure"
+      }
+    },
+    {
+      "name": "手势 / 接近传感器",
+      "model": "Adafruit 3595 APDS-9960，STEMMA QT / Qwiic",
+      "qty": 2,
+      "status": "arrived",
+      "iface": "I2C",
+      "owner": "all",
+      "use": "赛车左右划手擦浪花、冒险手托升降门；1 个新买 + 1 个老师现货",
+      "en": {
+        "name": "Gesture / proximity sensor",
+        "model": "Adafruit 3595 APDS-9960, STEMMA QT / Qwiic",
+        "use": "Swipe to wipe the splash in racing, hold up the gate in adventure; 1 bought + 1 from the course stock"
+      }
+    },
+    {
+      "name": "Qwiic micro:bit 扩展板",
+      "model": "SparkFun 16446（老师现货）",
+      "qty": 2,
+      "status": "have",
+      "iface": "I2C",
+      "owner": "binqi",
+      "use": "引出引脚，自带 Qwiic 口；中央板不需要",
+      "en": {
+        "name": "Qwiic micro:bit breakout",
+        "model": "SparkFun 16446 (course stock)",
+        "use": "Breaks out the pins, has a Qwiic port; the central board needs none"
+      }
+    },
+    {
+      "name": "摇杆",
+      "model": "SparkFun Qwiic Joystick COM-15168（老师现货）",
+      "qty": 2,
+      "status": "have",
+      "iface": "I2C",
+      "owner": "yihao",
+      "use": "菜单、转向、走格子",
+      "en": {
+        "name": "Joystick",
+        "model": "SparkFun Qwiic Joystick COM-15168 (course stock)",
+        "use": "Menus, steering, grid movement"
+      }
+    },
+    {
+      "name": "压力垫 FSR",
+      "model": "Adafruit 166 圆形 FSR（老师现货）",
+      "qty": 3,
+      "status": "have",
+      "iface": "ADC",
+      "owner": "yihao",
+      "use": "焰灵攻击测试、赛车油门、冒险绞盘；2 用 + 1 备用；分压 10 kΩ",
+      "en": {
+        "name": "Pressure pad (FSR)",
+        "model": "Adafruit 166 round FSR (course stock)",
+        "use": "Ember's attack trial, racing throttle, adventure winch; 2 + 1 spare; 10 kΩ divider"
+      }
+    },
+    {
+      "name": "Qwiic 连接线",
+      "model": "SparkFun 17258（老师现货）",
+      "qty": 6,
+      "status": "have",
+      "iface": "I2C",
+      "owner": "all",
+      "use": "扩展板 → 摇杆 → 手势传感器 → 震动，每台 3 根",
+      "en": {
+        "name": "Qwiic cable",
+        "model": "SparkFun 17258 (course stock)",
+        "use": "Breakout → joystick → gesture sensor → haptic, 3 per handheld"
+      }
+    },
+    {
+      "name": "喇叭",
+      "model": "SparkFun 9151，0.5 W 8 Ω 50 mm（老师现货）",
+      "qty": 2,
+      "status": "have",
+      "iface": "—",
+      "owner": "harvey",
+      "use": "接 DFPlayer；1 W 那款直径 76 mm 装不进掌机",
+      "en": {
+        "name": "Speaker",
+        "model": "SparkFun 9151, 0.5 W 8 Ω 50 mm (course stock)",
+        "use": "Driven by the DFPlayer; the 1 W one is 76 mm and does not fit"
+      }
+    },
+    {
+      "name": "面包板阶段按钮",
+      "model": "老师现货，混装",
+      "qty": 10,
+      "status": "have",
+      "iface": "GPIO",
+      "owner": "yihao",
+      "use": "接线调试阶段先用；装外壳时换成彩色按钮",
+      "en": {
+        "name": "Breadboard-stage buttons",
+        "model": "Course stock, assorted",
+        "use": "For the wiring stage; swapped for the colored buttons in the enclosure"
+      }
+    },
+    {
+      "name": "电池盒 + AAA 电池",
+      "model": "SparkFun 15101 2×AAA 带开关（老师现货）",
+      "qty": 2,
+      "status": "have",
+      "iface": "—",
+      "owner": "binqi",
+      "use": "掌机离线供电：直接接 micro:bit 电池口，同一组经升压供 DFPlayer + TFT",
+      "en": {
+        "name": "Battery holder + AAA cells",
+        "model": "SparkFun 15101 2×AAA with switch (course stock)",
+        "use": "Portable power: straight into the micro:bit battery port, and through the boost to the DFPlayer + TFT"
+      }
+    },
+    {
+      "name": "电阻和电容",
+      "model": "10 kΩ、1 kΩ 各 2；470–1000 µF 电解 2（实验室有）",
+      "qty": 1,
+      "status": "have",
+      "iface": "—",
+      "owner": "binqi",
+      "use": "FSR 分压、DFPlayer TX 分压 / RX 串联、DFPlayer 电源去耦",
+      "en": {
+        "name": "Resistors and capacitors",
+        "model": "2 × 10 kΩ, 2 × 1 kΩ, 2 × 470–1000 µF electrolytic (lab stock)",
+        "use": "FSR divider, DFPlayer TX divider / RX series, DFPlayer supply decoupling"
+      }
+    },
+    {
+      "name": "洞洞板",
+      "model": "Adafruit 1609（老师现货）",
+      "qty": 2,
+      "status": "have",
+      "iface": "—",
+      "owner": "binqi",
+      "use": "后期焊接、装外壳",
+      "en": {
+        "name": "Perfboard",
+        "model": "Adafruit 1609 (course stock)",
+        "use": "Soldering later, for the enclosure"
+      }
+    },
+    {
+      "name": "Qwiic 震动驱动",
+      "model": "SparkFun ROB-17590 DA7280 自带马达（老师现货 1 个，第 2 个有余钱再买 $11.50）",
+      "qty": 2,
+      "status": "choosing",
+      "iface": "I2C",
+      "owner": "binqi",
+      "use": "震动反馈，走 Qwiic 不占引脚",
+      "en": {
+        "name": "Qwiic haptic driver",
+        "model": "SparkFun ROB-17590 DA7280 with motor (1 from course stock, a 2nd at $11.50 if budget allows)",
+        "use": "Haptic feedback over Qwiic, no pins used"
       }
     },
     {
@@ -443,48 +547,6 @@
         "name": "Enclosure and fasteners",
         "model": "3D-printed + screws",
         "use": "Player controller enclosure"
-      }
-    },
-    {
-      "name": "手势传感器（计划）",
-      "model": "APDS-9960 手势 / 接近传感器小板，Qwiic / STEMMA QT 接口（如 Adafruit 3595）",
-      "qty": 3,
-      "status": "choosing",
-      "iface": "I2C",
-      "owner": "all",
-      "use": "赛车左右划手擦浪花、冒险手托升降门；每台掌机 1 个 + 1 个备用",
-      "en": {
-        "name": "Gesture sensor (planned)",
-        "model": "APDS-9960 gesture / proximity breakout, Qwiic / STEMMA QT (e.g. Adafruit 3595)",
-        "use": "Swipe left / right to wipe the splash in racing, hold up the gate by hand in adventure; 1 per handheld + 1 spare"
-      }
-    },
-    {
-      "name": "Qwiic 连接线",
-      "model": "Qwiic 4-pin 线，50–100 mm",
-      "qty": 3,
-      "status": "choosing",
-      "iface": "I2C",
-      "owner": "all",
-      "use": "把手势传感器串在摇杆后面",
-      "en": {
-        "name": "Qwiic cable",
-        "model": "Qwiic 4-pin cable, 50–100 mm",
-        "use": "Chains the gesture sensor after the joystick"
-      }
-    },
-    {
-      "name": "震动马达（可选）",
-      "model": "待定",
-      "qty": 2,
-      "status": "later",
-      "iface": "GPIO",
-      "owner": "binqi",
-      "use": "震动反馈",
-      "en": {
-        "name": "Vibration motor (optional)",
-        "model": "TBD",
-        "use": "Haptic feedback"
       }
     }
   ],
