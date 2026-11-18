@@ -313,16 +313,30 @@
     },
     {
       "name": "彩色 TFT 屏",
-      "model": "Adafruit 358：1.8\" ST7735R 128×160，带 microSD 槽（Mouser）",
+      "model": "Adafruit 3.2\" TFT breakout v2.3，ILI9341 240×320，带触摸和 microSD（都不用）",
+      "qty": 2,
+      "status": "have",
+      "iface": "SPI",
+      "owner": "harvey",
+      "use": "每个玩家独立的游戏画面；2026-11-18 定为正式屏",
+      "en": {
+        "name": "Color TFT screen",
+        "model": "Adafruit 3.2\" TFT breakout v2.3, ILI9341 240×320, with touch and microSD (both unused)",
+        "use": "Each player's own game screen; chosen as the final screen on 2026-11-18"
+      }
+    },
+    {
+      "name": "1.8\" TFT 屏（备用）",
+      "model": "Adafruit 358 ST7735R 128×160，已到货 3 块",
       "qty": 3,
       "status": "arrived",
       "iface": "SPI",
       "owner": "harvey",
-      "use": "每个玩家独立的游戏画面；2 用 + 1 备用",
+      "use": "原计划的屏，现在留作备用 / 对比",
       "en": {
-        "name": "Color TFT screen",
-        "model": "Adafruit 358: 1.8\" ST7735R 128×160 with microSD slot (Mouser)",
-        "use": "Each player's own game screen; 2 + 1 spare"
+        "name": "1.8\" TFT screen (spare)",
+        "model": "Adafruit 358 ST7735R 128×160, 3 arrived",
+        "use": "The originally planned screen, now a spare / for comparison"
       }
     },
     {
@@ -557,10 +571,10 @@
         "name": "TFT 屏",
         "iface": "SPI",
         "owner": "harvey",
-        "detail": "1.8\" ST7735S，128×160，SPI（SPIM2，8 MHz）。所有画面都画在这块屏上；驱动由我们自己写（见驱动清单），绘图核心只需要它提供\"设窗口 + 写像素\"两个函数。",
+        "detail": "Adafruit 3.2\" TFT breakout v2.3，ILI9341，240×320，SPI（SPIM2，8 MHz；背面 IM1–IM3 已焊成 SPI 模式）。2026-11-18 定为正式屏（原计划 1.8\" ST7735S 128×160）。触摸和 SD 槽不用。所有画面都画在这块屏上；驱动由我们自己写（见驱动清单），绘图核心只需要它提供\"设窗口 + 写像素\"两个函数。画面目前仍按 128×160 的逻辑画布设计，怎么放大到 240×320 待定。",
         "en": {
           "name": "TFT screen",
-          "detail": "1.8\" ST7735S, 128×160, SPI (SPIM2, 8 MHz). Every screen is drawn here; we write the driver ourselves (see the driver list), and the drawing core only needs two functions from it: set window and write pixels."
+          "detail": "Adafruit 3.2\" TFT breakout v2.3, ILI9341, 240×320, SPI (SPIM2, 8 MHz; IM1–IM3 on the back are bridged for SPI mode). Chosen as the final screen on 2026-11-18 (the plan had a 1.8\" ST7735S, 128×160). Touch and the SD slot are unused. Every screen is drawn here; we write the driver ourselves (see the driver list), and the drawing core only needs two functions from it: set window and write pixels. The screens are still designed on a 128×160 logical canvas; how it scales to 240×320 is to be decided."
         },
         "kind": "actuator"
       },
@@ -930,19 +944,19 @@
     {
       "id": "tft",
       "board": "player",
-      "name": "TFT 屏驱动 ST7735S",
+      "name": "TFT 屏驱动 ILI9341",
       "iface": "SPIM2 + EasyDMA，8 MHz",
       "pins": "P13 SCK、P15 MOSI、P16 CS、P8 DC（P8 是 NFC 引脚，要开 CONFIG_NFCT_PINS_AS_GPIOS）",
       "use": "所有画面：绘图核心只调用「设窗口 + 写像素」两个函数",
       "owner": "harvey",
       "status": "todo",
-      "verify": "开机测试卡：四边 1 px 边框、16 色色条顺序正确、整屏约 41 ms",
+      "verify": "开机测试卡：四边 1 px 边框、16 色色条顺序正确；240×320 整屏约 154 ms，所以靠局部刷新",
       "en": {
-        "name": "TFT driver (ST7735S)",
+        "name": "TFT driver (ILI9341)",
         "iface": "SPIM2 + EasyDMA, 8 MHz",
         "pins": "P13 SCK, P15 MOSI, P16 CS, P8 DC (P8 is an NFC pin; needs CONFIG_NFCT_PINS_AS_GPIOS)",
         "use": "Every screen: the drawing core only calls two functions, set window and write pixels",
-        "verify": "Boot test card: 1 px border on all four edges, 16 colour bars in order, full screen in about 41 ms"
+        "verify": "Boot test card: 1 px border on all four edges, 16 colour bars in order; a full 240×320 frame takes about 154 ms, so partial updates matter"
       }
     },
     {

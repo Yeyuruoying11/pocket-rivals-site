@@ -27,7 +27,7 @@
   ],
   "extra": [
     "TFT RST 直接接 3V，用软件复位指令代替，省一个 pin。",
-    "TFT 背光 (BL/LED) 接 3V。",
+    "TFT 背光：1.8\" 板的 BL/LED 接 3V；3.2\" ILI9341 板的 Lite 默认常亮，可以悬空。",
     "玩家板用 TFT 显示，不需要板载 LED 点阵：停用点阵后 P3、P4、P6、P7、P10 空出 P3、P4、P6、P7、P10（其中 P3、P4、P10 支持 ADC）；P3 计划接 DFPlayer TX。",
     "板载传感器和喇叭不占边缘引脚：加速度计在 micro:bit 内部的 I2C 上（计划给潮影用），喇叭在 P0.00（PWM）。",
     "供电分两路、共地（2026-11-01 采购清单）：两节 AAA 直接接 micro:bit 电池口，带 micro:bit 和 Qwiic 上的摇杆、手势、震动；同一组电池经 MiniBoost（TPS61023）升到 5 V，只供 DFPlayer 和 TFT。5 V 绝不能接 micro:bit。DFPlayer 的 TX 是 5 V 电平，要经分压再到 P3（或不接）；RX 从 P0 经 1 kΩ；DFPlayer 电源脚并一个 470–1000 µF 电容。"
@@ -36,7 +36,7 @@
     "note": "Draft: the player-board pin assignment hasn't been finalized with Binqi yet; please double-check before wiring.",
     "extra": [
       "TFT RST is tied straight to 3V and a software reset command is used instead, which saves a pin.",
-      "The TFT backlight (BL/LED) goes to 3V.",
+      "TFT backlight: BL/LED to 3V on the 1.8\" board; on the 3.2\" ILI9341 board Lite is on by default and can be left unconnected.",
       "Player boards display on the TFT and don't need the on-board LED matrix: with the matrix disabled, P3, P4, P6, P7 and P10 are free (P3, P4 and P10 support ADC); P3 is planned for the DFPlayer TX.",
       "The on-board sensors and speaker take no edge pins: the accelerometer is on the micro:bit's internal I2C (planned for Tide) and the speaker is on P0.00 (PWM).",
       "Power is split into two rails with a common ground (purchase list, 2026-11-01): two AAA cells feed the micro:bit battery port (micro:bit plus the joystick, gesture sensor and haptic on Qwiic); the same cells go through a MiniBoost (TPS61023) to 5 V for the DFPlayer and TFT only. 5 V must never reach the micro:bit. The DFPlayer TX is a 5 V signal, so it goes through a divider before P3 (or is left unconnected); RX comes from P0 through 1 kΩ; put a 470–1000 µF capacitor across the DFPlayer supply pins."
