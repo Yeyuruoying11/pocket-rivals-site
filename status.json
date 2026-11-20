@@ -772,10 +772,10 @@
         "file": "lib/gfx.c · ui.c · ui_battle.c · ui_t1.c · scr_*.c",
         "owner": "harvey",
         "status": "doing",
-        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面、T1 会话画面（连接、选模式、大厅、暂停、信号）、排行榜画面和赛车画面（选赛道 / 车手、比赛、结算）都已经和模拟器逐像素一致；设置、资料和冒险画面还没做。TFT 屏驱动见驱动清单。",
+        "detail": "16 色 4 bpp 双缓冲、按 8×8 块只刷新变化的部分；对战画面、T1 会话画面（连接、选模式、大厅、暂停、信号）、排行榜画面和赛车画面（选赛道 / 车手、比赛、结算）都已经和模拟器逐像素一致；设置、资料和冒险画面还没做。屏是 3.2\" ILI9341，画布 ×1.5 放大显示（lib/tft_ili9341.c），驱动见驱动清单。",
         "en": {
           "name": "Drawing core and screens",
-          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens, the T1 session screens (connect, mode select, lobby, pause, signal), the leaderboard screens and the racing screens (track / driver pick, race, results) match the simulator pixel for pixel; settings, profiles and the adventure screens are still to do. The TFT driver is in the driver list."
+          "detail": "16-colour 4 bpp double buffer that refreshes only the 8×8 blocks that changed; the battle screens, the T1 session screens (connect, mode select, lobby, pause, signal), the leaderboard screens and the racing screens (track / driver pick, race, results) match the simulator pixel for pixel; settings, profiles and the adventure screens are still to do. The screen is the 3.2\" ILI9341 and the canvas is scaled ×1.5 (lib/tft_ili9341.c); the driver is in the driver list."
         }
       },
       {
@@ -814,6 +814,18 @@
         "en": {
           "name": "Session rules",
           "detail": "Session rules matching the simulator: waiting, voting on a mode, ready, pause (immediate or deferred), rematch (both must agree), quit, quitting after the rival has been gone 30 s, score, logout and link loss."
+        }
+      },
+      {
+        "id": "bot",
+        "name": "单机电脑玩家",
+        "file": "lib/bot_player.c",
+        "owner": "yihao",
+        "status": "done",
+        "detail": "中央板 make BOT=1 时，板里跑一个电脑 P2：用真的 player_core + controls，按模拟器 bot 的打法按键；跟着 P1 投票、准备、再来一局。只有一台掌机也能玩对战。test_bot.c 打 4 局含再来和退出。",
+        "en": {
+          "name": "Single-player computer opponent",
+          "detail": "With make BOT=1 the central runs a computer P2 on the real player_core + controls, pressing keys like the simulator's bot and following P1 through votes, ready and rematches, so one handheld can play a battle. test_bot.c plays 4 battles with rematches and a leave."
         }
       },
       {
@@ -949,14 +961,14 @@
       "pins": "P13 SCK、P15 MOSI、P16 CS、P8 DC（P8 是 NFC 引脚，要开 CONFIG_NFCT_PINS_AS_GPIOS）",
       "use": "所有画面：绘图核心只调用「设窗口 + 写像素」两个函数",
       "owner": "harvey",
-      "status": "todo",
-      "verify": "开机测试卡：四边 1 px 边框、16 色色条顺序正确；240×320 整屏约 154 ms，所以靠局部刷新",
+      "status": "done",
+      "verify": "11-18 上板通过：测试卡和 T1 固件正常；128×160 画布 ×1.5 放大居中（192×240），整屏 108 ms，局部刷新 2–3 ms；冷启动要等 150 ms 再 SWRESET",
       "en": {
         "name": "TFT driver (ILI9341)",
         "iface": "SPIM2 + EasyDMA, 8 MHz",
         "pins": "P13 SCK, P15 MOSI, P16 CS, P8 DC (P8 is an NFC pin; needs CONFIG_NFCT_PINS_AS_GPIOS)",
         "use": "Every screen: the drawing core only calls two functions, set window and write pixels",
-        "verify": "Boot test card: 1 px border on all four edges, 16 colour bars in order; a full 240×320 frame takes about 154 ms, so partial updates matter"
+        "verify": "Passed on the board on 11-18: test card and T1 firmware OK; the 128×160 canvas is scaled ×1.5 and centred (192×240), full frame 108 ms, partial frames 2–3 ms; cold boot needs a 150 ms wait before SWRESET"
       }
     },
     {
@@ -964,7 +976,7 @@
       "board": "player",
       "name": "按钮驱动",
       "iface": "GPIO + GPIOTE 中断 + 去抖",
-      "pins": "P5 A、P11 B、P2 S、P9 M（P9 是 NFC 引脚）",
+      "pins": "P5 A、P11 B（板载）；外接 P12 A、P14 B、P2 S、P9 M（P9 是 NFC 引脚）",
       "use": "确认、格挡（记下按下时刻，精确到 1 ms）、技能、菜单",
       "owner": "yihao",
       "status": "todo",
@@ -972,7 +984,7 @@
       "en": {
         "name": "Buttons",
         "iface": "GPIO + GPIOTE interrupts + debounce",
-        "pins": "P5 A, P11 B, P2 S, P9 M (P9 is an NFC pin)",
+        "pins": "P5 A, P11 B (on board); external P12 A, P14 B, P2 S, P9 M (P9 is an NFC pin)",
         "use": "Confirm, block (press time recorded to 1 ms), skill, menu",
         "verify": "Print press times over serial: all 4 buttons raise an interrupt, jitter under 10 ms"
       }
